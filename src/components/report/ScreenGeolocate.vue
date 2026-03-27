@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
 import { CATEGORY_CONFIG } from '@/types'
+import DuplicateWarning from '@/components/DuplicateWarning.vue'
 
 const emit = defineEmits<{
   submitted: []
@@ -36,6 +37,12 @@ const mapContainer = ref<HTMLDivElement | null>(null)
 // Soumission
 const submitting = ref(false)
 const error = ref<string | null>(null)
+
+// Vérification des doublons
+const checkingDuplicates = ref(false)
+const duplicates = ref<any[]>([])
+const showDuplicateWarning = ref(false)
+const duplicateCheckDone = ref(false)
 
 // Démarrer le GPS après consentement
 function startGPS() {
@@ -189,7 +196,9 @@ async function initMap(latitude: number, longitude: number) {
     const position = event.target.getLatLng()
     lat.value = position.lat
     lng.value = position.lng
+    duplicateCheckDone.value = false
     reverseGeocode(position.lat, position.lng)
+    checkForDuplicates()
   })
 }
 
@@ -198,9 +207,59 @@ watch(gpsState, (newState) => {
   if (newState === 'located' && lat.value !== null && lng.value !== null) {
     nextTick(() => {
       initMap(lat.value!, lng.value!)
+      checkForDuplicates()
     })
   }
 })
+
+// Watcher pour réinitialiser duplicateCheckDone quand on change de mode manuel
+watch(gpsState, (newState) => {
+  if (newState === 'manual') {
+    duplicateCheckDone.value = false
+  }
+})
+
+// Vérifier les doublons
+async function checkForDuplicates() {
+  if (!lat.value || !lng.value || !store.category) return
+
+  checkingDuplicates.value = true
+  duplicates.value = []
+  showDuplicateWarning.value = false
+
+  try {
+    const result = await apiFetch<{ duplicates_found: boolean; reports: any[] }>(
+      '/api/reports/check-duplicate',
+      {
+        method: 'POST',
+        body: {
+          lat: lat.value,
+          lng: lng.value,
+          category: store.category,
+        },
+      }
+    )
+
+    if (result.duplicates_found && result.reports.length > 0) {
+      duplicates.value = result.reports
+      showDuplicateWarning.value = true
+    }
+
+    duplicateCheckDone.value = true
+  } catch (err: any) {
+    console.error('Erreur vérification doublons:', err)
+  } finally {
+    checkingDuplicates.value = false
+  }
+}
+
+function handleContinueAnyway() {
+  showDuplicateWarning.value = false
+}
+
+function handleVoted(reportId: string) {
+  console.log('Vote enregistré pour:', reportId)
+}
 
 // Soumission du signalement
 async function handleSubmit() {
@@ -397,6 +456,20 @@ const canSubmit = computed(() => {
 
         <div ref="mapContainer" class="w-full h-96 rounded-ds-xl overflow-hidden shadow-md border border-neutral-200" />
 
+        <!-- Vérification des doublons en cours -->
+        <div v-if="checkingDuplicates" class="flex items-center gap-2 text-sm text-neutral-600 p-3 bg-neutral-50 rounded-ds-lg">
+          <span class="inline-block w-4 h-4 border-2 border-neutral-400 border-t-transparent rounded-full animate-spin"></span>
+          <span>Vérification des signalements existants...</span>
+        </div>
+
+        <!-- Avertissement de doublons -->
+        <DuplicateWarning
+          v-if="showDuplicateWarning && duplicates.length > 0"
+          :duplicates="duplicates"
+          @continue="handleContinueAnyway"
+          @voted="handleVoted"
+        />
+
         <div class="bg-blue-50 border border-blue-200 rounded-ds-lg p-4">
           <p class="text-sm text-blue-900">
             💡 <strong>Conseil :</strong> Déplacez le marker 📍 pour ajuster précisément la position
@@ -426,7 +499,7 @@ const canSubmit = computed(() => {
       </div>
 
       <!-- Submit Button -->
-      <div v-if="gpsState === 'located'" class="space-y-2">
+      <div v-if="gpsState === 'located' && !showDuplicateWarning" class="space-y-2">
         <button
           @click="handleSubmit"
           :disabled="!canSubmit"
