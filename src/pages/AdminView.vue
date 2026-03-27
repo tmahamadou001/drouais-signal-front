@@ -7,6 +7,7 @@ import StatusBadge from '@/components/StatusBadge.vue'
 import CategoryIcon from '@/components/CategoryIcon.vue'
 import StatusTimeline from '@/components/StatusTimeline.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import MapView from '@/components/MapView.vue'
 
 const { apiFetch } = useApi()
 
@@ -447,8 +448,19 @@ onMounted(fetchData)
                 <StatusTimeline :current-status="selectedReport.status" />
               </div>
 
+              <div class="border-t border-neutral-200 pt-2 space-y-3">
+                <div class="h-[250px] rounded-ds-lg overflow-hidden border border-neutral-200">
+                  <MapView
+                    :center="[selectedReport.lat, selectedReport.lng]"
+                    :zoom="16"
+                    :selected-position="{ lat: selectedReport.lat, lng: selectedReport.lng }"
+                  />
+                </div>
+              </div>
+
+
               <!-- Actions -->
-              <div class="border-t border-neutral-200 pt-4 space-y-3">
+              <div class="border-t border-neutral-200 pt-2 space-y-3">
                 <button
                   v-if="selectedReport.status === 'en_attente'"
                   @click="updateStatus(selectedReport.id, 'pris_en_charge')"
