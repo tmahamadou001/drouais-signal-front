@@ -45,7 +45,7 @@ const showDuplicateWarning = ref(false)
 const duplicateCheckDone = ref(false)
 
 // Démarrer le GPS après consentement
-function startGPS() {
+async function startGPS() {
   gpsState.value = 'loading'
   gpsError.value = ''
 
@@ -53,6 +53,20 @@ function startGPS() {
     gpsState.value = 'manual'
     gpsError.value = 'GPS non disponible sur cet appareil'
     return
+  }
+
+  try {
+    if (navigator.permissions) {
+      const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
+      
+      if (permissionStatus.state === 'denied') {
+        gpsState.value = 'manual'
+        gpsError.value = 'Localisation refusée dans les paramètres du navigateur — saisissez l\'adresse manuellement'
+        return
+      }
+    }
+  } catch (err) {
+    console.log('Permissions API non disponible, tentative directe')
   }
 
   navigator.geolocation.getCurrentPosition(
@@ -64,6 +78,7 @@ function startGPS() {
       reverseGeocode(lat.value, lng.value)
     },
     (err) => {
+      console.error('Erreur GPS:', err.code, err.message)
       const messages: Record<number, string> = {
         1: 'Localisation refusée — saisissez l\'adresse manuellement',
         2: 'Position indisponible — saisissez l\'adresse manuellement',
@@ -74,8 +89,8 @@ function startGPS() {
     },
     {
       enableHighAccuracy: true,
-      timeout: 10000,
-      maximumAge: 30000,
+      timeout: 15000,
+      maximumAge: 0,
     }
   )
 }
