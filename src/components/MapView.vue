@@ -1,20 +1,37 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
-import type { Report, ReportStatus } from '@/types'
-import { STATUS_CONFIG, CATEGORY_CONFIG } from '@/types'
+import { ref, onMounted, onUnmounted } from 'vue'
 import 'leaflet/dist/leaflet.css'
+import 'leaflet.markercluster/dist/MarkerCluster.css'
+import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
+import '@/assets/map.css'
+import { useApi } from '@/composables/useApi'
+
+interface MapMarker {
+  id: string
+  lat: number
+  lng: number
+  status: 'en_attente' | 'pris_en_charge' | 'resolu'
+  category: 'voirie' | 'eclairage' | 'dechets' | 'autre'
+  title: string
+  vote_count: number
+}
+
+interface ReportDetail extends MapMarker {
+  description: string | null
+  photo_url: string | null
+  address_approx: string | null
+  created_at: string
+}
 
 const props = withDefaults(defineProps<{
-  reports?: Report[]
   interactive?: boolean
   center?: [number, number]
   zoom?: number
   selectedPosition?: { lat: number; lng: number } | null
 }>(), {
-  reports: () => [],
   interactive: false,
-  center: () => [48.7356, 1.3653], // Dreux city center
-  zoom: 14,
+  center: () => [48.7365, 1.3668],
+  zoom: 13,
   selectedPosition: null,
 })
 
@@ -23,37 +40,70 @@ const emit = defineEmits<{
 }>()
 
 const mapContainer = ref<HTMLDivElement>()
+const markersLoading = ref(false)
+const totalMarkers = ref(0)
+
+const { apiFetch } = useApi()
+
 let map: any = null
-let markers: any[] = []
+let clusterGroup: any = null
 let selectedMarker: any = null
 
-const markerColors: Record<ReportStatus, string> = {
-  en_attente: '#A3A3A3',
+const STATUS_COLORS = {
+  en_attente: '#888780',
   pris_en_charge: '#EF9F27',
-  resolu: '#1D9E75',
+  resolu: '#1D9E75'
 }
 
-function createMarkerIcon(color: string, voteCount: number = 0) {
+const CATEGORY_EMOJIS: Record<string, string> = {
+  voirie: '🚧',
+  eclairage: '💡',
+  dechets: '🗑️',
+  autre: '❓'
+}
+
+function getCategoryEmoji(category: string): string {
+  return CATEGORY_EMOJIS[category] || '📍'
+}
+
+function getCategoryLabel(category: string): string {
+  const labels: Record<string, string> = {
+    voirie: 'Voirie',
+    eclairage: 'Éclairage',
+    dechets: 'Déchets',
+    autre: 'Autre'
+  }
+  return labels[category] || category
+}
+
+function getStatusLabel(status: string): string {
+  const labels: Record<string, string> = {
+    en_attente: 'En attente',
+    pris_en_charge: 'Pris en charge',
+    resolu: 'Résolu'
+  }
+  return labels[status] || status
+}
+
+function getMarkerIcon(status: string, category: string): any {
   const L = (window as any).L
-  const size = voteCount >= 5 ? 31 : 24
-  const borderWidth = voteCount >= 5 ? 4 : 3
-  
+  const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#888780'
+  const emoji = getCategoryEmoji(category)
+
   return L.divIcon({
-    className: 'custom-marker',
-    html: `<div style="
-      width: ${size}px; height: ${size}px;
-      background: ${color};
-      border: ${borderWidth}px solid white;
-      border-radius: 50%;
-      box-shadow: 0 2px 6px rgba(0,0,0,0.3);
-    "></div>`,
-    iconSize: [size, size],
-    iconAnchor: [size / 2, size / 2],
-    popupAnchor: [0, -(size / 2 + 4)],
+    html: `
+      <div class="custom-marker" style="background:${color}">
+        <span style="font-size:14px">${emoji}</span>
+      </div>
+    `,
+    className: 'custom-marker-wrapper',
+    iconSize: [36, 36],
+    iconAnchor: [18, 36],
+    popupAnchor: [0, -36]
   })
 }
 
-function createSelectedIcon() {
+function createSelectedIcon(): any {
   const L = (window as any).L
   return L.divIcon({
     className: 'custom-marker',
@@ -76,19 +126,42 @@ async function initMap() {
   if (!mapContainer.value) return
 
   const L = await import('leaflet')
-  ;(window as any).L = L
+  ;(window as any).L = L.default || L
+
+  await import('leaflet.markercluster')
 
   map = L.map(mapContainer.value, {
     center: props.center,
     zoom: props.zoom,
     zoomControl: true,
-    attributionControl: true,
   })
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a>',
+    attribution: '© OpenStreetMap contributors',
     maxZoom: 19,
   }).addTo(map)
+
+  const LeafletWithCluster = (window as any).L
+  clusterGroup = LeafletWithCluster.markerClusterGroup({
+    maxClusterRadius: 60,
+    spiderfyOnMaxZoom: true,
+    showCoverageOnHover: false,
+    zoomToBoundsOnClick: true,
+    iconCreateFunction: (cluster: any) => {
+      const count = cluster.getChildCount()
+      const size = count < 10 ? 'small' :
+                   count < 50 ? 'medium' : 'large'
+      return L.divIcon({
+        html: `<div class="cluster-icon cluster-${size}">
+                 <span>${count}</span>
+               </div>`,
+        className: 'custom-cluster',
+        iconSize: L.point(40, 40)
+      })
+    }
+  })
+
+  clusterGroup.addTo(map)
 
   if (props.interactive) {
     map.on('click', (e: any) => {
@@ -96,74 +169,129 @@ async function initMap() {
     })
   }
 
-  updateMarkers()
+  await loadMarkers()
   updateSelectedMarker()
 }
 
-function updateMarkers() {
-  if (!map) return
-  const L = (window as any).L
+async function loadMarkers() {
+  markersLoading.value = true
 
-  // Clear existing markers
-  markers.forEach(m => map.removeLayer(m))
-  markers = []
-
-  props.reports.forEach(report => {
+  try {
+    const {markers} = await apiFetch<{markers: MapMarker[]}>('/api/map/markers')
     
-    const color = markerColors[report.status]
-    const voteCount = report.vote_count || 0
-    const icon = createMarkerIcon(color, voteCount)
-    const categoryConfig = CATEGORY_CONFIG[report.category]
-    const statusConfig = STATUS_CONFIG[report.status]
-    const isPopular = voteCount >= 10
+    if (!markers) {
+      console.error('Failed to load markers: no data returned')
+      return
+    }
+    
+    const L = (window as any).L
 
-    const marker = L.marker([report.lat, report.lng], { icon })
-      .addTo(map)
-      .bindPopup(`
-        <div style="min-width: 180px;">
-          <div style="font-weight: 600; margin-bottom: 4px;">${categoryConfig.emoji} ${report.title}</div>
-          <div style="font-size: 12px; color: #737373; margin-bottom: 6px;">
-            ${categoryConfig.label}${report.address_approx ? ' — ' + report.address_approx : ''}
+    markers.forEach((marker: MapMarker) => {
+      const leafletMarker = L.marker(
+        [marker.lat, marker.lng],
+        { icon: getMarkerIcon(marker.status, marker.category) }
+      )
+
+      leafletMarker.bindTooltip(
+        `<div class="marker-tooltip">
+          <span class="marker-cat">${getCategoryLabel(marker.category)}</span>
+          <span class="marker-title">${marker.title}</span>
+          ${marker.vote_count > 0
+            ? `<span class="marker-votes">▲ ${marker.vote_count}</span>` 
+            : ''}
+        </div>`,
+        { permanent: false, direction: 'top', offset: [0, -10] }
+      )
+
+      leafletMarker.on('click', () => {
+        openDetailPopup(marker.id, leafletMarker)
+      })
+
+      clusterGroup.addLayer(leafletMarker)
+    })
+
+    totalMarkers.value = markers.length
+
+  } catch (err) {
+    console.error('Failed to load markers:', err)
+  } finally {
+    markersLoading.value = false
+  }
+}
+
+async function openDetailPopup(reportId: string, marker: any) {
+  marker.bindPopup(
+    `<div class="popup-loading">
+       <div class="popup-spinner"></div>
+       Chargement...
+     </div>`,
+    { maxWidth: 280 }
+  ).openPopup()
+
+  try {
+    const {report: ReportDetail} = await apiFetch<{report: ReportDetail}>(`/api/reports/${reportId}`)
+
+    const popupContent = `
+      <div class="report-popup">
+
+        ${ReportDetail.photo_url ? `
+          <div class="popup-photo">
+            <img
+              src="${ReportDetail.photo_url}"
+              alt="${ReportDetail.title}"
+              loading="lazy"
+              style="width:100%;height:120px;
+                     object-fit:cover;border-radius:6px"
+            />
           </div>
-          <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 6px;">
-            <div style="
-              display: inline-flex; align-items: center; gap: 4px;
-              padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
-              background: ${color}20; color: ${color};
-            ">
-              <span style="width: 6px; height: 6px; border-radius: 50%; background: ${color};"></span>
-              ${statusConfig.label}
-            </div>
-            ${voteCount > 0 ? `
-              <div style="
-                display: inline-flex; align-items: center; gap: 3px;
-                padding: 2px 8px; border-radius: 999px; font-size: 11px; font-weight: 600;
-                background: #EFF6FF; color: #1E40AF;
-              ">
-                <span>▲</span>
-                <span>${voteCount}</span>
-              </div>
-            ` : ''}
+        ` : ''}
+
+        <div class="popup-body">
+          <div class="popup-meta">
+            <span class="popup-cat">
+              ${getCategoryEmoji(ReportDetail.category)}
+              ${getCategoryLabel(ReportDetail.category)}
+            </span>
+            <span class="popup-status status-${ReportDetail.status}">
+              ${getStatusLabel(ReportDetail.status)}
+            </span>
           </div>
-          ${isPopular ? `
-            <div style="
-              display: inline-flex; align-items: center; gap: 4px;
-              padding: 3px 8px; border-radius: 999px; font-size: 10px; font-weight: 700;
-              background: #FEF3C7; color: #92400E; margin-bottom: 6px;
-            ">
-              👑 Prioritaire
+
+          <div class="popup-title">${ReportDetail.title}</div>
+
+          ${ReportDetail.description ? `
+            <div class="popup-desc">${ReportDetail.description}</div>
+          ` : ''}
+
+          ${ReportDetail.address_approx ? `
+            <div class="popup-address">
+              📍 ${ReportDetail.address_approx}
             </div>
           ` : ''}
-          <div style="margin-top: 8px;">
-            <a href="/signalement/${report.id}" style="
-              color: #1A56A0; font-size: 12px; font-weight: 500; text-decoration: none;
-            ">Voir le détail →</a>
+
+          <div class="popup-footer">
+            ${ReportDetail.vote_count > 0
+              ? `<span>▲ ${ReportDetail.vote_count} vote${ReportDetail.vote_count > 1 ? 's' : ''}</span>` 
+              : ''}
+            <a
+              href="/signalement/${ReportDetail.id}"
+              class="popup-link"
+            >
+              Voir le détail →
+            </a>
           </div>
         </div>
-      `)
 
-    markers.push(marker)
-  })
+      </div>
+    `
+
+    marker.setPopupContent(popupContent)
+
+  } catch {
+    marker.setPopupContent(
+      '<div class="popup-error">Impossible de charger les détails</div>'
+    )
+  }
 }
 
 function updateSelectedMarker() {
@@ -186,10 +314,14 @@ function updateSelectedMarker() {
   }
 }
 
-watch(() => props.reports, updateMarkers, { deep: true })
-watch(() => props.selectedPosition, updateSelectedMarker, { deep: true })
-
 onMounted(initMap)
+
+onUnmounted(() => {
+  if (map) {
+    map.remove()
+    map = null
+  }
+})
 </script>
 
 <template>
@@ -199,3 +331,4 @@ onMounted(initMap)
     style="min-height: 300px;"
   />
 </template>
+

@@ -2,23 +2,18 @@
 import { ref, onMounted, computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
-import type { Report, AdminStats } from '@/types'
+import type { AdminStats } from '@/types'
 import MapView from '@/components/MapView.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 
 const { apiFetch } = useApi()
 
-const reports = ref<Report[]>([])
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
 const loading = ref(true)
 
 onMounted(async () => {
   try {
-    const [reportsData, statsData] = await Promise.all([
-      apiFetch<{data: Report[]}>('/api/reports'),
-      apiFetch<AdminStats>('/api/admin/stats'),
-    ])
-    reports.value = reportsData.data
+    const statsData = await apiFetch<AdminStats>('/api/admin/stats')
     stats.value = statsData
   } catch (err) {
     console.error('Erreur chargement accueil:', err)
@@ -125,7 +120,7 @@ const statCards = computed(() => [
 
       <LoadingSpinner v-if="loading" label="Chargement de la carte…" />
       <div v-else class="h-[500px] rounded-ds-lg overflow-hidden shadow-ds-lg border border-neutral-200">
-        <MapView :reports="reports" />
+        <MapView />
       </div>
     </section>
   </div>
