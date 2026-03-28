@@ -127,7 +127,7 @@ onMounted(async () => {
           <MapView
             :center="[report.lat, report.lng]"
             :zoom="16"
-            :selected-position="{ lat: report.lat, lng: report.lng }"
+            :selected-position="{ lat: report.lat, lng: report.lng, category: report.category }"
           />
         </div>
       </div>

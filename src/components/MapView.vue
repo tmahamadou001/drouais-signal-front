@@ -27,12 +27,14 @@ const props = withDefaults(defineProps<{
   interactive?: boolean
   center?: [number, number]
   zoom?: number
-  selectedPosition?: { lat: number; lng: number } | null
+  selectedPosition?: { lat: number; lng: number; category?: string } | null
+  showAllMarkers?: boolean
 }>(), {
   interactive: false,
   center: () => [48.7365, 1.3668],
   zoom: 13,
   selectedPosition: null,
+  showAllMarkers: false,
 })
 
 const emit = defineEmits<{
@@ -48,6 +50,8 @@ const { apiFetch } = useApi()
 let map: any = null
 let clusterGroup: any = null
 let selectedMarker: any = null
+let currentOpenMarker: any = null
+let isLoadingPopup = false
 
 const STATUS_COLORS = {
   en_attente: '#888780',
@@ -103,8 +107,24 @@ function getMarkerIcon(status: string, category: string): any {
   })
 }
 
-function createSelectedIcon(): any {
+function createSelectedIcon(category?: string): any {
   const L = (window as any).L
+  
+  if (category) {
+    const emoji = getCategoryEmoji(category)
+    return L.divIcon({
+      html: `
+        <div class="custom-marker" style="background:#1A56A0">
+          <span style="font-size:14px">${emoji}</span>
+        </div>
+      `,
+      className: 'custom-marker-wrapper',
+      iconSize: [36, 36],
+      iconAnchor: [18, 36],
+      popupAnchor: [0, -36]
+    })
+  }
+  
   return L.divIcon({
     className: 'custom-marker',
     html: `<div style="
@@ -169,7 +189,10 @@ async function initMap() {
     })
   }
 
-  await loadMarkers()
+  if (props.showAllMarkers) {
+    await loadMarkers()
+  }
+  
   updateSelectedMarker()
 }
 
@@ -200,10 +223,11 @@ async function loadMarkers() {
             ? `<span class="marker-votes">▲ ${marker.vote_count}</span>` 
             : ''}
         </div>`,
-        { permanent: false, direction: 'top', offset: [0, -10] }
+        { permanent: false, direction: 'top', offset: [0, -10], maxWidth: 200 }
       )
 
       leafletMarker.on('click', () => {
+        if (isLoadingPopup) return
         openDetailPopup(marker.id, leafletMarker)
       })
 
@@ -220,6 +244,18 @@ async function loadMarkers() {
 }
 
 async function openDetailPopup(reportId: string, marker: any) {
+  if (isLoadingPopup) return
+  
+  isLoadingPopup = true
+  
+  if (currentOpenMarker === marker && marker.isPopupOpen()) {
+    isLoadingPopup = false
+    return
+  }
+  
+  currentOpenMarker = marker
+  
+  marker.unbindPopup()
   marker.bindPopup(
     `<div class="popup-loading">
        <div class="popup-spinner"></div>
@@ -291,6 +327,8 @@ async function openDetailPopup(reportId: string, marker: any) {
     marker.setPopupContent(
       '<div class="popup-error">Impossible de charger les détails</div>'
     )
+  } finally {
+    isLoadingPopup = false
   }
 }
 
@@ -304,7 +342,8 @@ function updateSelectedMarker() {
   }
 
   if (props.selectedPosition) {
-    const icon = createSelectedIcon()
+    const report = props.selectedPosition as any
+    const icon = createSelectedIcon(report.category)
     selectedMarker = L.marker(
       [props.selectedPosition.lat, props.selectedPosition.lng],
       { icon }

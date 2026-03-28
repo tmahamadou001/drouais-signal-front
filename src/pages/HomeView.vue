@@ -120,7 +120,7 @@ const statCards = computed(() => [
 
       <LoadingSpinner v-if="loading" label="Chargement de la carte…" />
       <div v-else class="h-[500px] rounded-ds-lg overflow-hidden shadow-ds-lg border border-neutral-200">
-        <MapView />
+        <MapView :show-all-markers="true" />
       </div>
     </section>
   </div>
