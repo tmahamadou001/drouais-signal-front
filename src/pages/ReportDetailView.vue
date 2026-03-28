@@ -89,11 +89,9 @@ onMounted(async () => {
         <div class="flex items-start gap-4">
           <CategoryIcon :category="report.category" size="lg" />
           <div class="flex-1">
-            <div class="flex items-start justify-between gap-3">
-              <h1 class="text-xl font-display font-bold text-dark">{{ report.title }}</h1>
-              <StatusBadge :status="report.status" />
-            </div>
-            <p class="text-sm text-neutral-500 mt-1">
+            <h1 class="text-lg font-display font-bold text-dark line-clamp-2">{{ report.title }}</h1>
+            <StatusBadge :status="report.status" class="mt-2 self-start" />
+            <p class="text-sm text-neutral-500 mt-2">
               {{ categoryConfig?.label }}
               <template v-if="report.address_approx"> — {{ report.address_approx }}</template>
             </p>

@@ -29,11 +29,11 @@ const formattedDate = computed(() => {
     <div class="flex items-start gap-3">
       <CategoryIcon :category="report.category" size="md" />
       <div class="flex-1 min-w-0">
-        <div class="flex flex items-start justify-between gap-2">
-          <h3 class="text-sm font-semibold text-dark truncate group-hover:text-primary transition-colors">
+        <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-2">
+          <h3 class="text-sm font-semibold text-dark line-clamp-2 group-hover:text-primary transition-colors">
             {{ report.title }}
           </h3>
-          <StatusBadge :status="report.status" />
+          <StatusBadge :status="report.status" class="self-start sm:flex-shrink-0" />
         </div>
         <p class="text-xs text-neutral-500 mt-1">
           {{ categoryLabel }}

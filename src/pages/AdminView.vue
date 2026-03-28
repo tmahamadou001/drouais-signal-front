@@ -453,7 +453,7 @@ onMounted(fetchData)
                   <MapView
                     :center="[selectedReport.lat, selectedReport.lng]"
                     :zoom="16"
-                    :selected-position="{ lat: selectedReport.lat, lng: selectedReport.lng }"
+                    :selected-position="{ lat: selectedReport.lat, lng: selectedReport.lng, category: selectedReport.category }"
                   />
                 </div>
               </div>

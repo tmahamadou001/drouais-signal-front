@@ -71,7 +71,7 @@ watch(() => route.path, () => {
               </span>
               <button
                 @click="auth.signOut()"
-                class="text-sm font-medium text-neutral-500 hover:text-dark transition-colors"
+                class="hidden md:block text-sm font-medium text-neutral-500 hover:text-dark transition-colors"
               >
                 Déconnexion
               </button>
@@ -112,6 +112,14 @@ watch(() => route.path, () => {
           >
             {{ link.label }}
           </RouterLink>
+          
+          <button
+            v-if="auth.user"
+            @click="auth.signOut()"
+            class="w-full text-left px-3 py-2 rounded-ds text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
+          >
+            Déconnexion
+          </button>
         </nav>
       </div>
     </header>
