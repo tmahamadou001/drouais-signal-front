@@ -25,7 +25,7 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+  <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
     <div class="flex items-center justify-between mb-8">
       <div>
         <h1 class="text-2xl font-display font-bold text-dark">Mes signalements</h1>
