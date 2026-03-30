@@ -55,20 +55,6 @@ async function startGPS() {
     return
   }
 
-  try {
-    if (navigator.permissions) {
-      const permissionStatus = await navigator.permissions.query({ name: 'geolocation' as PermissionName })
-      
-      if (permissionStatus.state === 'denied') {
-        gpsState.value = 'manual'
-        gpsError.value = 'Localisation refusée dans les paramètres du navigateur — saisissez l\'adresse manuellement'
-        return
-      }
-    }
-  } catch (err) {
-    console.log('Permissions API non disponible, tentative directe')
-  }
-
   navigator.geolocation.getCurrentPosition(
     (position) => {
       lat.value = position.coords.latitude
