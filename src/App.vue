@@ -6,6 +6,10 @@ import { useAuthStore } from '@/stores/auth'
 const auth = useAuthStore()
 const route = useRoute()
 
+const isAdminRoute = computed(() => route.path.startsWith('/admin'))
+const showHeader = computed(() => !isAdminRoute.value)
+const showFooter = computed(() => !isAdminRoute.value)
+
 const navLinks = computed(() => {
   const links = [
     { to: '/', label: 'Accueil', show: true },
@@ -31,7 +35,7 @@ watch(() => route.path, () => {
 <template>
   <div class="min-h-screen flex flex-col">
     <!-- Header -->
-    <header class="bg-white border-b border-neutral-200 sticky top-0 z-50">
+    <header v-if="showHeader" class="bg-white border-b border-neutral-200 sticky top-0 z-50">
       <div class="max-w-6xl mx-auto px-4 sm:px-6">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
@@ -134,7 +138,7 @@ watch(() => route.path, () => {
     </main>
 
     <!-- Footer -->
-    <footer class="bg-white border-t border-neutral-200 py-8 mt-auto">
+    <footer v-if="showFooter" class="bg-white border-t border-neutral-200 py-8 mt-auto">
       <div class="max-w-6xl mx-auto px-4 sm:px-6">
         <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
           <div class="flex items-center gap-2 text-sm text-neutral-500">

@@ -33,9 +33,36 @@ const router = createRouter({
     },
     {
       path: '/admin',
-      name: 'admin',
-      component: () => import('@/pages/AdminView.vue'),
+      component: () => import('@/layouts/AdminLayout.vue'),
       meta: { requiresAuth: true, requiresAdmin: true },
+      redirect: '/admin/signalements',
+      children: [
+        {
+          path: 'signalements',
+          name: 'AdminReports',
+          component: () => import('@/pages/admin/ReportsAdminView.vue')
+        },
+        {
+          path: 'heatmap',
+          name: 'AdminHeatmap',
+          component: () => import('@/pages/admin/HeatmapAdminView.vue')
+        },
+        {
+          path: 'performance',
+          name: 'AdminPerformance',
+          component: () => import('@/pages/admin/SlaAdminView.vue')
+        },
+        {
+          path: 'rapport',
+          name: 'AdminWeekly',
+          component: () => import('@/pages/admin/WeeklyReportAdminView.vue')
+        },
+        {
+          path: 'parametres',
+          name: 'AdminSettings',
+          component: () => import('@/pages/admin/SettingsAdminView.vue')
+        }
+      ]
     },
     {
       path: '/:pathMatch(.*)*',
