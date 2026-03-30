@@ -246,7 +246,7 @@ async function exportPDF() {
     const pdf = new jsPDF('landscape', 'mm', 'a4')
 
     pdf.setFontSize(16)
-    pdf.text('DrouaisSignal — Rapport Carte de Chaleur', 14, 15)
+    pdf.text('OnSignale — Rapport Carte de Chaleur', 14, 15)
     
     pdf.setFontSize(10)
     pdf.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 22)

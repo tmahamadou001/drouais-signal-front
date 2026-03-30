@@ -82,7 +82,7 @@ function toggleSidebar() {
             </svg>
           </div>
           <span class="font-semibold text-gray-800 text-base">
-            DrouaisSignal
+            OnSignale
           </span>
           <span class="ml-1 text-xs text-gray-400 font-medium">
             Administration

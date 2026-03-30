@@ -68,7 +68,7 @@ watch(() => route.path, () => {
               </svg>
             </div>
             <span class="font-display text-lg font-bold text-dark tracking-tight">
-              Drouais<span class="text-primary">Signal</span>
+              On<span class="text-primary">Signale</span>
             </span>
           </RouterLink>
 
@@ -167,7 +167,7 @@ watch(() => route.path, () => {
                 <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
               </svg>
             </div>
-            DrouaisSignal — Ville de Dreux
+            OnSignale — Ville de Dreux
           </div>
           <p class="text-sm text-neutral-400">
             Service de signalement urbain citoyen

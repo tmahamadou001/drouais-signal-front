@@ -133,7 +133,7 @@ async function reverseGeocode(latitude: number, longitude: number) {
     const res = await fetch(url.toString(), {
       headers: {
         'Accept-Language': 'fr',
-        'User-Agent': 'DrouaisSignal/1.0',
+        'User-Agent': 'OnSignale/1.0',
       },
     })
     const data = await res.json()
@@ -172,7 +172,7 @@ function searchAddress(query: string) {
       const res = await fetch(url.toString(), {
         headers: {
           'Accept-Language': 'fr',
-          'User-Agent': 'DrouaisSignal/1.0',
+          'User-Agent': 'OnSignale/1.0',
         },
       })
       const results = await res.json()
