@@ -104,15 +104,28 @@ const hoveredItemData = computed(() => {
       </button>
       
       <div v-if="!isCollapsed" class="flex items-center gap-2">
-        <div class="w-6 h-6 bg-primary rounded flex items-center justify-center">
-          <svg viewBox="0 0 20 20" class="w-3.5 h-3.5 text-white" fill="currentColor">
-            <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-          </svg>
-        </div>
-        <!-- <span class="nav-label font-semibold text-sm text-gray-800">
-          DrouaisSignal
-        </span> -->
+        <RouterLink
+          to="/"
+          class="flex items-center gap-2 p-1.5 rounded-lg hover:bg-gray-100 transition-colors group"
+          title="Retour à l'accueil"
+        >
+          <div class="w-6 h-6 bg-primary rounded flex items-center justify-center group-hover:bg-primary-600 transition-colors">
+            <svg viewBox="0 0 20 20" class="w-3.5 h-3.5 text-white" fill="currentColor">
+              <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
+            </svg>
+          </div>
+          <AppIcon name="Home" :size="16" class="text-gray-500 group-hover:text-gray-700" />
+        </RouterLink>
       </div>
+      
+      <RouterLink
+        v-else
+        to="/"
+        class="p-1.5 rounded-lg hover:bg-gray-100 transition-colors"
+        title="Retour à l'accueil"
+      >
+        <AppIcon name="Home" :size="18" class="text-gray-500" />
+      </RouterLink>
     </div>
 
     <!-- Navigation -->
