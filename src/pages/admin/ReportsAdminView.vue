@@ -143,9 +143,9 @@ onMounted(fetchData)
 </script>
 
 <template>
-  <div class="p-6">
-    <div class="mb-8">
-      <h1 class="text-2xl font-display font-bold text-dark">Signalements</h1>
+  <div class="p-4 md:p-6">
+    <div class="mb-6 md:mb-8">
+      <h1 class="text-xl md:text-2xl font-display font-bold text-dark">Signalements</h1>
       <p class="text-sm text-neutral-500 mt-1">Gestion des signalements urbains</p>
     </div>
 
@@ -325,17 +325,18 @@ onMounted(fetchData)
         </div>
 
         <!-- Pagination -->
-        <div class="flex items-center justify-between px-4 py-3 border-t border-neutral-200">
-          <div class="text-sm text-neutral-500">
-            Page {{ currentPage }} sur {{ totalPages }} — {{ totalReports }} signalement{{ totalReports > 1 ? 's' : '' }} au total
+        <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-neutral-200">
+          <div class="text-xs sm:text-sm text-neutral-500 text-center sm:text-left">
+            Page {{ currentPage }} sur {{ totalPages }}<span class="hidden sm:inline"> —</span><br class="sm:hidden" /> {{ totalReports }} signalement{{ totalReports > 1 ? 's' : '' }} au total
           </div>
-          <div class="flex items-center gap-2">
+          <div class="flex items-center gap-1 sm:gap-2">
             <button
               @click="goToPage(currentPage - 1)"
               :disabled="currentPage === 1"
-              class="px-3 py-1.5 rounded-ds text-sm font-medium bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-2 sm:px-3 py-1.5 rounded-ds text-xs sm:text-sm font-medium bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Précédent
+              <span class="hidden sm:inline">Précédent</span>
+              <span class="sm:hidden">←</span>
             </button>
             
             <div class="flex items-center gap-1">
@@ -344,7 +345,7 @@ onMounted(fetchData)
                 :key="page"
                 @click="goToPage(page)"
                 :class="[
-                  'px-3 py-1.5 rounded-ds text-sm font-medium transition-colors',
+                  'px-2 sm:px-3 py-1.5 rounded-ds text-xs sm:text-sm font-medium transition-colors',
                   page === currentPage
                     ? 'bg-primary text-white'
                     : 'bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50'
@@ -357,9 +358,10 @@ onMounted(fetchData)
             <button
               @click="goToPage(currentPage + 1)"
               :disabled="currentPage === totalPages"
-              class="px-3 py-1.5 rounded-ds text-sm font-medium bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              class="px-2 sm:px-3 py-1.5 rounded-ds text-xs sm:text-sm font-medium bg-white border border-neutral-300 text-neutral-700 hover:bg-neutral-50 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             >
-              Suivant
+              <span class="hidden sm:inline">Suivant</span>
+              <span class="sm:hidden">→</span>
             </button>
           </div>
         </div>

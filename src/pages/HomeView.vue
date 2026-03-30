@@ -4,7 +4,8 @@ import { RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import type { AdminStats } from '@/types'
 import MapView from '@/components/MapView.vue'
-import LoadingSpinner from '@/components/LoadingSpinner.vue'
+import SkeletonCard from '@/components/SkeletonCard.vue'
+import MapSkeleton from '@/components/MapSkeleton.vue'
 
 const { apiFetch } = useApi()
 
@@ -83,17 +84,25 @@ const statCards = computed(() => [
     <section class="bg-white border-b border-neutral-200">
       <div class="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-          <div
-            v-for="stat in statCards"
-            :key="stat.label"
-            class="flex items-center gap-3 px-4 py-3 rounded-ds-lg bg-neutral-50"
-          >
-            <div class="w-2 h-8 rounded-full" :class="stat.color"></div>
-            <div>
-              <p class="text-2xl font-bold" :class="stat.textColor">{{ stat.value }}</p>
-              <p class="text-xs text-neutral-500 font-medium">{{ stat.label }}</p>
+          <!-- Skeleton pendant le chargement -->
+          <template v-if="loading">
+            <SkeletonCard v-for="i in 4" :key="i" />
+          </template>
+          
+          <!-- Stats réelles -->
+          <template v-else>
+            <div
+              v-for="stat in statCards"
+              :key="stat.label"
+              class="flex items-center gap-3 px-4 py-3 rounded-ds-lg bg-neutral-50"
+            >
+              <div class="w-2 h-8 rounded-full" :class="stat.color"></div>
+              <div>
+                <p class="text-2xl font-bold" :class="stat.textColor">{{ stat.value }}</p>
+                <p class="text-xs text-neutral-500 font-medium">{{ stat.label }}</p>
+              </div>
             </div>
-          </div>
+          </template>
         </div>
       </div>
     </section>
@@ -118,7 +127,7 @@ const statCards = computed(() => [
         </div>
       </div>
 
-      <LoadingSpinner v-if="loading" label="Chargement de la carte…" />
+      <MapSkeleton v-if="loading" />
       <div v-else class="h-[500px] rounded-ds-lg overflow-hidden shadow-ds-lg border border-neutral-200">
         <MapView :show-all-markers="true" />
       </div>

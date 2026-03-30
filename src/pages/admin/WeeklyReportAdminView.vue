@@ -128,20 +128,20 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="p-6 space-y-6">
+  <div class="p-4 md:p-6 space-y-4 md:space-y-6">
     <!-- Header -->
-    <div class="flex items-center justify-between">
+    <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
       <div>
-        <h1 class="text-2xl font-bold text-gray-800">Rapport hebdomadaire</h1>
+        <h1 class="text-xl md:text-2xl font-bold text-gray-800">Rapport hebdomadaire</h1>
         <p class="text-sm text-gray-600 mt-1">
           Synthèse automatique envoyée chaque lundi à 8h00
         </p>
       </div>
-      <div class="flex gap-3">
+      <div class="flex flex-col sm:flex-row gap-2 sm:gap-3">
         <button
           @click="loadPreview"
           :disabled="loading"
-          class="flex items-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50"
+          class="flex items-center justify-center gap-2 px-4 py-2 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors disabled:opacity-50 text-sm md:text-base"
         >
           <AppIcon
             :name="loading ? 'Loader' : 'Eye'"
@@ -153,7 +153,7 @@ onMounted(() => {
         <button
           @click="showConfirmSend = true"
           :disabled="sending || activeRecipients === 0"
-          class="flex items-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          class="flex items-center justify-center gap-2 px-4 py-2 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm md:text-base"
         >
           <AppIcon
             :name="sending ? 'Loader' : 'Send'"
@@ -167,7 +167,7 @@ onMounted(() => {
 
     <!-- Destinataires -->
     <div class="bg-white rounded-lg border border-gray-200">
-      <div class="px-4 py-3 border-b border-gray-200 flex items-center justify-between">
+      <div class="px-4 py-3 border-b border-gray-200 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
         <div>
           <h2 class="text-sm font-semibold text-gray-700">
             Destinataires ({{ activeRecipients }} actifs)
@@ -175,7 +175,7 @@ onMounted(() => {
         </div>
         <button
           @click="showAddModal = true"
-          class="flex items-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
+          class="flex items-center justify-center gap-2 px-3 py-1.5 bg-primary text-white rounded-lg hover:bg-primary-600 transition-colors text-sm font-medium"
         >
           <AppIcon name="Plus" :size="16" />
           <span>Ajouter</span>
@@ -186,36 +186,36 @@ onMounted(() => {
         <div
           v-for="recipient in recipients"
           :key="recipient.id"
-          class="px-4 py-3 flex items-center justify-between hover:bg-gray-50 transition-colors"
+          class="px-4 py-3 flex items-start sm:items-center justify-between hover:bg-gray-50 transition-colors gap-3"
           :class="{ 'opacity-50': !recipient.is_active }"
         >
-          <div class="flex items-center gap-3">
+          <div class="flex items-start sm:items-center gap-3 flex-1 min-w-0">
             <div
-              class="w-10 h-10 rounded-full flex items-center justify-center text-white font-semibold"
+              class="w-10 h-10 flex-shrink-0 rounded-full flex items-center justify-center text-white font-semibold"
               :class="recipient.is_active ? 'bg-primary' : 'bg-gray-400'"
             >
               {{ recipient.name.charAt(0).toUpperCase() }}
             </div>
-            <div>
-              <div class="font-medium text-gray-800">{{ recipient.name }}</div>
-              <div class="text-sm text-gray-500">{{ recipient.email }}</div>
+            <div class="flex-1 min-w-0">
+              <div class="font-medium text-gray-800 truncate">{{ recipient.name }}</div>
+              <div class="text-sm text-gray-500 truncate">{{ recipient.email }}</div>
+              <span
+                class="inline-block mt-1 px-2 py-0.5 rounded-full text-xs font-medium"
+                :class="{
+                  'bg-blue-100 text-blue-700': recipient.role === 'elu',
+                  'bg-purple-100 text-purple-700': recipient.role === 'mairie',
+                  'bg-green-100 text-green-700': recipient.role === 'vp_numerique',
+                  'bg-gray-100 text-gray-700': recipient.role === 'autre',
+                }"
+              >
+                {{ recipient.role }}
+              </span>
             </div>
-            <span
-              class="px-2 py-0.5 rounded-full text-xs font-medium"
-              :class="{
-                'bg-blue-100 text-blue-700': recipient.role === 'elu',
-                'bg-purple-100 text-purple-700': recipient.role === 'mairie',
-                'bg-green-100 text-green-700': recipient.role === 'vp_numerique',
-                'bg-gray-100 text-gray-700': recipient.role === 'autre',
-              }"
-            >
-              {{ recipient.role }}
-            </span>
           </div>
           <button
             v-if="recipient.is_active"
             @click="showDeleteConfirm = recipient.id"
-            class="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+            class="p-2 flex-shrink-0 text-red-600 hover:bg-red-50 rounded-lg transition-colors"
             title="Retirer ce destinataire"
           >
             <AppIcon name="X" :size="18" />
