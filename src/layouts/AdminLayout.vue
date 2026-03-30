@@ -61,7 +61,7 @@ function toggleSidebar() {
 </script>
 
 <template>
-  <div class="flex h-screen overflow-hidden bg-gray-50">
+  <div class="flex h-screen overflow-hidden bg-gray-50 py-2 md:pt-0">
 
     <!-- Sidebar desktop (masquée sur mobile) -->
     <AdminSidebar

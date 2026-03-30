@@ -1,13 +1,28 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 
 const auth = useAuthStore()
 const route = useRoute()
 
+const isMobile = ref(false)
+
+const checkMobile = () => {
+  isMobile.value = window.innerWidth < 768
+}
+
+onMounted(() => {
+  checkMobile()
+  window.addEventListener('resize', checkMobile)
+})
+
+onUnmounted(() => {
+  window.removeEventListener('resize', checkMobile)
+})
+
 const isAdminRoute = computed(() => route.path.startsWith('/admin'))
-const showHeader = computed(() => !isAdminRoute.value)
+const showHeader = computed(() => !isAdminRoute.value || (isAdminRoute.value && isMobile.value))
 const showFooter = computed(() => !isAdminRoute.value)
 
 const navLinks = computed(() => {
