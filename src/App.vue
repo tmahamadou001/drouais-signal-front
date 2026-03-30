@@ -45,6 +45,11 @@ const mobileMenuOpen = ref(false)
 watch(() => route.path, () => {
   mobileMenuOpen.value = false
 })
+
+// Force scroll to top on route change
+watch(() => route.path, () => {
+  window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
+})
 </script>
 
 <template>

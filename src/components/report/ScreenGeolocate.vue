@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
 import { CATEGORY_CONFIG } from '@/types'
@@ -17,12 +17,19 @@ const { apiFetch } = useApi()
 type GpsState = 'consent' | 'loading' | 'located' | 'manual'
 const gpsState = ref<GpsState>('consent')
 
+type GpsError =
+  | 'PERMISSION_DENIED'
+  | 'POSITION_UNAVAILABLE'
+  | 'TIMEOUT'
+  | 'NOT_SUPPORTED'
+  | null
+
 // Position et adresse
 const lat = ref<number | null>(null)
 const lng = ref<number | null>(null)
 const accuracy = ref<number | null>(null)
 const addressApprox = ref('')
-const gpsError = ref('')
+const gpsError = ref<GpsError>(null)
 
 // Recherche d'adresse
 const searchQuery = ref('')
@@ -47,11 +54,11 @@ const duplicateCheckDone = ref(false)
 // Démarrer le GPS après consentement
 async function startGPS() {
   gpsState.value = 'loading'
-  gpsError.value = ''
+  gpsError.value = null
 
   if (!navigator.geolocation) {
     gpsState.value = 'manual'
-    gpsError.value = 'GPS non disponible sur cet appareil'
+    gpsError.value = 'NOT_SUPPORTED'
     return
   }
 
@@ -65,13 +72,21 @@ async function startGPS() {
     },
     (err) => {
       console.error('Erreur GPS:', err.code, err.message)
-      const messages: Record<number, string> = {
-        1: 'Localisation refusée — saisissez l\'adresse manuellement',
-        2: 'Position indisponible — saisissez l\'adresse manuellement',
-        3: 'Délai dépassé — saisissez l\'adresse manuellement',
-      }
-      gpsError.value = messages[err.code] || 'Erreur GPS inconnue'
       gpsState.value = 'manual'
+
+      switch (err.code) {
+        case 1: // PERMISSION_DENIED
+          gpsError.value = 'PERMISSION_DENIED'
+          break
+        case 2: // POSITION_UNAVAILABLE
+          gpsError.value = 'POSITION_UNAVAILABLE'
+          break
+        case 3: // TIMEOUT
+          gpsError.value = 'TIMEOUT'
+          break
+        default:
+          gpsError.value = 'POSITION_UNAVAILABLE'
+      }
     },
     {
       enableHighAccuracy: true,
@@ -84,8 +99,27 @@ async function startGPS() {
 // Passer en mode manuel
 function goToManual() {
   gpsState.value = 'manual'
-  gpsError.value = ''
+  gpsError.value = null
 }
+
+// Reprise automatique GPS quand l'utilisateur revient
+// après avoir activé la localisation dans ses réglages
+function handleVisibilityChange() {
+  if (
+    document.visibilityState === 'visible' &&
+    gpsError.value === 'PERMISSION_DENIED'
+  ) {
+    startGPS()
+  }
+}
+
+onMounted(() => {
+  document.addEventListener('visibilitychange', handleVisibilityChange)
+})
+
+onUnmounted(() => {
+  document.removeEventListener('visibilitychange', handleVisibilityChange)
+})
 
 // Reverse geocoding (coordonnées → adresse)
 async function reverseGeocode(latitude: number, longitude: number) {
@@ -311,8 +345,8 @@ const canSubmit = computed(() => {
 </script>
 
 <template>
-  <div class="min-h-screen bg-gradient-to-b from-neutral-50 to-white p-6">
-    <div class="w-full max-w-2xl mx-auto space-y-6">
+  <div class="min-h-screen bg-gradient-to-b from-neutral-50 to-white px-6 pt-4 pb-6">
+    <div class="w-full max-w-2xl mx-auto space-y-4">
       <!-- Back Button -->
       <button
         @click="emit('back')"
@@ -406,11 +440,96 @@ const canSubmit = computed(() => {
 
       <!-- ÉTAT 3: Recherche manuelle -->
       <div v-else-if="gpsState === 'manual'" class="space-y-4">
-        <div v-if="gpsError" class="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-ds-lg">
-          <svg class="w-6 h-6 text-orange-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+        <!-- Erreur PERMISSION_DENIED : message avec instructions -->
+        <div
+          v-if="gpsError === 'PERMISSION_DENIED'"
+          class="p-4 bg-orange-50 border border-orange-200 rounded-ds-lg space-y-3"
+        >
+          <div class="flex items-start gap-3">
+            <svg class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5"
+                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0
+                       2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694
+                       -1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+            </svg>
+            <div class="flex-1">
+              <p class="font-semibold text-orange-900 text-sm">
+                Localisation non autorisée
+              </p>
+              <p class="text-sm text-orange-800 mt-1">
+                Activez la localisation dans vos réglages puis
+                revenez ici — la détection reprendra automatiquement.
+              </p>
+            </div>
+          </div>
+
+          <!-- Instructions selon la plateforme -->
+          <div class="bg-white rounded-lg border border-orange-200 p-3
+                      space-y-2 text-xs text-orange-900">
+            <div>
+              <p class="font-semibold mb-0.5">Sur iPhone :</p>
+              <p class="text-orange-800">
+                Réglages → Chrome (ou Safari)
+                → Localisation → "Lors de l'utilisation"
+              </p>
+            </div>
+            <div class="border-t border-orange-100 pt-2">
+              <p class="font-semibold mb-0.5">Sur Android :</p>
+              <p class="text-orange-800">
+                Réglages → Applications → Chrome
+                → Autorisations → Localisation → Activer
+              </p>
+            </div>
+          </div>
+
+          <!-- Bouton Réessayer -->
+          <button
+            @click="startGPS"
+            class="w-full flex items-center justify-center gap-2
+                   py-3 px-4 bg-orange-600 hover:bg-orange-700
+                   text-white rounded-ds-lg text-sm font-semibold
+                   transition-colors active:scale-98"
+          >
+            <svg class="w-4 h-4" fill="none" stroke="currentColor"
+                 viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4 4v5h.582m15.356 2A8.001 8.001 0
+                       004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003
+                       8.003 0 01-15.357-2m15.357 2H15"/>
+            </svg>
+            <span>Réessayer la localisation</span>
+          </button>
+        </div>
+
+        <!-- Autres erreurs GPS (non PERMISSION_DENIED) -->
+        <div
+          v-else-if="gpsError && gpsError !== 'PERMISSION_DENIED' as any"
+          class="flex items-start gap-3 p-4 bg-orange-50
+                 border border-orange-200 rounded-ds-lg"
+        >
+          <svg class="w-5 h-5 text-orange-600 flex-shrink-0"
+               fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round"
+                  stroke-width="2"
+                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0
+                     2.502-1.667 1.732-3L13.732 4c-.77-1.333
+                     -2.694-1.333-3.464 0L3.34 16c-.77 1.333.192
+                     3 1.732 3z"/>
           </svg>
-          <p class="text-sm text-orange-900">{{ gpsError }}</p>
+          <p class="text-sm text-orange-900">
+            <span v-if="gpsError === 'TIMEOUT'">
+              Délai dépassé — saisissez l'adresse manuellement
+            </span>
+            <span v-else-if="gpsError === 'POSITION_UNAVAILABLE'">
+              Position indisponible — saisissez l'adresse manuellement
+            </span>
+            <span v-else>
+              GPS non disponible sur cet appareil
+            </span>
+          </p>
         </div>
 
         <div>
@@ -479,7 +598,7 @@ const canSubmit = computed(() => {
 
         <button
           @click="goToManual"
-          class="w-full text-center text-sm text-primary hover:underline"
+          class="text-center text-sm text-primary hover:underline"
         >
           Modifier l'adresse →
         </button>

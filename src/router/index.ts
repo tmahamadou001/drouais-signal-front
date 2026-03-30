@@ -70,7 +70,12 @@ const router = createRouter({
     },
   ],
   scrollBehavior(_to, _from, savedPosition) {
-    return savedPosition || { top: 0 }
+    // Si on revient en arrière avec le bouton du navigateur, restaurer la position
+    if (savedPosition) {
+      return savedPosition
+    }
+    // Sinon, toujours remonter en haut
+    return { top: 0, left: 0, behavior: 'instant' }
   },
 })
 
