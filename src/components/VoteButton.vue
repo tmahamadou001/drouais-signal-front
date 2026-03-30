@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
+import { useApi } from '@/composables/useApi'
 
 interface Props {
   reportId: string
@@ -9,12 +10,12 @@ interface Props {
 
 const props = defineProps<Props>()
 
+const { apiFetch } = useApi()
+
 const voteCount = ref(props.initialCount)
 const hasVoted = ref(props.initialHasVoted)
 const isLoading = ref(false)
 const errorMessage = ref('')
-
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 const buttonText = computed(() => {
   if (hasVoted.value) {
@@ -51,36 +52,24 @@ async function handleVote() {
 
   try {
     const method = previousHasVoted ? 'DELETE' : 'POST'
-    const response = await fetch(`${API_URL}/api/reports/${props.reportId}/vote`, {
+    const data = await apiFetch(`/api/reports/${props.reportId}/vote`, {
       method,
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      credentials: 'include',
     })
 
-    const data = await response.json()
-
-    if (!response.ok) {
-      if (data.error === 'already_voted') {
-        errorMessage.value = 'Vous avez déjà voté pour ce signalement'
-        hasVoted.value = true
-      } else if (data.error === 'report_resolved') {
-        errorMessage.value = 'Ce signalement est déjà résolu'
-      } else if (data.error === 'rate_limit') {
-        errorMessage.value = data.message || 'Trop de requêtes, réessayez plus tard'
-      } else {
-        errorMessage.value = 'Erreur lors du vote'
-      }
-      
-      voteCount.value = previousCount
-      hasVoted.value = previousHasVoted
-    } else {
-      voteCount.value = data.vote_count
-    }
-  } catch (error) {
+    voteCount.value = data.vote_count
+  } catch (error: any) {
     console.error('Erreur vote:', error)
-    errorMessage.value = 'Erreur de connexion'
+    
+    if (error.message?.includes('already_voted')) {
+      errorMessage.value = 'Vous avez déjà voté pour ce signalement'
+      hasVoted.value = true
+    } else if (error.message?.includes('report_resolved')) {
+      errorMessage.value = 'Ce signalement est déjà résolu'
+    } else if (error.message?.includes('rate_limit')) {
+      errorMessage.value = 'Trop de requêtes, réessayez plus tard'
+    } else {
+      errorMessage.value = 'Erreur de connexion'
+    }
     
     voteCount.value = previousCount
     hasVoted.value = previousHasVoted
