@@ -6,7 +6,7 @@ import { CATEGORY_CONFIG } from '@/types'
 import DuplicateWarning from '@/components/DuplicateWarning.vue'
 
 const emit = defineEmits<{
-  submitted: []
+  submitted: [id: string]
   back: []
 }>()
 
@@ -325,13 +325,13 @@ async function handleSubmit() {
       formData.append('ai_assisted', 'true')
     }
 
-    await apiFetch<{ id: string }>('/api/reports', {
+    const {id} =  await apiFetch<{ id: string }>('/api/reports', {
       method: 'POST',
       body: formData,
       isFormData: true,
     })
 
-    emit('submitted')
+    emit('submitted', id)
   } catch (err: any) {
     error.value = err.message || 'Une erreur est survenue lors de l\'envoi.'
   } finally {

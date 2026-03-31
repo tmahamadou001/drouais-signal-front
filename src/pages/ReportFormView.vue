@@ -49,8 +49,8 @@ async function onPhotoSelected(file: File, previewUrl: string) {
   }
 }
 
-function onSubmitSuccess() {
-  router.push('/mes-signalements')
+function onSubmitSuccess(id: string) {
+  router.push(`/signalement/${id}`)
 }
 </script>
 
