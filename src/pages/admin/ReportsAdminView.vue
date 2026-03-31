@@ -54,34 +54,47 @@ const filteredReports = computed(() => {
   return filtered
 })
 
-async function fetchData() {
-  loading.value = true
+const loadReports = async () => {
   try {
-    const [reportsResponse, statsData] = await Promise.all([
-      apiFetch<{ data: Report[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
+    const reportsResponse = await apiFetch<{ data: Report[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
         `/api/reports?page=${currentPage.value}&limit=20`
-      ),
-      apiFetch<AdminStats>('/api/admin/stats'),
-    ])
+      )
     reports.value = reportsResponse.data
     totalPages.value = reportsResponse.pagination.totalPages
     totalReports.value = reportsResponse.pagination.total
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const loadStats = async () => {
+  try {
+    const statsData = await apiFetch('/api/admin/stats')
     stats.value = statsData
-  } catch (err) {
-    console.error('Erreur admin:', err)
+  } catch (e) {
+    console.error(e)
+  }
+}
+
+const fetchData = async () => {
+
+  loading.value = true
+  try {
+    await loadReports()
+    await loadStats()
   } finally {
     loading.value = false
   }
 }
 
-function goToPage(page: number) {
+const goToPage = (page: number) => {
   if (page >= 1 && page <= totalPages.value) {
     currentPage.value = page
     fetchData()
   }
 }
 
-function getPageNumbers(): number[] {
+const getPageNumbers = (): number[] => {
   const pages: number[] = []
   const maxVisible = 5
   
@@ -102,17 +115,17 @@ function getPageNumbers(): number[] {
   return pages
 }
 
-function openSlideOver(report: Report) {
+const openSlideOver = (report: Report) => {
   selectedReport.value = report
   slideOverOpen.value = true
 }
 
-function closeSlideOver() {
+const closeSlideOver = () => {
   slideOverOpen.value = false
   setTimeout(() => { selectedReport.value = null }, 300)
 }
 
-async function updateStatus(reportId: string, newStatus: ReportStatus) {
+const updateStatus = async (reportId: string, newStatus: ReportStatus) => {
   actionLoading.value = true
   try {
     await apiFetch(`/api/reports/${reportId}/status`, {
@@ -131,7 +144,7 @@ async function updateStatus(reportId: string, newStatus: ReportStatus) {
   }
 }
 
-function formatDate(dateStr: string): string {
+const formatDate = (dateStr: string): string => {
   return new Date(dateStr).toLocaleDateString('fr-FR', {
     day: 'numeric',
     month: 'short',
