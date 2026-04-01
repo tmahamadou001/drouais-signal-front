@@ -16,7 +16,7 @@ const error = ref<string | null>(null)
 onMounted(async () => {
   try {
     reports.value = await apiFetch<Report[]>('/api/reports/mine', {
-      cache: { maxAge: 60_000 }
+      cache: { maxAge: 600_000 } // 10 minutes
     })
   } catch (err: any) {
     error.value = err.message
