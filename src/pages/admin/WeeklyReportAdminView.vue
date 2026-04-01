@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppIcon from '@/components/AppIcon.vue'
 
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCachePattern } = useApi()
 
 interface WeeklyStats {
   period: { from: string; to: string }
@@ -100,6 +100,9 @@ async function addRecipient() {
       method: 'POST',
       body: newRecipient.value,
     })
+    
+    invalidateCachePattern(/^\/api\/admin\/weekly-report\/recipients/)
+    
     showAddModal.value = false
     newRecipient.value = { email: '', name: '', role: 'elu' }
     await loadRecipients()
@@ -114,6 +117,9 @@ async function deleteRecipient(id: string) {
     await apiFetch(`/api/admin/weekly-report/recipients/${id}`, {
       method: 'DELETE',
     })
+    
+    invalidateCachePattern(/^\/api\/admin\/weekly-report\/recipients/)
+    
     showDeleteConfirm.value = null
     await loadRecipients()
   } catch (err: any) {

@@ -200,7 +200,9 @@ async function loadMarkers() {
   markersLoading.value = true
 
   try {
-    const {markers} = await apiFetch<{markers: MapMarker[]}>('/api/map/markers')
+    const {markers} = await apiFetch<{markers: MapMarker[]}>('/api/map/markers', {
+      cache: { maxAge: 5_000 } // Cache 5 secondes
+    })
     
     if (!markers) {
       console.error('Failed to load markers: no data returned')

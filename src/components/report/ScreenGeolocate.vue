@@ -11,7 +11,7 @@ const emit = defineEmits<{
 }>()
 
 const store = useReportStore()
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCachePattern } = useApi()
 
 // États de géolocalisation
 type GpsState = 'consent' | 'loading' | 'located' | 'manual'
@@ -330,6 +330,9 @@ async function handleSubmit() {
       body: formData,
       isFormData: true,
     })
+
+    invalidateCachePattern(/^\/api\/map\/markers/)
+    invalidateCachePattern(/^\/api\/reports/)
 
     emit('submitted', id)
   } catch (err: any) {

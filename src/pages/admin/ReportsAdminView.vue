@@ -57,7 +57,10 @@ const filteredReports = computed(() => {
 const loadReports = async () => {
   try {
     const reportsResponse = await apiFetch<{ data: Report[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
-        `/api/reports?page=${currentPage.value}&limit=20`
+        `/api/reports?page=${currentPage.value}&limit=20`,
+        {
+          cache: { maxAge: 5_000 } // Cache 5 secondes
+        }
       )
     reports.value = reportsResponse.data
     totalPages.value = reportsResponse.pagination.totalPages
@@ -69,7 +72,9 @@ const loadReports = async () => {
 
 const loadStats = async () => {
   try {
-    const statsData = await apiFetch('/api/admin/stats')
+    const statsData = await apiFetch('/api/admin/stats', {
+      cache: { maxAge: 5_000 } // Cache 5 secondes
+    })
     stats.value = statsData
   } catch (e) {
     console.error(e)

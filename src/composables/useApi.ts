@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
+import { useApiCache } from './useApiCache'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
@@ -7,12 +8,27 @@ interface ApiOptions {
   body?: any
   isFormData?: boolean
   signal?: AbortSignal
+  cache?: {
+    maxAge: number
+  }
 }
 
 export function useApi() {
+  const { getCached, setCache, invalidate, invalidatePattern, clear } = useApiCache()
+
   async function apiFetch<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
     const auth = useAuthStore()
-    const { method = 'GET', body, isFormData = false, signal } = options
+    const { method = 'GET', body, isFormData = false, signal, cache } = options
+
+    if (cache && method === 'GET') {
+      const cacheKey = `${path}`
+      const cached = getCached<T>(cacheKey, cache.maxAge)
+      
+      if (cached !== null) {
+        console.log(`[Cache HIT] ${path}`)
+        return cached
+      }
+    }
 
     const headers: Record<string, string> = {}
 
@@ -36,8 +52,21 @@ export function useApi() {
       throw new Error(errorData.error || `Erreur ${response.status}`)
     }
 
-    return response.json()
+    const data = await response.json()
+
+    if (cache && method === 'GET') {
+      const cacheKey = `${path}`
+      setCache(cacheKey, data)
+      console.log(`[Cache SET] ${path} (${cache.maxAge}ms)`)
+    }
+
+    return data
   }
 
-  return { apiFetch }
+  return { 
+    apiFetch,
+    invalidateCache: invalidate,
+    invalidateCachePattern: invalidatePattern,
+    clearCache: clear,
+  }
 }

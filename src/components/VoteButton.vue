@@ -10,7 +10,7 @@ interface Props {
 
 const props = defineProps<Props>()
 
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCache } = useApi()
 
 const voteCount = ref(props.initialCount)
 const hasVoted = ref(props.initialHasVoted)
@@ -57,6 +57,8 @@ async function handleVote() {
     })
 
     voteCount.value = data.vote_count
+
+    invalidateCache(`/api/reports/${props.reportId}`)
   } catch (error: any) {
     console.error('Erreur vote:', error)
     
