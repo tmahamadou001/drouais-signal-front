@@ -25,7 +25,6 @@ export function useApi() {
       const cached = getCached<T>(cacheKey, cache.maxAge)
       
       if (cached !== null) {
-        console.log(`[Cache HIT] ${path}`)
         return cached
       }
     }
@@ -57,7 +56,6 @@ export function useApi() {
     if (cache && method === 'GET') {
       const cacheKey = `${path}`
       setCache(cacheKey, data)
-      console.log(`[Cache SET] ${path} (${cache.maxAge}ms)`)
     }
 
     return data
