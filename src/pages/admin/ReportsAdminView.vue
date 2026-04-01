@@ -9,7 +9,7 @@ import StatusTimeline from '@/components/StatusTimeline.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import MapView from '@/components/MapView.vue'
 
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCachePattern, invalidateCache } = useApi()
 
 const reports = ref<Report[]>([])
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
@@ -137,6 +137,13 @@ const updateStatus = async (reportId: string, newStatus: ReportStatus) => {
       method: 'PATCH',
       body: { status: newStatus },
     })
+
+    invalidateCache(`/api/reports/${reportId}`)
+    invalidateCachePattern(/^\/api\/map\/markers/)
+    invalidateCachePattern(/^\/api\/reports/)
+    invalidateCachePattern(/^\/api\/admin\/stats/)
+    invalidateCachePattern(/^\/api\/admin\/heatmap/)
+
     await fetchData()
 
     if (selectedReport.value?.id === reportId) {
