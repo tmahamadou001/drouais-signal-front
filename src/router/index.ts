@@ -19,9 +19,22 @@ const router = createRouter({
       path: '/connexion',
       name: 'auth',
       component: () => import('@/pages/AuthView.vue'),
+      meta: { guestOnly: true },
     },
     {
-      path: '/auth/confirm',
+      path: '/auth/register',
+      name: 'register',
+      component: () => import('@/pages/RegisterView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/auth/forgot-password',
+      name: 'forgot-password',
+      component: () => import('@/pages/ForgotPasswordView.vue'),
+      meta: { guestOnly: true },
+    },
+    {
+      path: '/auth/callback',
       name: 'auth-callback',
       component: () => import('@/pages/AuthCallbackView.vue'),
     },
@@ -105,9 +118,9 @@ router.beforeEach(async (to) => {
     return { name: 'home' }
   }
 
-  // Already authenticated → redirect away from login page
-  if (to.name === 'auth' && auth.user) {
-    return { name: 'home' }
+  // Redirect authenticated users away from guest-only pages
+  if (to.meta.guestOnly && auth.user) {
+    return auth.isAdmin ? { name: 'AdminReports' } : { name: 'home' }
   }
 })
 
