@@ -1,6 +1,6 @@
-const CACHE_NAME = 'onsignale-v1'
-const STATIC_CACHE_NAME = 'onsignale-static-v1'
-const API_CACHE_NAME = 'onsignale-api-v1'
+const CACHE_NAME = 'onsignale-v2'
+const STATIC_CACHE_NAME = 'onsignale-static-v2'
+const API_CACHE_NAME = 'onsignale-api-v2'
 
 const PRECACHE_ASSETS = [
   '/',
@@ -13,8 +13,9 @@ const PRECACHE_ASSETS = [
 const NEVER_CACHE_PATTERNS = [
   /\/api\//,
   /supabase\.co/,
-  /auth\/confirm/,
   /\/auth\//,
+  /tile\.openstreetmap\.org/,
+  /nominatim\.openstreetmap\.org/,
 ]
 
 self.addEventListener('install', (event) => {

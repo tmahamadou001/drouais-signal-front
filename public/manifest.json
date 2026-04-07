@@ -40,12 +40,6 @@
       "purpose": "maskable"
     }
   ],
-  "protocol_handlers": [
-    {
-      "protocol": "web+onsignale",
-      "url": "/auth/confirm?token=%s"
-    }
-  ],
   "share_target": {
     "action": "/",
     "method": "GET",
