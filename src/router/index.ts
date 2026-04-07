@@ -34,6 +34,11 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
+      path: '/auth/reset-password',
+      name: 'reset-password',
+      component: () => import('@/pages/ResetPasswordView.vue'),
+    },
+    {
       path: '/auth/callback',
       name: 'auth-callback',
       component: () => import('@/pages/AuthCallbackView.vue'),

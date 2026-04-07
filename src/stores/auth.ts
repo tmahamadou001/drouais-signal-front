@@ -91,6 +91,13 @@ export const useAuthStore = defineStore('auth', () => {
         return { success: false, error: error.value }
       }
 
+      // Si Supabase retourne un user mais que l'identifiant est null,
+      // c'est que l'email existe déjà (Supabase ne renvoie pas d'erreur par sécurité)
+      if (data.user && data.user.identities && data.user.identities.length === 0) {
+        error.value = 'Un compte existe déjà avec cet email'
+        return { success: false, error: error.value }
+      }
+
       if (data.user && !data.session) {
         return {
           success: true,
