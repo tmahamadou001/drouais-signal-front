@@ -21,6 +21,11 @@ const router = createRouter({
       component: () => import('@/pages/AuthView.vue'),
     },
     {
+      path: '/auth/confirm',
+      name: 'auth-callback',
+      component: () => import('@/pages/AuthCallbackView.vue'),
+    },
+    {
       path: '/mes-signalements',
       name: 'my-reports',
       component: () => import('@/pages/MyReportsView.vue'),

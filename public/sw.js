@@ -1,7 +1,28 @@
-// Service Worker de désinstallation
-// Ce fichier vide permet de désinstaller le SW précédent en cache
+const CACHE_NAME = 'onsignale-v1'
+const STATIC_CACHE_NAME = 'onsignale-static-v1'
+const API_CACHE_NAME = 'onsignale-api-v1'
 
-self.addEventListener('install', () => {
+const PRECACHE_ASSETS = [
+  '/',
+  '/index.html',
+  '/offline.html',
+  '/icons/icon-192.png',
+  '/icons/apple-touch-icon.png',
+]
+
+const NEVER_CACHE_PATTERNS = [
+  /\/api\//,
+  /supabase\.co/,
+  /auth\/confirm/,
+  /\/auth\//,
+]
+
+self.addEventListener('install', (event) => {
+  event.waitUntil(
+    caches.open(STATIC_CACHE_NAME).then((cache) => {
+      return cache.addAll(PRECACHE_ASSETS)
+    })
+  )
   self.skipWaiting()
 })
 
@@ -9,14 +30,71 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
-        cacheNames.map((cacheName) => {
-          return caches.delete(cacheName)
-        })
+        cacheNames
+          .filter(
+            (name) =>
+              name !== CACHE_NAME &&
+              name !== STATIC_CACHE_NAME &&
+              name !== API_CACHE_NAME
+          )
+          .map((name) => caches.delete(name))
       )
-    }).then(() => {
-      return self.clients.claim()
-    }).then(() => {
-      return self.registration.unregister()
     })
   )
+  self.clients.claim()
+})
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event
+  const url = new URL(request.url)
+
+  const shouldNeverCache = NEVER_CACHE_PATTERNS.some(
+    (pattern) => pattern.test(url.href)
+  )
+  if (shouldNeverCache) return
+
+  if (request.mode === 'navigate') {
+    event.respondWith(
+      fetch(request)
+        .catch(() => caches.match('/offline.html'))
+    )
+    return
+  }
+
+  event.respondWith(
+    caches.match(request).then((cachedResponse) => {
+      if (cachedResponse) return cachedResponse
+      return fetch(request).then((response) => {
+        if (
+          !response ||
+          response.status !== 200 ||
+          response.type === 'opaque'
+        ) {
+          return response
+        }
+        const responseToCache = response.clone()
+        caches.open(STATIC_CACHE_NAME).then((cache) => {
+          cache.put(request, responseToCache)
+        })
+        return response
+      })
+    })
+  )
+})
+
+self.addEventListener('message', (event) => {
+  if (event.data?.type === 'AUTH_REDIRECT') {
+    self.clients.matchAll().then((clients) => {
+      clients.forEach((client) => {
+        client.postMessage({
+          type: 'NAVIGATE',
+          url: event.data.url,
+        })
+      })
+    })
+  }
+
+  if (event.data?.type === 'SKIP_WAITING') {
+    self.skipWaiting()
+  }
 })

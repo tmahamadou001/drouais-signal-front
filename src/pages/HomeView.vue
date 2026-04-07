@@ -6,6 +6,7 @@ import type { AdminStats } from '@/types'
 import MapView from '@/components/MapView.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import MapSkeleton from '@/components/MapSkeleton.vue'
+import InstallButton from '@/components/InstallButton.vue'
 
 const { apiFetch } = useApi()
 
@@ -75,6 +76,10 @@ const statCards = computed(() => [
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
               </svg>
             </a>
+          </div>
+
+          <div class="mt-6">
+            <InstallButton />
           </div>
         </div>
       </div>

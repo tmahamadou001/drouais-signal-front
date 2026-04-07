@@ -52,7 +52,7 @@ export const useAuthStore = defineStore('auth', () => {
       const { error } = await supabase.auth.signInWithOtp({
         email,
         options: {
-          emailRedirectTo: `${window.location.origin}/`,
+          emailRedirectTo: `${window.location.origin}/auth/confirm?from_email=true`,
         },
       })
 
