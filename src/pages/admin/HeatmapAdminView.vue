@@ -110,7 +110,7 @@ async function fetchHeatmapData() {
     const data = await apiFetch<{ points: HeatmapPoint[]; stats: HeatmapStats }>(
       `/api/admin/heatmap?${params}`,
       {
-        cache: { maxAge: 5_000 } // Cache 5 secondes
+        cache: { maxAge: 15_000 } // Cache 5 secondes
       }
     )
 

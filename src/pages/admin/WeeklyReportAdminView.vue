@@ -64,7 +64,10 @@ async function loadPreview() {
 async function loadRecipients() {
   try {
     const data = await apiFetch<{ recipients: Recipient[] }>(
-      '/api/admin/weekly-report/recipients'
+      '/api/admin/weekly-report/recipients',
+      {
+        cache: { maxAge: 60_000 }
+      }
     )
     recipients.value = data.recipients
     activeRecipients.value = data.recipients.filter((r) => r.is_active).length
