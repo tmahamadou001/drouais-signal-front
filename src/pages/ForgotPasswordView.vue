@@ -20,7 +20,7 @@ async function handleSubmit() {
 </script>
 
 <template>
-  <div class="min-h-screen bg-neutral-50 flex items-center justify-center p-4">
+  <div class="bg-neutral-50 flex items-center justify-center p-16">
     <div class="w-full max-w-sm">
       <div class="text-center mb-8">
         <h1 class="text-2xl font-bold text-gray-900">Mot de passe oublié</h1>

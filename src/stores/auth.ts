@@ -60,6 +60,7 @@ export const useAuthStore = defineStore('auth', () => {
   async function register(
     credentials: RegisterCredentials
   ): Promise<{ success: boolean; error?: string }> {
+    const role = 'citizen'
     if (credentials.password !== credentials.confirmPassword) {
       error.value = 'Les mots de passe ne correspondent pas'
       return { success: false, error: error.value }
@@ -78,7 +79,7 @@ export const useAuthStore = defineStore('auth', () => {
         password: credentials.password,
         options: {
           data: {
-            role: 'citizen',
+            role,
             first_name: credentials.firstName?.trim() ?? '',
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,

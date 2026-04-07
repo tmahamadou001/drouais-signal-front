@@ -21,9 +21,9 @@ onMounted(async () => {
     authStore.session = data.session
     status.value = 'success'
 
-    setTimeout(() => {
-      router.replace(authStore.isAdmin ? '/admin' : '/')
-    }, 2000)
+    // setTimeout(() => {
+    //   router.replace(authStore.isAdmin ? '/admin' : '/')
+    // }, 2000)
   } catch {
     status.value = 'error'
   }
@@ -54,7 +54,7 @@ onMounted(async () => {
           </svg>
         </div>
         <h2 class="text-xl font-bold text-gray-900">Compte confirmé !</h2>
-        <p class="text-gray-500 text-sm">Votre compte est activé. Redirection en cours...</p>
+        <p class="text-gray-500 text-sm">Votre compte est activé.</p>
       </div>
 
       <!-- Erreur -->
