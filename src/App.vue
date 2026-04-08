@@ -17,14 +17,6 @@ const checkMobile = () => {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
-
-  const keepAlive = async () => {
-    try {
-      await apiFetch('/api/health')
-    } catch {}
-  }
-  keepAlive()
-  setInterval(keepAlive, 10 * 60 * 1000)
 })
 
 onUnmounted(() => {
