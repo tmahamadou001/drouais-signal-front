@@ -6,7 +6,6 @@ import { useApi } from '@/composables/useApi'
 
 const auth = useAuthStore()
 const route = useRoute()
-const { apiFetch } = useApi()
 
 const isMobile = ref(false)
 
