@@ -201,7 +201,7 @@ async function loadMarkers() {
 
   try {
     const {markers} = await apiFetch<{markers: MapMarker[]}>('/api/map/markers', {
-      cache: { maxAge: 5_000 } // Cache 5 secondes
+      cache: { maxAge: 10_000 }
     })
     
     if (!markers) {

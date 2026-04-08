@@ -2,9 +2,11 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useApi } from '@/composables/useApi'
 
 const auth = useAuthStore()
 const route = useRoute()
+const { apiFetch } = useApi()
 
 const isMobile = ref(false)
 
@@ -15,6 +17,14 @@ const checkMobile = () => {
 onMounted(() => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+
+  const keepAlive = async () => {
+    try {
+      await apiFetch('/api/health')
+    } catch {}
+  }
+  keepAlive()
+  setInterval(keepAlive, 10 * 60 * 1000)
 })
 
 onUnmounted(() => {
