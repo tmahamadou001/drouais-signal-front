@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, provide } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import type { AdminStats } from '@/types'
@@ -12,17 +12,30 @@ const { apiFetch } = useApi()
 
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
 const loading = ref(true)
+const markersPromise = ref<Promise<any> | null>(null)
 
 onMounted(async () => {
   try {
-    const statsData = await apiFetch<AdminStats>('/api/admin/stats')
+    const [statsData, markersData] = await Promise.all([
+      apiFetch<AdminStats>('/api/admin/stats', {
+        cache: { maxAge: 10_000 }
+      }),
+      apiFetch<{ markers: any[] }>('/api/map/markers', {
+        cache: { maxAge: 10_000 }
+      })
+    ])
+    
     stats.value = statsData
+    
+    markersPromise.value = Promise.resolve(markersData)
   } catch (err) {
-    console.error('Erreur chargement accueil:', err)
+    console.error('Erreur chargement:', err)
   } finally {
     loading.value = false
   }
 })
+
+provide('preloadedMarkers', markersPromise)
 
 const statCards = computed(() => [
   { label: 'Signalements', value: stats.value.total, color: 'bg-primary', textColor: 'text-primary' },

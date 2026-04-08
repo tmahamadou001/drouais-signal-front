@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted } from 'vue'
+import { ref, onMounted, onUnmounted, inject } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
@@ -46,6 +46,9 @@ const markersLoading = ref(false)
 const totalMarkers = ref(0)
 
 const { apiFetch } = useApi()
+
+// Injecter les markers préchargés depuis HomeView (si disponibles)
+const preloadedMarkers = inject<{ value: Promise<any> | null }>('preloadedMarkers', { value: null })
 
 let map: any = null
 let clusterGroup: any = null
@@ -200,9 +203,17 @@ async function loadMarkers() {
   markersLoading.value = true
 
   try {
-    const {markers} = await apiFetch<{markers: MapMarker[]}>('/api/map/markers', {
-      cache: { maxAge: 10_000 }
-    })
+    let markersData: { markers: MapMarker[] }
+    
+    if (preloadedMarkers.value) {
+      markersData = await preloadedMarkers.value
+    } else {
+      markersData = await apiFetch<{markers: MapMarker[]}>('/api/map/markers', {
+        cache: { maxAge: 10_000 }
+      })
+    }
+    
+    const { markers } = markersData
     
     if (!markers) {
       console.error('Failed to load markers: no data returned')
