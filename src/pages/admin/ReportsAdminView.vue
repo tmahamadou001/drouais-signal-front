@@ -308,7 +308,7 @@ onMounted(fetchData)
         </div>
         
         <span class="text-sm text-neutral-500 w-full sm:w-auto">
-          {{ filteredReports.length }} signalement{{ filteredReports.length > 1 ? 's' : '' }}
+          {{ totalReports }} signalement{{ totalReports > 1 ? 's' : '' }}
         </span>
       </div>
 
