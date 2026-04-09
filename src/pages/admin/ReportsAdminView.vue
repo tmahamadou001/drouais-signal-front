@@ -8,6 +8,9 @@ import CategoryIcon from '@/components/CategoryIcon.vue'
 import StatusTimeline from '@/components/StatusTimeline.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import MapView from '@/components/MapView.vue'
+import { useRealtimeDashboard } from '@/composables/useRealtimeDashboard'
+import RealtimeStatusBadge from '@/components/admin/RealtimeStatusBadge.vue'
+import RealtimeToast from '@/components/admin/RealtimeToast.vue'
 
 const { apiFetch, invalidateCachePattern, invalidateCache } = useApi()
 
@@ -164,14 +167,67 @@ const formatDate = (dateStr: string): string => {
   })
 }
 
+const {
+  connectionStatus,
+  notifications,
+  newReportIds,
+  unreadCount,
+  removeNotification,
+} = useRealtimeDashboard({
+  onNewReport: (newReport) => {
+    reports.value.unshift(newReport as Report)
+    stats.value.total++
+    stats.value.en_attente++
+  },
+
+  onStatusChange: (reportId, newStatus, oldStatus) => {
+    const report = reports.value.find((r) => r.id === reportId)
+    if (report) {
+      report.status = newStatus as ReportStatus
+    }
+
+    if (oldStatus === 'en_attente') stats.value.en_attente--
+    else if (oldStatus === 'pris_en_charge') stats.value.pris_en_charge--
+    else if (oldStatus === 'resolu') stats.value.resolu--
+
+    if (newStatus === 'en_attente') stats.value.en_attente++
+    else if (newStatus === 'pris_en_charge') stats.value.pris_en_charge++
+    else if (newStatus === 'resolu') stats.value.resolu++
+  },
+
+  onVoteChange: (reportId, newCount) => {
+    const report = reports.value.find((r) => r.id === reportId)
+    if (report) {
+      report.vote_count = newCount
+    }
+  },
+})
+
+function handleNotificationClick(reportId: string) {
+  const element = document.getElementById(`report-${reportId}`)
+  element?.scrollIntoView({
+    behavior: 'smooth',
+    block: 'center',
+  })
+}
+
 onMounted(fetchData)
 </script>
 
 <template>
   <div class="p-4 md:p-6">
-    <div class="mb-6 md:mb-8">
-      <h1 class="text-xl md:text-2xl font-display font-bold text-dark">Signalements</h1>
-      <p class="text-sm text-neutral-500 mt-1">Gestion des signalements urbains</p>
+    <RealtimeToast
+      :notifications="notifications"
+      @dismiss="removeNotification"
+      @click="handleNotificationClick"
+    />
+
+    <div class="mb-6 md:mb-8 flex items-center justify-between">
+      <div>
+        <h1 class="text-xl md:text-2xl font-display font-bold text-dark">Signalements</h1>
+        <p class="text-sm text-neutral-500 mt-1">Gestion des signalements urbains</p>
+      </div>
+      <RealtimeStatusBadge :status="connectionStatus" />
     </div>
 
     <LoadingSpinner v-if="loading" />
@@ -274,7 +330,13 @@ onMounted(fetchData)
               <tr
                 v-for="report in filteredReports"
                 :key="report.id"
-                class="border-b border-neutral-100 hover:bg-neutral-50 cursor-pointer transition-colors"
+                :id="`report-${report.id}`"
+                :class="[
+                  'border-b border-neutral-100 cursor-pointer transition-all duration-1000',
+                  newReportIds.has(report.id)
+                    ? 'bg-blue-50'
+                    : 'bg-white hover:bg-neutral-50'
+                ]"
                 @click="openSlideOver(report)"
               >
                 <td class="px-4 py-3">

@@ -2,12 +2,15 @@
 import { ref, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
+import { useAuthStore } from '@/stores/auth'
 import type { Report } from '@/types'
 import ReportCard from '@/components/ReportCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
+import { useRealtimeMyReports } from '@/composables/useRealtimeMyReports'
 
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCache } = useApi()
+const authStore = useAuthStore()
 
 const reports = ref<Report[]>([])
 const loading = ref(true)
@@ -16,8 +19,31 @@ const error = ref<string | null>(null)
 onMounted(async () => {
   try {
     reports.value = await apiFetch<Report[]>('/api/reports/mine', {
-      cache: { maxAge: 600_000 } // 10 minutes
+      cache: { maxAge: 5_000 }
     })
+
+    if (authStore.user?.id) {
+      useRealtimeMyReports(authStore.user.id, {
+        onStatusChange: (reportId, newStatus) => {
+          invalidateCache('/api/reports/mine')
+          invalidateCache(`/api/reports/${reportId}`)
+
+          const report = reports.value.find((r) => r.id === reportId)
+          if (report) {
+            report.status = newStatus as any
+          }
+        },
+        onVoteChange: (reportId, newCount) => {
+          invalidateCache('/api/reports/mine')
+          invalidateCache(`/api/reports/${reportId}`)
+          
+          const report = reports.value.find((r) => r.id === reportId)
+          if (report) {
+            report.vote_count = newCount
+          }
+        },
+      })
+    }
   } catch (err: any) {
     error.value = err.message
   } finally {

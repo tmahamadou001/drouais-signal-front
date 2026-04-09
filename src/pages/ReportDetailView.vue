@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import type { Report, StatusHistoryEntry } from '@/types'
@@ -10,15 +10,17 @@ import CategoryIcon from '@/components/CategoryIcon.vue'
 import MapView from '@/components/MapView.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import VoteButton from '@/components/VoteButton.vue'
+import { useRealtimeReport } from '@/composables/useRealtimeReport'
 
 const route = useRoute()
-const { apiFetch } = useApi()
+const { apiFetch, invalidateCache } = useApi()
 
 const report = ref<Report | null>(null)
 const history = ref<StatusHistoryEntry[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 const hasVoted = ref(false)
+const reportId = ref<string>('')
 
 const categoryConfig = computed(() =>
   report.value ? CATEGORY_CONFIG[report.value.category] : null
@@ -38,6 +40,8 @@ const formattedDate = computed(() => {
 onMounted(async () => {
   try {
     const id = route.params.id as string
+    reportId.value = id
+    
     const data = await apiFetch<{ report: Report; history: StatusHistoryEntry[] }>(
       `/api/reports/${id}`
     )
@@ -54,6 +58,27 @@ onMounted(async () => {
     loading.value = false
   }
 })
+
+watch(reportId, (id) => {
+  if (id) {
+    useRealtimeReport(id, {
+      onStatusChange: (newStatus) => {
+        invalidateCache(`/api/reports/${id}`)
+        
+        if (report.value) {
+          report.value.status = newStatus as any
+        }
+      },
+      onVoteChange: (newCount) => {
+        invalidateCache(`/api/reports/${id}`)
+        
+        if (report.value) {
+          report.value.vote_count = newCount
+        }
+      },
+    })
+  }
+}, { immediate: true })
 </script>
 
 <template>
