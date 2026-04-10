@@ -255,6 +255,8 @@ export const useAuthStore = defineStore('auth', () => {
     session.value = null
     error.value = null
     tenantRole.value = null
+    const { default: router } = await import('@/router')
+    router.push({ name: 'home' })
   }
 
   // ─── CLEAR ERROR ──────────────────────────────────────
