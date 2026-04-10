@@ -3,7 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import type { Report, StatusHistoryEntry } from '@/types'
-import { CATEGORY_CONFIG } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import StatusBadge from '@/components/StatusBadge.vue'
 import StatusTimeline from '@/components/StatusTimeline.vue'
 import CategoryIcon from '@/components/CategoryIcon.vue'
@@ -22,9 +22,7 @@ const error = ref<string | null>(null)
 const hasVoted = ref(false)
 const reportId = ref<string>('')
 
-const categoryConfig = computed(() =>
-  report.value ? CATEGORY_CONFIG[report.value.category] : null
-)
+const { getCategoryLabel } = useTenantCategories()
 
 const formattedDate = computed(() => {
   if (!report.value) return ''
@@ -117,7 +115,7 @@ watch(reportId, (id) => {
             <h1 class="text-lg font-display font-bold text-dark line-clamp-2">{{ report.title }}</h1>
             <StatusBadge :status="report.status" class="mt-2 self-start" />
             <p class="text-sm text-neutral-500 mt-2">
-              {{ categoryConfig?.label }}
+              {{ report ? getCategoryLabel(report.category) : '' }}
               <template v-if="report.address_approx"> — {{ report.address_approx }}</template>
             </p>
             <p class="text-xs text-neutral-400 mt-1">Signalé le {{ formattedDate }}</p>

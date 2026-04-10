@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
 import AppIcon from '@/components/AppIcon.vue'
 
 const props = defineProps<{
@@ -13,48 +14,62 @@ const emit = defineEmits<{
 }>()
 
 const auth = useAuthStore()
+const tenant = useTenantStore()
 const route = useRoute()
 
 const hoveredItem = ref<string | null>(null)
 let hoverTimeout: ReturnType<typeof setTimeout> | null = null
 
-const navItems = [
+const navItems = computed(() => [
   {
     id: 'reports',
     label: 'Signalements',
     icon: 'ClipboardList',
     route: '/admin/signalements',
-    badge: null
+    badge: null,
+    visible: true,
   },
   {
     id: 'heatmap',
     label: 'Carte de chaleur',
     icon: 'Flame',
     route: '/admin/heatmap',
-    badge: null
+    badge: null,
+    visible: tenant.features.heatmap,
   },
   {
     id: 'performance',
     label: 'Performance',
     icon: 'BarChart2',
     route: '/admin/performance',
-    badge: null
+    badge: null,
+    visible: true,
   },
   {
     id: 'weekly',
     label: 'Rapport hebdo',
     icon: 'Mail',
     route: '/admin/rapport',
-    badge: null
+    badge: null,
+    visible: tenant.features.weeklyReport && auth.isAdmin,
   },
   {
     id: 'settings',
     label: 'Paramètres',
     icon: 'Settings',
     route: '/admin/parametres',
-    badge: null
-  }
-]
+    badge: null,
+    visible: auth.isAdmin,
+  },
+  {
+    id: 'platform',
+    label: 'Plateforme',
+    icon: 'Globe',
+    route: '/admin/plateforme',
+    badge: null,
+    visible: auth.isSuperAdmin,
+  },
+].filter((item) => item.visible))
 
 function isActiveRoute(itemRoute: string): boolean {
   return route.path.startsWith(itemRoute)
@@ -80,7 +95,7 @@ function onItemClick() {
 
 const hoveredItemData = computed(() => {
   if (!hoveredItem.value) return null
-  return navItems.find(item => item.id === hoveredItem.value)
+  return navItems.value.find(item => item.id === hoveredItem.value)
 })
 </script>
 

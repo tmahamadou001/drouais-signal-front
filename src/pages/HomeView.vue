@@ -2,6 +2,8 @@
 import { ref, onMounted, computed, provide } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useApi } from '@/composables/useApi'
+import { useTenantStore } from '@/stores/tenant'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import type { AdminStats } from '@/types'
 import MapView from '@/components/MapView.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
@@ -9,6 +11,12 @@ import MapSkeleton from '@/components/MapSkeleton.vue'
 import InstallButton from '@/components/InstallButton.vue'
 
 const { apiFetch } = useApi()
+const tenantStore = useTenantStore()
+const { categories } = useTenantCategories()
+
+const categoryDescription = computed(() =>
+  categories.value.slice(0, 3).map((c) => c.label.toLowerCase()).join(', ') + '…'
+)
 
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
 const loading = ref(true)
@@ -56,17 +64,17 @@ const statCards = computed(() => [
         <div class="max-w-2xl">
           <div class="inline-flex items-center gap-2 bg-white/10 backdrop-blur-sm rounded-full px-4 py-1.5 mb-6">
             <span class="w-2 h-2 bg-success rounded-full animate-pulse"></span>
-            <span class="text-white/90 text-sm font-medium">Service actif — Ville de Dreux</span>
+            <span class="text-white/90 text-sm font-medium">Service actif — {{ tenantStore.name }}</span>
           </div>
 
           <h1 class="text-3xl sm:text-5xl font-display font-bold text-white leading-tight mb-4">
             Signalez un problème urbain à
-            <span class="text-warning-300">Dreux</span>
+            <span class="text-warning-300">{{ tenantStore.config?.city_name ?? tenantStore.name }}</span>
             en 3 clics
           </h1>
 
           <p class="text-lg text-white/80 mb-8 max-w-lg">
-            Voirie dégradée, éclairage en panne, dépôt sauvage…
+            {{ categoryDescription }}
             Photographiez, localisez, envoyez. Les services techniques s'en occupent.
           </p>
 
@@ -130,7 +138,7 @@ const statCards = computed(() => [
       <div class="flex items-center justify-between mb-6">
         <div>
           <h2 class="text-2xl font-display font-bold text-dark">Carte des signalements</h2>
-          <p class="text-sm text-neutral-500 mt-1">Tous les signalements publics sur Dreux et ses alentours</p>
+          <p class="text-sm text-neutral-500 mt-1">Tous les signalements publics sur {{ tenantStore.config?.city_name ?? tenantStore.name }} et ses alentours</p>
         </div>
         <div class="hidden sm:flex items-center gap-4 text-xs text-neutral-500">
           <span class="flex items-center gap-1.5">

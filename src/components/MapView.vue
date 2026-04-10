@@ -5,13 +5,14 @@ import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import '@/assets/map.css'
 import { useApi } from '@/composables/useApi'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 
 interface MapMarker {
   id: string
   lat: number
   lng: number
   status: 'en_attente' | 'pris_en_charge' | 'resolu'
-  category: 'voirie' | 'eclairage' | 'dechets' | 'autre'
+  category: string
   title: string
   vote_count: number
 }
@@ -62,25 +63,10 @@ const STATUS_COLORS = {
   resolu: '#1D9E75'
 }
 
-const CATEGORY_EMOJIS: Record<string, string> = {
-  voirie: '🚧',
-  eclairage: '💡',
-  dechets: '🗑️',
-  autre: '❓'
-}
+const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
 
 function getCategoryEmoji(category: string): string {
-  return CATEGORY_EMOJIS[category] || '📍'
-}
-
-function getCategoryLabel(category: string): string {
-  const labels: Record<string, string> = {
-    voirie: 'Voirie',
-    eclairage: 'Éclairage',
-    dechets: 'Déchets',
-    autre: 'Autre'
-  }
-  return labels[category] || category
+  return getCategoryIcon(category)
 }
 
 function getStatusLabel(status: string): string {

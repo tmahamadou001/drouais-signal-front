@@ -4,6 +4,8 @@ import { supabase } from '@/lib/supabase'
 import { formatAuthError } from '@/types/auth'
 import type { User, Session } from '@supabase/supabase-js'
 import type { LoginCredentials, RegisterCredentials } from '@/types/auth'
+import { detectSlug } from '@/utils/detectSlug'
+import { useTenantStore } from '@/stores/tenant'
 
 export const useAuthStore = defineStore('auth', () => {
   // ─── State ────────────────────────────────────────────
@@ -12,19 +14,38 @@ export const useAuthStore = defineStore('auth', () => {
   const loading = ref(false)
   const error = ref<string | null>(null)
   const initialized = ref(false)
+  const tenantRole = ref<'admin' | 'agent' | 'observer' | 'citizen' | 'super_admin' | null>(null)
 
   // ─── Getters ──────────────────────────────────────────
   const isAuthenticated = computed(() => !!user.value)
 
-  const isAdmin = computed(() => user.value?.user_metadata?.role === 'admin')
+  const isSuperAdmin = computed(
+    () =>
+      user.value?.user_metadata?.role === 'super_admin' ||
+      tenantRole.value === 'super_admin'
+  )
+
+  const isAdmin = computed(
+    () =>
+      isSuperAdmin.value ||
+      user.value?.user_metadata?.role === 'admin' ||
+      tenantRole.value === 'admin'
+  )
 
   const isAgent = computed(
     () =>
+      isAdmin.value ||
       user.value?.user_metadata?.role === 'agent' ||
-      user.value?.user_metadata?.role === 'admin'
+      tenantRole.value === 'agent'
   )
 
-  const userRole = computed(() => user.value?.user_metadata?.role ?? 'citizen')
+  const isObserver = computed(
+    () => isAgent.value || tenantRole.value === 'observer'
+  )
+
+  const userRole = computed(
+    () => tenantRole.value ?? user.value?.user_metadata?.role ?? 'citizen'
+  )
 
   const userEmail = computed(() => user.value?.email ?? '')
 
@@ -38,6 +59,9 @@ export const useAuthStore = defineStore('auth', () => {
       const { data } = await supabase.auth.getSession()
       session.value = data.session
       user.value = data.session?.user ?? null
+      if (data.session) {
+        await fetchTenantRole()
+      }
     } catch (err) {
       console.error('Auth init error:', err)
     } finally {
@@ -47,6 +71,7 @@ export const useAuthStore = defineStore('auth', () => {
     supabase.auth.onAuthStateChange((_event, newSession) => {
       session.value = newSession
       user.value = newSession?.user ?? null
+      if (!newSession) tenantRole.value = null
     })
   }
 
@@ -54,6 +79,26 @@ export const useAuthStore = defineStore('auth', () => {
   function setLoading(val: boolean) {
     loading.value = val
     if (val) error.value = null
+  }
+
+  // ─── Rôle dans le tenant courant ──────────────────────
+  async function fetchTenantRole(): Promise<void> {
+    if (!session.value?.access_token) return
+    try {
+      const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+      const res = await fetch(`${API_URL}/api/tenant/my-role`, {
+        headers: {
+          Authorization: `Bearer ${session.value.access_token}`,
+          'X-Tenant-Slug': detectSlug(),
+        },
+      })
+      if (res.ok) {
+        const json = await res.json()
+        tenantRole.value = json.role ?? null
+      }
+    } catch {
+      // silencieux — fallback user_metadata.role
+    }
   }
 
   // ─── INSCRIPTION ──────────────────────────────────────
@@ -74,6 +119,7 @@ export const useAuthStore = defineStore('auth', () => {
     setLoading(true)
 
     try {
+      const tenantStore = useTenantStore()
       const { data, error: err } = await supabase.auth.signUp({
         email: credentials.email.trim().toLowerCase(),
         password: credentials.password,
@@ -81,6 +127,7 @@ export const useAuthStore = defineStore('auth', () => {
           data: {
             role,
             first_name: credentials.firstName?.trim() ?? '',
+            signup_tenant_slug: tenantStore.data?.slug ?? null,
           },
           emailRedirectTo: `${window.location.origin}/auth/callback`,
         },
@@ -135,6 +182,7 @@ export const useAuthStore = defineStore('auth', () => {
 
       user.value = data.user
       session.value = data.session
+      await fetchTenantRole()
       return { success: true }
     } catch (err: any) {
       error.value = formatAuthError(err.message)
@@ -200,6 +248,7 @@ export const useAuthStore = defineStore('auth', () => {
     user.value = null
     session.value = null
     error.value = null
+    tenantRole.value = null
   }
 
   // ─── CLEAR ERROR ──────────────────────────────────────
@@ -214,10 +263,13 @@ export const useAuthStore = defineStore('auth', () => {
     loading,
     error,
     initialized,
+    tenantRole,
     // Getters
     isAuthenticated,
+    isSuperAdmin,
     isAdmin,
     isAgent,
+    isObserver,
     userRole,
     userEmail,
     accessToken,
@@ -228,6 +280,7 @@ export const useAuthStore = defineStore('auth', () => {
     forgotPassword,
     resetPassword,
     signOut,
+    fetchTenantRole,
     clearError,
   }
 })

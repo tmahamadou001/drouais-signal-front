@@ -4,13 +4,22 @@ import App from './App.vue'
 import router from './router'
 import './assets/main.css'
 import './assets/admin.css'
+import { useTenantStore } from './stores/tenant'
 
-const app = createApp(App)
+const bootstrap = async () => {
+  const app = createApp(App)
+  const pinia = createPinia()
 
-app.use(createPinia())
-app.use(router)
+  app.use(pinia)
+  app.use(router)
 
-app.mount('#app')
+  const tenantStore = useTenantStore()
+  await tenantStore.load()
+
+  app.mount('#app')
+}
+
+bootstrap()
 
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {

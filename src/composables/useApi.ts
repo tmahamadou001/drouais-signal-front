@@ -1,4 +1,5 @@
 import { useAuthStore } from '@/stores/auth'
+import { detectSlug } from '@/utils/detectSlug'
 import { useApiCache } from './useApiCache'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
@@ -29,7 +30,9 @@ export function useApi() {
       }
     }
 
-    const headers: Record<string, string> = {}
+    const headers: Record<string, string> = {
+      'X-Tenant-Slug': detectSlug(),
+    }
 
     if (auth.accessToken) {
       headers['Authorization'] = `Bearer ${auth.accessToken}`

@@ -2,7 +2,8 @@
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
 import type { Report, AdminStats, ReportStatus, ReportCategory } from '@/types'
-import { STATUS_CONFIG, CATEGORY_CONFIG } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 import StatusBadge from '@/components/StatusBadge.vue'
 import CategoryIcon from '@/components/CategoryIcon.vue'
 import StatusTimeline from '@/components/StatusTimeline.vue'
@@ -13,6 +14,8 @@ import RealtimeStatusBadge from '@/components/admin/RealtimeStatusBadge.vue'
 import RealtimeToast from '@/components/admin/RealtimeToast.vue'
 
 const { apiFetch, invalidateCachePattern, invalidateCache } = useApi()
+const { categories: tenantCategories, getCategoryLabel } = useTenantCategories()
+const { STATUS_OPTIONS } = useReportStatuses()
 
 const reports = ref<Report[]>([])
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
@@ -256,8 +259,8 @@ onMounted(fetchData)
           class="px-3 py-2 rounded-ds border border-neutral-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         >
           <option value="">Tous les statuts</option>
-          <option v-for="(config, key) in STATUS_CONFIG" :key="key" :value="key">
-            {{ config.label }}
+          <option v-for="s in STATUS_OPTIONS" :key="s.value" :value="s.value">
+            {{ s.label }}
           </option>
         </select>
         <select
@@ -265,8 +268,8 @@ onMounted(fetchData)
           class="px-3 py-2 rounded-ds border border-neutral-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
         >
           <option value="">Toutes les catégories</option>
-          <option v-for="(config, key) in CATEGORY_CONFIG" :key="key" :value="key">
-            {{ config.emoji }} {{ config.label }}
+          <option v-for="cat in tenantCategories" :key="cat.slug" :value="cat.slug">
+            {{ cat.icon }} {{ cat.label }}
           </option>
         </select>
         
@@ -358,7 +361,7 @@ onMounted(fetchData)
                   </div>
                 </td>
                 <td class="px-4 py-3 hidden sm:table-cell text-neutral-600">
-                  {{ CATEGORY_CONFIG[report.category].label }}
+                  {{ getCategoryLabel(report.category) }}
                 </td>
                 <td class="px-4 py-3">
                   <StatusBadge :status="report.status" />
@@ -497,7 +500,7 @@ onMounted(fetchData)
                       </span>
                     </div>
                     <p class="text-sm text-neutral-500 mt-0.5">
-                      {{ CATEGORY_CONFIG[selectedReport.category].label }}
+                      {{ getCategoryLabel(selectedReport.category) }}
                     </p>
                     <p v-if="selectedReport.address_approx" class="text-sm text-neutral-500">
                       {{ selectedReport.address_approx }}

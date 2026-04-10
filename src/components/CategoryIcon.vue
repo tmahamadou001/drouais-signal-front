@@ -1,15 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { CATEGORY_CONFIG, type ReportCategory } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 
 const props = withDefaults(defineProps<{
-  category: ReportCategory
+  category: string
   size?: 'sm' | 'md' | 'lg'
 }>(), {
   size: 'md',
 })
 
-const config = computed(() => CATEGORY_CONFIG[props.category])
+const { getCategoryIcon, getCategoryColor } = useTenantCategories()
 
 const sizeClasses = computed(() => {
   switch (props.size) {
@@ -24,8 +24,8 @@ const sizeClasses = computed(() => {
   <div
     class="rounded-ds-lg flex items-center justify-center flex-shrink-0"
     :class="sizeClasses"
-    :style="{ backgroundColor: config.color + '15' }"
+    :style="{ backgroundColor: getCategoryColor(category) + '15' }"
   >
-    {{ config.emoji }}
+    {{ getCategoryIcon(category) }}
   </div>
 </template>

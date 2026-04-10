@@ -2,8 +2,13 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
-import { CATEGORY_CONFIG } from '@/types'
+import { useTenantStore } from '@/stores/tenant'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import DuplicateWarning from '@/components/DuplicateWarning.vue'
+
+const tenantStore = useTenantStore()
+const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
+const cityName = computed(() => tenantStore.config?.city_name ?? tenantStore.name)
 
 const emit = defineEmits<{
   submitted: [id: string]
@@ -163,7 +168,7 @@ function searchAddress(query: string) {
   searchTimeout = setTimeout(async () => {
     try {
       const url = new URL('https://nominatim.openstreetmap.org/search')
-      url.searchParams.set('q', `${query}, Dreux`)
+      url.searchParams.set('q', `${query}, ${cityName.value}`)
       url.searchParams.set('format', 'json')
       url.searchParams.set('limit', '5')
       url.searchParams.set('countrycodes', 'fr')
@@ -373,9 +378,9 @@ const canSubmit = computed(() => {
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
-              <span class="text-xl">{{ CATEGORY_CONFIG[store.category as keyof typeof CATEGORY_CONFIG].emoji }}</span>
+              <span class="text-xl">{{ getCategoryIcon(store.category) }}</span>
               <span class="text-xs font-semibold text-neutral-500 uppercase">
-                {{ CATEGORY_CONFIG[store.category as keyof typeof CATEGORY_CONFIG].label }}
+                {{ getCategoryLabel(store.category) }}
               </span>
             </div>
             <p class="font-semibold text-dark truncate">{{ store.title }}</p>
@@ -542,7 +547,7 @@ const canSubmit = computed(() => {
               v-model="searchQuery"
               @input="searchAddress(searchQuery)"
               type="text"
-              placeholder="Ex: 12 rue Rotrou, Dreux"
+              :placeholder="`Ex: 12 rue du Centre, ${cityName}`"
               class="w-full px-4 py-3 pl-11 rounded-ds-lg border-2 border-neutral-300 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
             <svg class="w-5 h-5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

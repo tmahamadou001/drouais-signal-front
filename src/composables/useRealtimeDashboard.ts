@@ -1,6 +1,7 @@
 import { ref, readonly, onUnmounted } from 'vue'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import type {
   RealtimeConnectionStatus,
   RealtimeNotification,
@@ -16,6 +17,7 @@ export function useRealtimeDashboard(options: {
   onStatusChange: (reportId: string, newStatus: string, oldStatus: string) => void
   onVoteChange: (reportId: string, newCount: number) => void
 }) {
+  const { getCategoryDisplay } = useTenantCategories()
   let channel: RealtimeChannel | null = null
 
   function addNotification(
@@ -79,19 +81,12 @@ export function useRealtimeDashboard(options: {
           options.onNewReport(newReport)
           highlightReport(newReport.id)
 
-          const categoryLabels: Record<string, string> = {
-            voirie: '🛣️ Voirie',
-            eclairage: '💡 Éclairage',
-            dechets: '🗑️ Déchets',
-            autre: '📌 Autre',
-          }
-
           addNotification({
             type: 'new_report',
             message: `Nouveau signalement reçu`,
             reportId: newReport.id,
             reportTitle:
-              newReport.title || categoryLabels[newReport.category] || 'Nouveau signalement',
+              newReport.title || getCategoryDisplay(newReport.category) || 'Nouveau signalement',
           })
         }
       )

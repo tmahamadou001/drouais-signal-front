@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { CATEGORY_CONFIG, type ReportCategory } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 
 const props = defineProps<{
   modelValue: string
@@ -10,12 +10,7 @@ const emit = defineEmits<{
   close: []
 }>()
 
-const categories: Array<{ key: ReportCategory; emoji: string; label: string }> = [
-  { key: 'voirie', emoji: '🚧', label: CATEGORY_CONFIG.voirie.label },
-  { key: 'eclairage', emoji: '💡', label: CATEGORY_CONFIG.eclairage.label },
-  { key: 'dechets', emoji: '🗑️', label: CATEGORY_CONFIG.dechets.label },
-  { key: 'autre', emoji: '❓', label: CATEGORY_CONFIG.autre.label },
-]
+const { categories } = useTenantCategories()
 
 function selectCategory(key: string) {
   emit('update:modelValue', key)
@@ -48,19 +43,19 @@ function selectCategory(key: string) {
       <div class="grid grid-cols-2 gap-3">
         <button
           v-for="cat in categories"
-          :key="cat.key"
-          @click="selectCategory(cat.key)"
+          :key="cat.slug"
+          @click="selectCategory(cat.slug)"
           class="flex flex-col items-center justify-center p-6 rounded-ds-lg border-2 transition-all hover:scale-105 active:scale-95"
           :class="
-            modelValue === cat.key
+            modelValue === cat.slug
               ? 'border-primary bg-primary-50'
               : 'border-neutral-200 hover:border-primary/50 hover:bg-neutral-50'
           "
         >
-          <span class="text-4xl mb-2">{{ cat.emoji }}</span>
+          <span class="text-4xl mb-2">{{ cat.icon }}</span>
           <span
             class="text-sm font-semibold text-center"
-            :class="modelValue === cat.key ? 'text-primary' : 'text-dark'"
+            :class="modelValue === cat.slug ? 'text-primary' : 'text-dark'"
           >
             {{ cat.label }}
           </span>

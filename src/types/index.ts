@@ -1,5 +1,5 @@
-// Report categories
-export type ReportCategory = 'voirie' | 'eclairage' | 'dechets' | 'autre'
+// Report categories — dynamic per tenant, typed as string
+export type ReportCategory = string
 
 // Report statuses
 export type ReportStatus = 'en_attente' | 'pris_en_charge' | 'resolu'
@@ -58,62 +58,3 @@ export interface AdminStats {
   resolu: number
 }
 
-// Category display config (for UI rendering)
-export interface CategoryConfig {
-  label: string
-  emoji: string
-  color: string
-}
-
-// Map of all categories to their display config
-export const CATEGORY_CONFIG: Record<ReportCategory, CategoryConfig> = {
-  voirie: {
-    label: 'Voirie',
-    emoji: '🚧',
-    color: '#EF4444',
-  },
-  eclairage: {
-    label: 'Éclairage',
-    emoji: '💡',
-    color: '#F59E0B',
-  },
-  dechets: {
-    label: 'Déchets',
-    emoji: '🗑️',
-    color: '#10B981',
-  },
-  autre: {
-    label: 'Autre',
-    emoji: '❓',
-    color: '#6366F1',
-  },
-}
-
-// Status display config (for badges, timelines)
-export interface StatusConfig {
-  label: string
-  tailwindBg: string
-  tailwindText: string
-  dotColor: string
-}
-
-export const STATUS_CONFIG: Record<ReportStatus, StatusConfig> = {
-  en_attente: {
-    label: 'En attente',
-    tailwindBg: 'bg-neutral-200',
-    tailwindText: 'text-neutral-700',
-    dotColor: '#A3A3A3',
-  },
-  pris_en_charge: {
-    label: 'Pris en charge',
-    tailwindBg: 'bg-warning-50',
-    tailwindText: 'text-warning-700',
-    dotColor: '#EF9F27',
-  },
-  resolu: {
-    label: 'Résolu',
-    tailwindBg: 'bg-success-50',
-    tailwindText: 'text-success-700',
-    dotColor: '#1D9E75',
-  },
-}

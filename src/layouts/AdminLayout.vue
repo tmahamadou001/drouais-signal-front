@@ -1,48 +1,65 @@
 <script setup lang="ts">
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminSidebar from '@/components/admin/AdminSidebar.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
 
+const authStore = useAuthStore()
+const tenantStore = useTenantStore()
 const isCollapsed = ref(false)
 
-const navItems = [
+const navItems = computed(() => [
   {
     id: 'reports',
     label: 'Signalements',
     shortLabel: 'Signaux',
     icon: 'ClipboardList',
-    route: '/admin/signalements'
+    route: '/admin/signalements',
+    visible: true,
   },
   {
     id: 'heatmap',
     label: 'Carte de chaleur',
     shortLabel: 'Chaleur',
     icon: 'Flame',
-    route: '/admin/heatmap'
+    route: '/admin/heatmap',
+    visible: tenantStore.features.heatmap,
   },
   {
     id: 'performance',
     label: 'Performance',
     shortLabel: 'Perfs',
     icon: 'BarChart2',
-    route: '/admin/performance'
+    route: '/admin/performance',
+    visible: true,
   },
   {
     id: 'weekly',
     label: 'Rapport hebdo',
     shortLabel: 'Hebdo',
     icon: 'Mail',
-    route: '/admin/rapport'
+    route: '/admin/rapport',
+    visible: tenantStore.features.weeklyReport && authStore.isAdmin,
   },
   {
     id: 'settings',
     label: 'Paramètres',
     shortLabel: 'Réglages',
     icon: 'Settings',
-    route: '/admin/parametres'
-  }
-]
+    route: '/admin/parametres',
+    visible: authStore.isAdmin,
+  },
+  {
+    id: 'platform',
+    label: 'Plateforme',
+    shortLabel: 'Plateforme',
+    icon: 'Globe',
+    route: '/admin/plateforme',
+    visible: authStore.isSuperAdmin,
+  },
+].filter((item) => item.visible))
 
 onMounted(() => {
   const saved = localStorage.getItem('admin-sidebar-collapsed')
@@ -51,7 +68,7 @@ onMounted(() => {
   }
 })
 
-function toggleSidebar() {
+const toggleSidebar = () => {
   isCollapsed.value = !isCollapsed.value
   localStorage.setItem(
     'admin-sidebar-collapsed',

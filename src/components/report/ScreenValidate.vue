@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useReportStore } from '@/stores/report'
-import { CATEGORY_CONFIG } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import CategoryPicker from './CategoryPicker.vue'
+
+const { categories, getCategoryIcon, getCategoryLabel } = useTenantCategories()
 
 const emit = defineEmits<{
   validated: []
@@ -147,9 +149,9 @@ const canValidate = computed(() => {
             :class="[config.borderClass, config.bgClass]"
           >
             <div class="flex items-center gap-3">
-              <span class="text-2xl">{{ CATEGORY_CONFIG[store.category as keyof typeof CATEGORY_CONFIG].emoji }}</span>
+              <span class="text-2xl">{{ getCategoryIcon(store.category) }}</span>
               <span class="font-semibold text-dark">
-                {{ CATEGORY_CONFIG[store.category as keyof typeof CATEGORY_CONFIG].label }}
+                {{ getCategoryLabel(store.category) }}
               </span>
               <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
@@ -163,18 +165,18 @@ const canValidate = computed(() => {
           <!-- Low Confidence: Category selector -->
           <div v-else class="grid grid-cols-2 gap-3">
             <button
-              v-for="(cat, key) in CATEGORY_CONFIG"
-              :key="key"
-              @click="store.updateCategory(key)"
+              v-for="cat in categories"
+              :key="cat.slug"
+              @click="store.updateCategory(cat.slug)"
               class="flex flex-col items-center justify-center p-4 rounded-ds-lg border-2 transition-all hover:scale-105 active:scale-95"
               :class="
-                store.category === key
+                store.category === cat.slug
                   ? 'border-primary bg-primary-50'
                   : 'border-neutral-200 hover:border-primary/50'
               "
             >
-              <span class="text-3xl mb-1">{{ cat.emoji }}</span>
-              <span class="text-sm font-semibold text-center" :class="store.category === key ? 'text-primary' : 'text-dark'">
+              <span class="text-3xl mb-1">{{ cat.icon }}</span>
+              <span class="text-sm font-semibold text-center" :class="store.category === cat.slug ? 'text-primary' : 'text-dark'">
                 {{ cat.label }}
               </span>
             </button>

@@ -2,9 +2,12 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { useTenantStore } from '@/stores/tenant'
 import { useApi } from '@/composables/useApi'
+import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
 
 const auth = useAuthStore()
+const tenantStore = useTenantStore()
 const route = useRoute()
 
 const isMobile = ref(false)
@@ -151,7 +154,8 @@ watch(() => route.path, () => {
 
     <!-- Main content -->
     <main class="flex-1">
-      <RouterView v-slot="{ Component }">
+      <TenantNotFoundView v-if="tenantStore.error" />
+      <RouterView v-else v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
         </transition>
@@ -168,7 +172,7 @@ watch(() => route.path, () => {
                 <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
               </svg>
             </div>
-            OnSignale — Ville de Dreux
+            OnSignale — {{ tenantStore.name }}
           </div>
           <p class="text-sm text-neutral-400">
             Service de signalement urbain citoyen

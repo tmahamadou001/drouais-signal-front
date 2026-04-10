@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { CATEGORY_CONFIG } from '@/types'
-import { useApi } from '@/composables/useApi';
+import { useApi } from '@/composables/useApi'
+import { useTenantCategories } from '@/composables/useTenantCategories'
+
+const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
 
 const { apiFetch } = useApi()
 
@@ -145,9 +147,9 @@ function removePhoto() {
               <div>
                 <p class="text-xs text-blue-700 font-medium mb-1">Catégorie :</p>
                 <div class="inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-white border border-blue-200">
-                  <span class="text-lg">{{ CATEGORY_CONFIG[analysisResult.category as keyof typeof CATEGORY_CONFIG]?.emoji }}</span>
+                  <span class="text-lg">{{ getCategoryIcon(analysisResult.category) }}</span>
                   <span class="text-sm font-semibold text-dark">
-                    {{ CATEGORY_CONFIG[analysisResult.category as keyof typeof CATEGORY_CONFIG]?.label }}
+                    {{ getCategoryLabel(analysisResult.category) }}
                   </span>
                 </div>
               </div>

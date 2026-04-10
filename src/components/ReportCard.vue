@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Report } from '@/types'
-import { CATEGORY_CONFIG } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 import StatusBadge from './StatusBadge.vue'
 import CategoryIcon from './CategoryIcon.vue'
 
@@ -10,7 +10,8 @@ const props = defineProps<{
   report: Report
 }>()
 
-const categoryLabel = computed(() => CATEGORY_CONFIG[props.report.category].label)
+const { getCategoryLabel } = useTenantCategories()
+const categoryLabel = computed(() => getCategoryLabel(props.report.category))
 
 const formattedDate = computed(() => {
   return new Date(props.report.created_at).toLocaleDateString('fr-FR', {

@@ -84,6 +84,12 @@ const router = createRouter({
           path: 'parametres',
           name: 'AdminSettings',
           component: () => import('@/pages/admin/SettingsAdminView.vue')
+        },
+        {
+          path: 'plateforme',
+          name: 'AdminPlatform',
+          component: () => import('@/pages/admin/PlatformAdminView.vue'),
+          meta: { requiresSuperAdmin: true },
         }
       ]
     },
@@ -121,6 +127,11 @@ router.beforeEach(async (to) => {
   // Route requires admin role
   if (to.meta.requiresAdmin && !auth.isAdmin) {
     return { name: 'home' }
+  }
+
+  // Route requires super admin role
+  if (to.meta.requiresSuperAdmin && !auth.isSuperAdmin) {
+    return { name: 'AdminReports' }
   }
 
   // Redirect authenticated users away from guest-only pages

@@ -1,12 +1,13 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { STATUS_CONFIG, type ReportStatus } from '@/types'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 
 const props = defineProps<{
-  status: ReportStatus
+  status: string
 }>()
 
-const config = computed(() => STATUS_CONFIG[props.status])
+const { getStatusConfig } = useReportStatuses()
+const config = computed(() => getStatusConfig(props.status))
 </script>
 
 <template>

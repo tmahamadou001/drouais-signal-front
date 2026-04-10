@@ -2,7 +2,7 @@
 import { ref, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppIcon from '@/components/AppIcon.vue'
-import { CATEGORY_CONFIG } from '@/types'
+import { useTenantCategories } from '@/composables/useTenantCategories'
 
 const { apiFetch } = useApi()
 
@@ -56,13 +56,12 @@ const periodOptions = [
   { value: 'all', label: 'Toute la période' }
 ]
 
-const categoryOptions = [
+const { categories: tenantCategories, getCategoryLabel, getCategoryIcon } = useTenantCategories()
+
+const categoryOptions = computed(() => [
   { value: 'all', label: 'Toutes' },
-  { value: 'voirie', label: '🚧 Voirie' },
-  { value: 'eclairage', label: '💡 Éclairage' },
-  { value: 'dechets', label: '🗑️ Déchets' },
-  { value: 'autre', label: '📋 Autre' }
-]
+  ...tenantCategories.value.map((c) => ({ value: c.slug, label: `${c.icon} ${c.label}` }))
+])
 
 const statusOptions = [
   { value: 'all', label: 'Tous' },
@@ -76,7 +75,7 @@ const selectedPeriodLabel = computed(() =>
 )
 
 const selectedCategoryLabel = computed(() => 
-  categoryOptions.find(o => o.value === selectedCategory.value)?.label || ''
+  categoryOptions.value.find((o: any) => o.value === selectedCategory.value)?.label || ''
 )
 
 const topHotspot = computed(() => stats.value.hotspots[0] || null)
@@ -193,7 +192,7 @@ async function updateMap() {
     markersLayer = L.layerGroup()
 
     points.value.forEach(p => {
-      const emoji = CATEGORY_CONFIG[p.dominant_category as keyof typeof CATEGORY_CONFIG]?.emoji || '📍'
+      const emoji = getCategoryIcon(p.dominant_category)
       
       const icon = L.divIcon({
         html: `<div style="background:#1A56A0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2)"><span style="font-size:16px">${emoji}</span></div>`,
@@ -207,7 +206,7 @@ async function updateMap() {
         <div class="text-sm">
           <div class="font-semibold mb-1">${p.address_approx || 'Zone'}</div>
           <div class="text-gray-600">${p.signal_count} signalement${p.signal_count > 1 ? 's' : ''}</div>
-          <div class="text-xs text-gray-500 mt-1">Catégorie : ${CATEGORY_CONFIG[p.dominant_category as keyof typeof CATEGORY_CONFIG]?.label || 'Autre'}</div>
+          <div class="text-xs text-gray-500 mt-1">Catégorie : ${getCategoryLabel(p.dominant_category)}</div>
         </div>
       `)
       markersLayer.addLayer(marker)
@@ -269,7 +268,7 @@ async function exportPDF() {
     pdf.text('Par catégorie :', 14, yPos)
     yPos += 6
     for (const [cat, count] of Object.entries(stats.value.by_category)) {
-      const label = CATEGORY_CONFIG[cat as keyof typeof CATEGORY_CONFIG]?.label || cat
+      const label = getCategoryLabel(cat)
       pdf.text(`  • ${label} : ${count}`, 14, yPos)
       yPos += 5
     }
@@ -364,7 +363,7 @@ onMounted(() => {
 
       <div class="bg-white rounded-lg border border-gray-200 p-4">
         <div class="text-sm font-semibold text-gray-800">
-          {{ CATEGORY_CONFIG[dominantCategory as keyof typeof CATEGORY_CONFIG]?.label || 'Autre' }}
+          {{ getCategoryLabel(dominantCategory) }}
         </div>
         <div class="text-xs text-gray-500 mt-1">Catégorie dominante</div>
       </div>
@@ -475,8 +474,8 @@ onMounted(() => {
                 {{ hotspot.count }} signalement{{ hotspot.count > 1 ? 's' : '' }}
               </span>
               <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
-                {{ CATEGORY_CONFIG[hotspot.dominant_category as keyof typeof CATEGORY_CONFIG]?.emoji }}
-                {{ CATEGORY_CONFIG[hotspot.dominant_category as keyof typeof CATEGORY_CONFIG]?.label }}
+                {{ getCategoryIcon(hotspot.dominant_category) }}
+                {{ getCategoryLabel(hotspot.dominant_category) }}
               </span>
             </div>
           </div>
