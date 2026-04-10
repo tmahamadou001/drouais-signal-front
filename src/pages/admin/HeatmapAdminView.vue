@@ -3,6 +3,7 @@ import { ref, onMounted, computed, watch } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppIcon from '@/components/AppIcon.vue'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { useTenantStore } from '@/stores/tenant'
 
 const { apiFetch } = useApi()
 
@@ -57,6 +58,7 @@ const periodOptions = [
 ]
 
 const { categories: tenantCategories, getCategoryLabel, getCategoryIcon } = useTenantCategories()
+const tenantStore = useTenantStore()
 
 const categoryOptions = computed(() => [
   { value: 'all', label: 'Toutes' },
@@ -131,8 +133,8 @@ async function initMap() {
   await import('leaflet/dist/leaflet.css')
 
   map = L.map(mapContainer.value, {
-    center: [48.7322, 1.3664],
-    zoom: 13,
+    center: [tenantStore.config?.map_lat ?? 48.7322, tenantStore.config?.map_lng ?? 1.3664],
+    zoom: tenantStore.config?.map_zoom ?? 13,
     zoomControl: true
   })
 

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRaw } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
@@ -9,6 +9,24 @@ import DuplicateWarning from '@/components/DuplicateWarning.vue'
 const tenantStore = useTenantStore()
 const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
 const cityName = computed(() => tenantStore.config?.city_name ?? tenantStore.name)
+
+function haversineKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) ** 2
+    + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLng / 2) ** 2
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+const isOutOfBounds = computed(() => {
+  if (lat.value === null || lng.value === null) return false
+  const centerLat = tenantStore.config?.map_lat
+  const centerLng = tenantStore.config?.map_lng
+  const radius = tenantStore.config?.map_radius_km ?? 15
+  if (!centerLat || !centerLng) return false
+  return haversineKm(centerLat, centerLng, lat.value, lng.value) > radius
+})
 
 const emit = defineEmits<{
   submitted: [id: string]
@@ -238,7 +256,7 @@ async function initMap(latitude: number, longitude: number) {
     lng.value = position.lng
     duplicateCheckDone.value = false
     reverseGeocode(position.lat, position.lng)
-    checkForDuplicates()
+    if (!isOutOfBounds.value) checkForDuplicates()
   })
 }
 
@@ -348,7 +366,7 @@ async function handleSubmit() {
 }
 
 const canSubmit = computed(() => {
-  return lat.value !== null && lng.value !== null && store.category && store.title?.trim() && !submitting.value
+  return lat.value !== null && lng.value !== null && store.category && store.title?.trim() && !submitting.value && !isOutOfBounds.value
 })
 </script>
 
@@ -598,7 +616,24 @@ const canSubmit = computed(() => {
           @voted="handleVoted"
         />
 
-        <div class="bg-blue-50 border border-blue-200 rounded-ds-lg p-4">
+        <!-- Erreur hors périmètre -->
+        <div
+          v-if="isOutOfBounds"
+          class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-ds-lg"
+        >
+          <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+          </svg>
+          <div>
+            <p class="font-semibold text-red-900">Position hors périmètre</p>
+            <p class="text-sm text-red-700 mt-1">
+              Ce point est en dehors de la zone couverte par {{ cityName }}.
+              Déplacez le marker 📍 à l'intérieur de la ville pour continuer.
+            </p>
+          </div>
+        </div>
+
+        <div v-else class="bg-blue-50 border border-blue-200 rounded-ds-lg p-4">
           <p class="text-sm text-blue-900">
             💡 <strong>Conseil :</strong> Déplacez le marker 📍 pour ajuster précisément la position
           </p>

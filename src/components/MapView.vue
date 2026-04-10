@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import '@/assets/map.css'
 import { useApi } from '@/composables/useApi'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { useTenantStore } from '@/stores/tenant'
 
 interface MapMarker {
   id: string
@@ -32,11 +33,15 @@ const props = withDefaults(defineProps<{
   showAllMarkers?: boolean
 }>(), {
   interactive: false,
-  center: () => [48.7365, 1.3668],
-  zoom: 13,
   selectedPosition: null,
   showAllMarkers: false,
 })
+
+const tenantStore = useTenantStore()
+const mapCenter = computed<[number, number]>(() =>
+  props.center ?? [tenantStore.config?.map_lat ?? 48.7365, tenantStore.config?.map_lng ?? 1.3668]
+)
+const mapZoom = computed(() => props.zoom ?? tenantStore.config?.map_zoom ?? 13)
 
 const emit = defineEmits<{
   (e: 'map-click', payload: { lat: number; lng: number }): void
@@ -140,8 +145,8 @@ async function initMap() {
   await import('leaflet.markercluster')
 
   map = L.map(mapContainer.value, {
-    center: props.center,
-    zoom: props.zoom,
+    center: mapCenter.value,
+    zoom: mapZoom.value,
     zoomControl: true,
   })
 
