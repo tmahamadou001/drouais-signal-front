@@ -120,6 +120,12 @@ export const useAuthStore = defineStore('auth', () => {
 
     try {
       const tenantStore = useTenantStore()
+      const slug = tenantStore.data?.slug
+      const appDomain = import.meta.env.VITE_APP_DOMAIN
+      const redirectOrigin =
+        slug && appDomain && !import.meta.env.DEV
+          ? `https://${slug}.${appDomain}`
+          : window.location.origin
       const { data, error: err } = await supabase.auth.signUp({
         email: credentials.email.trim().toLowerCase(),
         password: credentials.password,
@@ -127,9 +133,9 @@ export const useAuthStore = defineStore('auth', () => {
           data: {
             role,
             first_name: credentials.firstName?.trim() ?? '',
-            signup_tenant_slug: tenantStore.data?.slug ?? null,
+            signup_tenant_slug: slug ?? null,
           },
-          emailRedirectTo: `${window.location.origin}/auth/callback`,
+          emailRedirectTo: `${redirectOrigin}/auth/callback`,
         },
       })
 
