@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted, onUnmounted, toRaw } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
@@ -54,10 +54,14 @@ const accuracy = ref<number | null>(null)
 const addressApprox = ref('')
 const gpsError = ref<GpsError>(null)
 
+const geocodeCache = new Map<string, string>()
+
 // Recherche d'adresse
 const searchQuery = ref('')
 const searchResults = ref<any[]>([])
 let searchTimeout: ReturnType<typeof setTimeout>
+
+let searchAbortController: AbortController | null = null
 
 // Carte Leaflet
 let map: any = null
@@ -126,7 +130,6 @@ function goToManual() {
 }
 
 // Reprise automatique GPS quand l'utilisateur revient
-// après avoir activé la localisation dans ses réglages
 function handleVisibilityChange() {
   if (
     document.visibilityState === 'visible' &&
@@ -140,80 +143,136 @@ onMounted(() => {
   document.addEventListener('visibilitychange', handleVisibilityChange)
 })
 
-onUnmounted(() => {
+onBeforeUnmount(() => {
   document.removeEventListener('visibilitychange', handleVisibilityChange)
+  clearTimeout(searchTimeout)
+  searchAbortController?.abort()
+  geocodeCache.clear()
 })
 
-// Reverse geocoding (coordonnées → adresse)
+function formatAddressResult(address: any): string {
+  const parts = [
+    address.house_number && address.road 
+      ? `${address.house_number} ${address.road}` 
+      : address.road,
+    address.postcode,
+    address.city || address.town || address.village,
+  ].filter(Boolean)
+
+  return parts.join(', ')
+}
+
 async function reverseGeocode(latitude: number, longitude: number) {
+  const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`
+  
+  if (geocodeCache.has(cacheKey)) {
+    addressApprox.value = geocodeCache.get(cacheKey)!
+    return
+  }
+
   try {
     const url = new URL('https://nominatim.openstreetmap.org/reverse')
     url.searchParams.set('lat', latitude.toString())
     url.searchParams.set('lon', longitude.toString())
     url.searchParams.set('format', 'json')
     url.searchParams.set('addressdetails', '1')
+    url.searchParams.set('zoom', '18')
+
+    const controller = new AbortController()
+    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5s timeout
 
     const res = await fetch(url.toString(), {
+      signal: controller.signal,
       headers: {
         'Accept-Language': 'fr',
         'User-Agent': 'OnSignale/1.0',
       },
     })
+
+    clearTimeout(timeoutId)
+
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
     const data = await res.json()
 
-    const addr = data.address
-    const parts = [
-      addr.house_number,
-      addr.road,
-      addr.postcode,
-      addr.city || addr.town || addr.village,
-    ].filter(Boolean)
+    if (!data.address) {
+      addressApprox.value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
+      return
+    }
 
-    addressApprox.value = parts.join(' ')
-  } catch {
+    const formattedAddress = formatAddressResult(data.address)
+    
+    const trimmedAddress = formattedAddress.length > 80 
+      ? formattedAddress.substring(0, 77) + '...' 
+      : formattedAddress
+
+    geocodeCache.set(cacheKey, trimmedAddress)
+    addressApprox.value = trimmedAddress
+
+  } catch (err) {
+    console.error('Erreur reverse geocoding:', err)
     addressApprox.value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
   }
 }
 
-// Recherche d'adresse (adresse → coordonnées)
-function searchAddress(query: string) {
+const searchAddress = (query: string) => {
   if (query.length < 3) {
     searchResults.value = []
     return
   }
 
   clearTimeout(searchTimeout)
+  searchAbortController?.abort()
+  
   searchTimeout = setTimeout(async () => {
     try {
       const url = new URL('https://nominatim.openstreetmap.org/search')
-      url.searchParams.set('q', `${query}, ${cityName.value}`)
+      
+      url.searchParams.set('q', query)
       url.searchParams.set('format', 'json')
       url.searchParams.set('limit', '5')
       url.searchParams.set('countrycodes', 'fr')
       url.searchParams.set('addressdetails', '1')
+      url.searchParams.set('zoom', '18')
+
+      searchAbortController = new AbortController()
+      const timeoutId = setTimeout(() => searchAbortController?.abort(), 5000)
 
       const res = await fetch(url.toString(), {
+        signal: searchAbortController.signal,
         headers: {
           'Accept-Language': 'fr',
           'User-Agent': 'OnSignale/1.0',
         },
       })
+
+      clearTimeout(timeoutId)
+      if (!res.ok) throw new Error(`HTTP ${res.status}`)
+
       const results = await res.json()
-      searchResults.value = results
-    } catch (err) {
+
+      searchResults.value = results.map((r: any) => ({
+        ...r,
+        displayName: formatAddressResult(r.address),
+      }))
+
+    } catch (err: any) {
+      if (err.name === 'AbortError') {
+        console.log('Recherche annulée')
+        return
+      }
       console.error('Erreur recherche adresse:', err)
       searchResults.value = []
     }
   }, 500)
 }
 
-// Sélectionner une adresse dans les résultats
 function selectAddress(result: any) {
   lat.value = parseFloat(result.lat)
   lng.value = parseFloat(result.lon)
-  addressApprox.value = result.display_name
+  addressApprox.value = result.displayName || result.display_name
   searchResults.value = []
-  searchQuery.value = result.display_name
+  searchQuery.value = result.displayName || result.display_name
   gpsState.value = 'located'
 }
 
@@ -581,7 +640,8 @@ const canSubmit = computed(() => {
             @click="selectAddress(result)"
             class="w-full px-4 py-3 text-left hover:bg-neutral-50 transition-colors"
           >
-            <p class="text-sm font-medium text-dark">{{ result.display_name }}</p>
+            <!-- ✅ Utiliser displayName (adresse courte formatée) -->
+            <p class="text-sm font-medium text-dark">{{ result.displayName || result.display_name }}</p>
           </button>
         </div>
       </div>
