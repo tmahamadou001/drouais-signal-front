@@ -27,7 +27,7 @@ const navItems = computed(() => [
     icon: 'ClipboardList',
     route: '/admin/signalements',
     badge: null,
-    visible: true,
+    visible: auth.isAdmin,
   },
   {
     id: 'heatmap',
@@ -35,7 +35,7 @@ const navItems = computed(() => [
     icon: 'Flame',
     route: '/admin/heatmap',
     badge: null,
-    visible: tenant.features.heatmap,
+    visible: tenant.features.heatmap && auth.isAdmin,
   },
   {
     id: 'performance',
@@ -43,7 +43,7 @@ const navItems = computed(() => [
     icon: 'BarChart2',
     route: '/admin/performance',
     badge: null,
-    visible: true,
+    visible: auth.isAdmin,
   },
   {
     id: 'weekly',

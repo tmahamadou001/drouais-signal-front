@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { useRouter } from 'vue-router'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
@@ -52,6 +53,7 @@ const markersLoading = ref(false)
 const totalMarkers = ref(0)
 
 const { apiFetch } = useApi()
+const router = useRouter()
 
 const preloadedMarkers = inject<{ value: Promise<any> | null }>('preloadedMarkers', { value: null })
 
@@ -312,12 +314,13 @@ const openDetailPopup = async (reportId: string, marker: any) => {
             ${ReportDetail.vote_count > 0
               ? `<span>▲ ${ReportDetail.vote_count} vote${ReportDetail.vote_count > 1 ? 's' : ''}</span>` 
               : ''}
-            <a
-              href="/signalement/${ReportDetail.id}"
+            <button
+              data-report-id="${ReportDetail.id}"
               class="popup-link"
+              style="background:none;border:none;color:inherit;cursor:pointer;padding:0;font:inherit;"
             >
               Voir le détail →
-            </a>
+            </button>
           </div>
         </div>
 
@@ -325,6 +328,16 @@ const openDetailPopup = async (reportId: string, marker: any) => {
     `
 
     marker.setPopupContent(popupContent)
+
+    setTimeout(() => {
+      const btn = document.querySelector(`button[data-report-id="${ReportDetail.id}"]`)
+      if (btn) {
+        btn.addEventListener('click', (e) => {
+          e.preventDefault()
+          router.push(`/signalement/${ReportDetail.id}`)
+        })
+      }
+    }, 100)
 
   } catch {
     marker.setPopupContent(
