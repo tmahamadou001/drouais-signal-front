@@ -25,7 +25,7 @@ function selectAuthenticated() {
   if (auth.isAuthenticated) {
     emit('modeSelected', 'authenticated')
   } else {
-    router.push({ name: 'login' })
+    router.push({ name: 'auth' })
   }
 }
 
