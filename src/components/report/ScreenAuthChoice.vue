@@ -55,13 +55,6 @@ function skipEmail() {
 
       <!-- Header -->
       <div class="text-center mb-8">
-        <div class="w-12 h-12 bg-primary rounded-xl flex items-center justify-center mx-auto mb-5">
-          <svg viewBox="0 0 20 20" class="w-6 h-6" fill="white">
-            <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z"/>
-            <circle cx="10" cy="9.5" r="2.5" fill="rgba(255,255,255,0.9)"/>
-            <path d="M10 13 L10 15.5" stroke="white" stroke-width="1.8" stroke-linecap="round" fill="none" opacity="0.9"/>
-          </svg>
-        </div>
         <h1 class="text-2xl font-bold text-gray-900 mb-2 tracking-tight">
           Comment souhaitez-vous signaler ?
         </h1>

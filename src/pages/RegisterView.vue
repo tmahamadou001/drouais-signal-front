@@ -56,12 +56,7 @@ async function handleSubmit() {
     <div class="w-full max-w-sm">
       <!-- Logo -->
       <div class="text-center mb-8">
-        <img
-          src="/icons/icon-96.png"
-          alt="OnSignale"
-          class="w-16 h-16 mx-auto mb-4 rounded-2xl shadow-sm"
-        />
-        <h1 class="text-2xl font-bold text-gray-900">Créer un compte</h1>
+        <h1 class="text-2xl font-bold text-gray-900 mt-4">Créer un compte</h1>
         <p class="text-gray-500 mt-1 text-sm">
           Suivez vos signalements en temps réel
         </p>
