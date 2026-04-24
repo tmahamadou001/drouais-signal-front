@@ -207,3 +207,42 @@
   font-size: 12px;
   color: #E24B4A;
 }
+
+
+/* Bouton de géolocalisation */
+.leaflet-locate-btn {
+  width: 36px;
+  height: 36px;
+  background: white;
+  border: none;
+  border-radius: 8px;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.15);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #64748b;
+  transition: color 0.15s, box-shadow 0.15s;
+  margin-bottom: 8px;
+}
+
+.leaflet-locate-btn:hover {
+  color: #1A56A0;
+  box-shadow: 0 2px 8px rgba(26, 86, 160, 0.2);
+}
+
+/* État : recherche en cours */
+.leaflet-locate-btn.locating {
+  color: #1A56A0;
+  animation: pulse-locate 1s ease-in-out infinite;
+}
+
+/* État : position trouvée */
+.leaflet-locate-btn.located {
+  color: #10B981;
+}
+
+@keyframes pulse-locate {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}

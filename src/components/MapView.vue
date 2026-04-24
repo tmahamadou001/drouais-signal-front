@@ -137,6 +137,70 @@ const createSelectedIcon = (category?: string): any => {
   })
 }
 
+const addLocateControl = () => {
+  const L = (window as any).L
+
+  const LocateControl = L.Control.extend({
+    options: { position: 'bottomright' },
+
+    onAdd() {
+      const btn = L.DomUtil.create(
+        'button',
+        'leaflet-locate-btn'
+      )
+
+      btn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2"
+             stroke-linecap="round" stroke-linejoin="round"
+             width="18" height="18">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 2v3M12 19v3M2 12h3M19 12h3"/>
+          <path d="M12 8a4 4 0 100 8 4 4 0 000-8z"
+                stroke="none" fill="currentColor"
+                opacity="0.15"/>
+        </svg>
+      `
+
+      btn.title = 'Ma position'
+
+      L.DomEvent.disableClickPropagation(btn)
+
+      L.DomEvent.on(btn, 'click', () => {
+        btn.classList.add('locating')
+
+        if (!navigator.geolocation) {
+          btn.classList.remove('locating')
+          return
+        }
+
+        navigator.geolocation.getCurrentPosition(
+          (pos) => {
+            map.setView(
+              [pos.coords.latitude, pos.coords.longitude],
+              16,
+              { animate: true }
+            )
+            btn.classList.remove('locating')
+            btn.classList.add('located')
+            setTimeout(() => {
+              btn.classList.remove('located')
+            }, 2000)
+          },
+          () => {
+            btn.classList.remove('locating')
+          },
+          { enableHighAccuracy: true, timeout: 8000 }
+        )
+      })
+
+      return btn
+    },
+  })
+
+  new LocateControl().addTo(map)
+}
+
 const initMap = async () => {
   if (!mapContainer.value) return
 
@@ -155,6 +219,9 @@ const initMap = async () => {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19,
   }).addTo(map)
+
+  //Add locate control
+  addLocateControl()
 
   const LeafletWithCluster = (window as any).L
   clusterGroup = LeafletWithCluster.markerClusterGroup({
