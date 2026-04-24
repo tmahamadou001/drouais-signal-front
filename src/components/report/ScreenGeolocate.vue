@@ -28,8 +28,13 @@ const isOutOfBounds = computed(() => {
   return haversineKm(centerLat, centerLng, lat.value, lng.value) > radius
 })
 
+const props = defineProps<{
+  isAnonymous?: boolean
+  anonymousEmail?: string
+}>()
+
 const emit = defineEmits<{
-  submitted: [id: string]
+  submitted: [id: string, anonymousToken?: string]
   back: []
 }>()
 
@@ -406,17 +411,26 @@ async function handleSubmit() {
     if (store.aiResult) {
       formData.append('ai_assisted', 'true')
     }
+    if (props.isAnonymous && props.anonymousEmail) {
+      formData.append('anonymous_email', props.anonymousEmail)
+    }
 
-    const {id} =  await apiFetch<{ id: string }>('/api/reports', {
+    let apiKey: string | undefined
+    if (props.isAnonymous) {
+      apiKey = tenantStore.config?.api_key
+    }
+
+    const response = await apiFetch<{ id: string; anonymous_token?: string }>('/api/reports', {
       method: 'POST',
       body: formData,
       isFormData: true,
+      apiKey,
     })
 
     invalidateCachePattern(/^\/api\/map\/markers/)
     invalidateCachePattern(/^\/api\/reports/)
 
-    emit('submitted', id)
+    emit('submitted', response.id, response.anonymous_token)
   } catch (err: any) {
     error.value = err.message || 'Une erreur est survenue lors de l\'envoi.'
   } finally {

@@ -13,7 +13,11 @@ const router = createRouter({
       path: '/signaler',
       name: 'report-form',
       component: () => import('@/pages/ReportFormView.vue'),
-      meta: { requiresAuth: true },
+    },
+    {
+      path: '/signalement/suivi/:token',
+      name: 'report-follow',
+      component: () => import('@/pages/ReportFollowView.vue'),
     },
     {
       path: '/connexion',

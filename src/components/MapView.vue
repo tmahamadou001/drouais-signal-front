@@ -53,7 +53,6 @@ const totalMarkers = ref(0)
 
 const { apiFetch } = useApi()
 
-// Injecter les markers préchargés depuis HomeView (si disponibles)
 const preloadedMarkers = inject<{ value: Promise<any> | null }>('preloadedMarkers', { value: null })
 
 let map: any = null
@@ -69,12 +68,12 @@ const STATUS_COLORS = {
 }
 
 const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
-
-function getCategoryEmoji(category: string): string {
+  
+const getCategoryEmoji = (category: string): string => {
   return getCategoryIcon(category)
 }
 
-function getStatusLabel(status: string): string {
+const getStatusLabel = (status: string): string => {
   const labels: Record<string, string> = {
     en_attente: 'En attente',
     pris_en_charge: 'Pris en charge',
@@ -83,7 +82,7 @@ function getStatusLabel(status: string): string {
   return labels[status] || status
 }
 
-function getMarkerIcon(status: string, category: string): any {
+const getMarkerIcon = (status: string, category: string): any => {
   const L = (window as any).L
   const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#888780'
   const emoji = getCategoryEmoji(category)
@@ -101,7 +100,7 @@ function getMarkerIcon(status: string, category: string): any {
   })
 }
 
-function createSelectedIcon(category?: string): any {
+const createSelectedIcon = (category?: string): any => {
   const L = (window as any).L
   
   if (category) {
@@ -136,7 +135,7 @@ function createSelectedIcon(category?: string): any {
   })
 }
 
-async function initMap() {
+const initMap = async () => {
   if (!mapContainer.value) return
 
   const L = await import('leaflet')
@@ -190,7 +189,7 @@ async function initMap() {
   updateSelectedMarker()
 }
 
-async function loadMarkers() {
+const loadMarkers = async () => {
   markersLoading.value = true
 
   try {
@@ -247,7 +246,7 @@ async function loadMarkers() {
   }
 }
 
-async function openDetailPopup(reportId: string, marker: any) {
+const openDetailPopup = async (reportId: string, marker: any) => {
   if (isLoadingPopup) return
   
   isLoadingPopup = true
@@ -336,7 +335,7 @@ async function openDetailPopup(reportId: string, marker: any) {
   }
 }
 
-function updateSelectedMarker() {
+const updateSelectedMarker = () => {
   if (!map) return
   const L = (window as any).L
 

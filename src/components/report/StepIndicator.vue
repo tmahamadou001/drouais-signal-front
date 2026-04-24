@@ -8,6 +8,7 @@ const steps = [
   { number: 2, label: 'Analyse' },
   { number: 3, label: 'Vérification' },
   { number: 4, label: 'Localisation' },
+  // { number: 5, label: 'Envoi' },
 ]
 
 function getStepStatus(stepNumber: number) {

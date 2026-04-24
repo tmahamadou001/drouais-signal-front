@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
 import StepIndicator from '@/components/report/StepIndicator.vue'
+import ScreenAuthChoice from '@/components/report/ScreenAuthChoice.vue'
 import ScreenPhoto from '@/components/report/ScreenPhoto.vue'
 import ScreenAnalyzing from '@/components/report/ScreenAnalyzing.vue'
 import ScreenValidate from '@/components/report/ScreenValidate.vue'
@@ -18,7 +19,15 @@ onUnmounted(() => {
   store.reset()
 })
 
-async function onPhotoSelected(file: File, previewUrl: string) {
+const onAuthModeSelected = (mode: 'authenticated' | 'anonymous') => {
+  if (mode === 'anonymous') {
+    store.setAuthMode(true)
+  } else {
+    store.setAuthMode(false)
+  }
+}
+
+const onPhotoSelected = async (file: File, previewUrl: string) => {
   store.setPhoto(file, previewUrl)
   store.aiLoading = true
 
@@ -49,40 +58,55 @@ async function onPhotoSelected(file: File, previewUrl: string) {
   }
 }
 
-function onSubmitSuccess(id: string) {
-  router.push(`/signalement/${id}`)
+const onSubmitSuccess = (id: string, anonymousToken?: string) => {
+  if (anonymousToken) {
+    router.push(`/signalement/suivi/${anonymousToken}`)
+  } else {
+    router.push(`/signalement/${id}`)
+  }
 }
 </script>
 
 <template>
   <div>
-    <!-- Step Indicator -->
-    <StepIndicator :current-step="store.currentScreen" />
-
-    <!-- Screen 1: Photo Capture -->
-    <ScreenPhoto
+    <!-- Screen 1: Auth Choice -->
+    <ScreenAuthChoice
       v-if="store.currentScreen === 1"
-      @photo-selected="onPhotoSelected"
+      @mode-selected="onAuthModeSelected"
     />
 
-    <!-- Screen 2: AI Analysis Loading -->
-    <ScreenAnalyzing
-      v-else-if="store.currentScreen === 2"
-      :preview-url="store.photoPreviewUrl"
-    />
+    <!-- Screens 2-4: Report form (after auth choice) -->
+    <div v-else>
+      <!-- Step Indicator (écran 2-5 = steps 1-4) -->
+      <StepIndicator :current-step="(store.currentScreen - 1) as 1 | 2 | 3 | 4" />
 
-    <!-- Screen 3: Validation / Correction -->
-    <ScreenValidate
-      v-else-if="store.currentScreen === 3"
-      @validated="store.validateAndGeolocate()"
-      @back="store.goToScreen(1)"
-    />
+      <!-- Screen 2: Photo Capture -->
+      <ScreenPhoto
+        v-if="store.currentScreen === 2"
+        @photo-selected="onPhotoSelected"
+      />
 
-    <!-- Screen 4: Geolocation + Submit -->
-    <ScreenGeolocate
-      v-else-if="store.currentScreen === 4"
-      @submitted="onSubmitSuccess"
-      @back="store.goToScreen(3)"
-    />
+      <!-- Screen 3: AI Analysis Loading -->
+      <ScreenAnalyzing
+        v-else-if="store.currentScreen === 3"
+        :preview-url="store.photoPreviewUrl"
+      />
+
+      <!-- Screen 4: Validation / Correction -->
+      <ScreenValidate
+        v-else-if="store.currentScreen === 4"
+        @validated="store.validateAndGeolocate()"
+        @back="store.goToScreen(2)"
+      />
+
+      <!-- Screen 5: Geolocation + Submit -->
+      <ScreenGeolocate
+        v-else-if="store.currentScreen === 5"
+        :is-anonymous="store.isAnonymous"
+        :anonymous-email="store.anonymousEmail"
+        @submitted="onSubmitSuccess"
+        @back="store.goToScreen(4)"
+      />
+    </div>
   </div>
 </template>

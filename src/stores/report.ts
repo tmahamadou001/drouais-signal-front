@@ -28,15 +28,19 @@ export const useReportStore = defineStore('report', {
     lng: null as number | null,
     addressApprox: '' as string,
 
+    // Mode authentification
+    isAnonymous: false as boolean,
+    anonymousEmail: '' as string,
+
     // Navigation
-    currentScreen: 1 as 1 | 2 | 3 | 4,
+    currentScreen: 1 as 1 | 2 | 3 | 4 | 5,
   }),
 
   actions: {
     setPhoto(file: File, previewUrl: string) {
       this.photoFile = file
       this.photoPreviewUrl = previewUrl
-      this.currentScreen = 2
+      this.currentScreen = 3
     },
 
     setAiResult(result: AiResult) {
@@ -47,7 +51,7 @@ export const useReportStore = defineStore('report', {
       this.description = result.description
       this.aiLoading = false
       this.aiError = false
-      this.currentScreen = 3
+      this.currentScreen = 4
     },
 
     setAiError() {
@@ -58,7 +62,7 @@ export const useReportStore = defineStore('report', {
       this.category = ''
       this.title = ''
       this.description = ''
-      this.currentScreen = 3
+      this.currentScreen = 4
     },
 
     updateCategory(category: string) {
@@ -80,11 +84,18 @@ export const useReportStore = defineStore('report', {
     },
 
     validateAndGeolocate() {
-      this.currentScreen = 4
+      console.log('validateAndGeolocate')
+      this.currentScreen = 5
     },
 
-    goToScreen(screen: 1 | 2 | 3 | 4) {
+    goToScreen(screen: 1 | 2 | 3 | 4 | 5) {
       this.currentScreen = screen
+    },
+
+    setAuthMode(isAnonymous: boolean, email?: string) {
+      this.isAnonymous = isAnonymous
+      this.anonymousEmail = email || ''
+      this.currentScreen = 2
     },
 
     reset() {

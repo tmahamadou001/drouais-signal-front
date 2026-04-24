@@ -12,6 +12,7 @@ interface ApiOptions {
   cache?: {
     maxAge: number
   }
+  apiKey?: string
 }
 
 export function useApi() {
@@ -19,7 +20,7 @@ export function useApi() {
 
   async function apiFetch<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
     const auth = useAuthStore()
-    const { method = 'GET', body, isFormData = false, signal, cache } = options
+    const { method = 'GET', body, isFormData = false, signal, cache, apiKey } = options
 
     if (cache && method === 'GET') {
       const cacheKey = `${path}`
@@ -36,6 +37,10 @@ export function useApi() {
 
     if (auth.accessToken) {
       headers['Authorization'] = `Bearer ${auth.accessToken}`
+    }
+
+    if (apiKey) {
+      headers['X-API-Key'] = apiKey
     }
 
     if (!isFormData && body) {
