@@ -9,12 +9,12 @@ import ScreenPhoto from '@/components/report/ScreenPhoto.vue'
 import ScreenAnalyzing from '@/components/report/ScreenAnalyzing.vue'
 import ScreenValidate from '@/components/report/ScreenValidate.vue'
 import ScreenGeolocate from '@/components/report/ScreenGeolocate.vue'
+import { compressImage } from '@/utils/image'
 
 const router = useRouter()
 const { apiFetch } = useApi()
 const store = useReportStore()
 
-// Nettoyer le store au démontage du composant
 onUnmounted(() => {
   store.reset()
 })
@@ -32,8 +32,10 @@ const onPhotoSelected = async (file: File, previewUrl: string) => {
   store.aiLoading = true
 
   try {
+    const compressedFile = await compressImage(file)
+    
     const formData = new FormData()
-    formData.append('photo', file)
+    formData.append('photo', compressedFile)
 
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 12000)
