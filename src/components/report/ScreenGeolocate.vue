@@ -263,7 +263,6 @@ const searchAddress = (query: string) => {
 
     } catch (err: any) {
       if (err.name === 'AbortError') {
-        console.log('Recherche annulée')
         return
       }
       console.error('Erreur recherche adresse:', err)

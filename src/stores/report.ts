@@ -84,7 +84,6 @@ export const useReportStore = defineStore('report', {
     },
 
     validateAndGeolocate() {
-      console.log('validateAndGeolocate')
       this.currentScreen = 5
     },
 
