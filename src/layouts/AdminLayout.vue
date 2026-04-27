@@ -115,7 +115,7 @@ const toggleSidebar = () => {
     </div>
 
     <!-- Bottom navigation mobile (masquée sur desktop) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-2 z-50 safe-area-inset-bottom">
+    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-2 z-[1000] safe-area-inset-bottom">
       <RouterLink
         v-for="item in navItems"
         :key="item.id"

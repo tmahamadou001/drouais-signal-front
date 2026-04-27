@@ -43,6 +43,10 @@ const isCurrentRoute = (path: string) => {
   return route.path === path
 }
 
+const getUSernameByEmail = (email: string) => {
+  return email.split('@')[0]
+}
+
 const mobileMenuOpen = ref(false)
 
 // Close mobile menu on route change
@@ -59,7 +63,7 @@ watch(() => route.path, () => {
 <template>
   <div class="min-h-screen flex flex-col">
     <!-- Header -->
-    <header v-if="showHeader" class="bg-white border-b border-neutral-200 sticky top-0 z-50">
+    <header v-if="showHeader" class="bg-white border-b border-neutral-200 sticky top-0 z-[1000]">
       <div class="max-w-6xl mx-auto px-4 sm:px-6">
         <div class="flex items-center justify-between h-16">
           <!-- Logo -->
@@ -95,11 +99,11 @@ watch(() => route.path, () => {
           <div class="flex items-center gap-3">
             <template v-if="auth.user">
               <span class="hidden sm:block text-sm text-neutral-500">
-                {{ auth.user.email }}
+                {{ auth.user.email ? getUSernameByEmail(auth.user.email) : '' }}
               </span>
               <button
                 @click="auth.signOut()"
-                class="hidden md:block text-sm font-medium text-neutral-500 hover:text-dark transition-colors"
+                class="hidden md:block text-sm border border-red-500 px-3 py-1.5 rounded-ds text-red-500 font-medium text-neutral-500 hover:text-red-600 hover:bg-red-50 transition-colors"
               >
                 Déconnexion
               </button>

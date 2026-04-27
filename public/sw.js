@@ -1,6 +1,7 @@
-const CACHE_NAME = 'onsignale-v2'
-const STATIC_CACHE_NAME = 'onsignale-static-v2'
-const API_CACHE_NAME = 'onsignale-api-v2'
+const VERSION = '2.1.0'
+const CACHE_NAME = `onsignale-v${VERSION}`
+const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
+const API_CACHE_NAME = `onsignale-api-v${VERSION}`
 
 const PRECACHE_ASSETS = [
   '/',
@@ -16,6 +17,12 @@ const NEVER_CACHE_PATTERNS = [
   /\/auth\//,
   /tile\.openstreetmap\.org/,
   /nominatim\.openstreetmap\.org/,
+]
+
+const NETWORK_FIRST_PATTERNS = [
+  /\.js$/,
+  /\.css$/,
+  /\.html$/,
 ]
 
 self.addEventListener('install', (event) => {
@@ -62,6 +69,29 @@ self.addEventListener('fetch', (event) => {
     return
   }
 
+  // Network First for JS, CSS, HTML
+  const shouldNetworkFirst = NETWORK_FIRST_PATTERNS.some(
+    (pattern) => pattern.test(url.pathname)
+  )
+
+  if (shouldNetworkFirst) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          if (response && response.status === 200) {
+            const responseToCache = response.clone()
+            caches.open(STATIC_CACHE_NAME).then((cache) => {
+              cache.put(request, responseToCache)
+            })
+          }
+          return response
+        })
+        .catch(() => caches.match(request))
+    )
+    return
+  }
+
+  // Cache First for other assets (images, fonts, etc.)
   event.respondWith(
     caches.match(request).then((cachedResponse) => {
       if (cachedResponse) return cachedResponse

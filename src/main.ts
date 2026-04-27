@@ -37,12 +37,13 @@ if ('serviceWorker' in navigator) {
 
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            window.dispatchEvent(new CustomEvent('sw-update-available'))
+            newWorker.postMessage({ type: 'SKIP_WAITING' })
+            window.location.reload()
           }
         })
       })
     } catch (error) {
-      console.error('Erreur enregistrement SW:', error)
+      console.error('Error registering SW:', error)
     }
   })
 }
