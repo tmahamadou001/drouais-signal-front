@@ -6,6 +6,7 @@ import StatusTimeline from '@/components/StatusTimeline.vue'
 import MapView from '@/components/MapView.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import ReportComments from '@/components/report/ReportComments.vue'
 
 interface Props {
   open: boolean
@@ -100,6 +101,16 @@ const handleUpdateStatus = (status: 'en_attente' | 'pris_en_charge' | 'resolu') 
             <div>
               <h4 class="text-sm font-semibold text-dark mb-3">Suivi</h4>
               <StatusTimeline :current-status="report.status" />
+            </div>
+
+            <!-- Conversations -->
+            <div class="border-t border-neutral-200 pt-4">
+              <ReportComments
+                :report-id="report.id"
+                :report-status="report.status"
+                :report-photo-url="report.photo_url"
+                mode="agent"
+              />
             </div>
 
             <div class="border-t border-neutral-200 pt-2 space-y-3">

@@ -2,6 +2,7 @@ import { ref, readonly, onUnmounted } from 'vue'
 import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 import type {
   RealtimeConnectionStatus,
   RealtimeNotification,
@@ -18,6 +19,7 @@ export function useRealtimeDashboard(options: {
   onVoteChange: (reportId: string, newCount: number) => void
 }) {
   const { getCategoryDisplay } = useTenantCategories()
+  const { getStatusConfig } = useReportStatuses()
   let channel: RealtimeChannel | null = null
 
   function addNotification(
@@ -104,15 +106,11 @@ export function useRealtimeDashboard(options: {
           if (newStatus !== oldStatus) {
             options.onStatusChange(id, newStatus, oldStatus)
 
-            const statusLabels: Record<string, string> = {
-              pris_en_charge: '🔧 Pris en charge',
-              resolu: '✅ Résolu',
-              en_attente: '⏳ En attente',
-            }
+            const statusLabel = getStatusConfig(newStatus).label
 
             addNotification({
               type: 'status_change',
-              message: `Statut mis à jour : ${statusLabels[newStatus] ?? newStatus}`,
+              message: `Statut mis à jour : ${statusLabel}`,
               reportId: id,
               reportTitle: payload.new.title ?? '',
             })

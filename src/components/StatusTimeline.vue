@@ -1,17 +1,16 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import type { ReportStatus, StatusHistoryEntry } from '@/types'
+import { useReportStatuses } from '@/composables/useReportStatuses'
+import AppIcon from '@/components/AppIcon.vue'
 
 const props = defineProps<{
   currentStatus: ReportStatus
   history?: StatusHistoryEntry[]
 }>()
 
-const steps = [
-  { key: 'en_attente' as ReportStatus, label: 'En attente', icon: '🕐' },
-  { key: 'pris_en_charge' as ReportStatus, label: 'Pris en charge', icon: '🔧' },
-  { key: 'resolu' as ReportStatus, label: 'Résolu', icon: '✅' },
-]
+const { getTimelineSteps } = useReportStatuses()
+const steps = getTimelineSteps()
 
 const statusIndex = computed(() => {
   return steps.findIndex(s => s.key === props.currentStatus)
@@ -55,21 +54,23 @@ const isStepCurrent = (index: number): boolean => {
       <!-- Circle -->
       <div
         class="relative z-10 w-8 h-8 rounded-full flex items-center justify-center text-sm transition-all"
-        :class="{
-          'bg-success text-white shadow-md': isStepComplete(index) && !isStepCurrent(index),
-          'bg-success text-white shadow-lg ring-4 ring-success/20': isStepCurrent(index) && step.key === 'resolu',
-          'bg-warning text-white shadow-lg ring-4 ring-warning/20': isStepCurrent(index) && step.key === 'pris_en_charge',
-          'bg-neutral-400 text-white shadow-lg ring-4 ring-neutral-300/30': isStepCurrent(index) && step.key === 'en_attente',
-          'bg-neutral-200 text-neutral-400': !isStepComplete(index),
-        }"
+        :class="[
+          isStepComplete(index) && !isStepCurrent(index)
+            ? 'bg-success text-white shadow-md'
+            : '',
+          isStepCurrent(index)
+            ? `${step.bgColor} text-white shadow-lg ring-4 ${step.ringColor}`
+            : '',
+          !isStepComplete(index)
+            ? 'bg-neutral-200 text-neutral-400'
+            : '',
+        ]"
       >
         <template v-if="isStepComplete(index) && !isStepCurrent(index)">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7" />
-          </svg>
+          <AppIcon name="Check" :size="16" />
         </template>
         <template v-else>
-          {{ step.icon }}
+          <AppIcon :name="step.icon" :size="16" />
         </template>
       </div>
 

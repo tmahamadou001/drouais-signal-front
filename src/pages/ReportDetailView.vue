@@ -11,9 +11,12 @@ import MapView from '@/components/MapView.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import VoteButton from '@/components/VoteButton.vue'
 import { useRealtimeReport } from '@/composables/useRealtimeReport'
+import ReportComments from '@/components/report/ReportComments.vue'
+import { useAuthStore } from '@/stores/auth'
 
 const route = useRoute()
 const { apiFetch, invalidateCache } = useApi()
+const authStore = useAuthStore()
 
 const report = ref<Report | null>(null)
 const history = ref<StatusHistoryEntry[]>([])
@@ -139,6 +142,20 @@ watch(reportId, (id) => {
       <div class="bg-white rounded-ds-xl border border-neutral-200 p-6">
         <h2 class="text-sm font-semibold text-dark mb-4">Suivi du signalement</h2>
         <StatusTimeline :current-status="report.status" :history="history" />
+      </div>
+
+      <!-- Conversations (uniquement si citoyen connecté et auteur) -->
+      <div
+        v-if="authStore.isAuthenticated
+              && report.user_id === authStore.user?.id"
+        class="bg-white rounded-ds-xl border border-neutral-200 p-6"
+      >
+        <ReportComments
+          :report-id="report.id"
+          :report-status="report.status"
+          :report-photo-url="report.photo_url"
+          mode="citizen"
+        />
       </div>
 
       <!-- Mini map -->

@@ -2,6 +2,7 @@
 import { ref } from 'vue'
 import VoteButton from './VoteButton.vue'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 
 interface DuplicateReport {
   id: string
@@ -30,12 +31,7 @@ const emit = defineEmits<Emits>()
 
 const votedReports = ref<Set<string>>(new Set())
 const { getCategoryLabel, getCategoryIcon } = useTenantCategories()
-
-const statusLabels: Record<string, string> = {
-  en_attente: 'En attente',
-  pris_en_charge: 'Pris en charge',
-  resolu: 'Résolu',
-}
+const { getStatusConfig } = useReportStatuses()
 
 function formatDistance(meters: number): string {
   if (meters < 1000) {
@@ -154,7 +150,7 @@ function handleContinue() {
                   'bg-green-100 text-green-800': report.status === 'resolu',
                 }"
               >
-                {{ statusLabels[report.status] || report.status }}
+                {{ getStatusConfig(report.status).label }}
               </span>
             </div>
           </div>

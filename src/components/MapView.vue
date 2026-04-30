@@ -8,6 +8,7 @@ import '@/assets/map.css'
 import { useApi } from '@/composables/useApi'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useTenantStore } from '@/stores/tenant'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 
 interface MapMarker {
   id: string
@@ -63,30 +64,17 @@ let selectedMarker: any = null
 let currentOpenMarker: any = null
 let isLoadingPopup = false
 
-const STATUS_COLORS = {
-  en_attente: '#888780',
-  pris_en_charge: '#EF9F27',
-  resolu: '#1D9E75'
-}
-
 const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
+const { getStatusConfig } = useReportStatuses()
   
 const getCategoryEmoji = (category: string): string => {
   return getCategoryIcon(category)
 }
 
-const getStatusLabel = (status: string): string => {
-  const labels: Record<string, string> = {
-    en_attente: 'En attente',
-    pris_en_charge: 'Pris en charge',
-    resolu: 'Résolu'
-  }
-  return labels[status] || status
-}
-
 const getMarkerIcon = (status: string, category: string): any => {
   const L = (window as any).L
-  const color = STATUS_COLORS[status as keyof typeof STATUS_COLORS] || '#888780'
+  const statusConfig = getStatusConfig(status)
+  const color = statusConfig.dotColor
   const emoji = getCategoryEmoji(category)
 
   return L.divIcon({
@@ -361,7 +349,7 @@ const openDetailPopup = async (reportId: string, marker: any) => {
               ${getCategoryLabel(ReportDetail.category)}
             </span>
             <span class="popup-status status-${ReportDetail.status}">
-              ${getStatusLabel(ReportDetail.status)}
+              ${getStatusConfig(ReportDetail.status).label}
             </span>
           </div>
 

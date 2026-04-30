@@ -4,6 +4,7 @@ import { useRoute } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useTenantStore } from '@/stores/tenant'
+import { useReportStatuses } from '@/composables/useReportStatuses'
 import AppIcon from '@/components/AppIcon.vue'
 
 interface Report {
@@ -21,46 +22,13 @@ interface Report {
 const route = useRoute()
 const { apiFetch } = useApi()
 const { getCategoryLabel } = useTenantCategories()
+const { getStatusConfig } = useReportStatuses()
 const tenantStore = useTenantStore()
 
 const report = ref<Report | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const token = route.params.token as string
-
-const statusConfig: Record<string, {
-  label: string
-  bg: string
-  border: string
-  text: string
-  dot: string
-  icon: string
-}> = {
-  en_attente: {
-    label: 'En attente',
-    bg: 'bg-amber-50',
-    border: 'border-amber-200',
-    text: 'text-amber-800',
-    dot: 'bg-amber-400',
-    icon: 'M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z',
-  },
-  pris_en_charge: {
-    label: 'Pris en charge',
-    bg: 'bg-blue-50',
-    border: 'border-blue-200',
-    text: 'text-blue-800',
-    dot: 'bg-blue-500',
-    icon: 'M11.42 15.17L17.25 21A2.652 2.652 0 0021 17.25l-5.877-5.877M11.42 15.17l2.496-3.03c.317-.384.74-.626 1.208-.766M11.42 15.17l-4.655 5.653a2.548 2.548 0 11-3.586-3.586l6.837-5.63m5.108-.233c.55-.164 1.163-.188 1.743-.14a4.5 4.5 0 004.486-6.336l-3.276 3.277a3.004 3.004 0 01-2.25-2.25l3.276-3.276a4.5 4.5 0 00-6.336 4.486c.091 1.076-.071 2.264-.904 2.95l-.102.085m-1.745 1.437L5.909 7.5H4.5L2.25 3.75l1.5-1.5L7.5 4.5v1.409l4.26 4.26m-1.745 1.437l1.745-1.437m6.615 8.206L15.75 15.75M4.867 19.125h.008v.008h-.008v-.008z',
-  },
-  resolu: {
-    label: 'Résolu',
-    bg: 'bg-green-50',
-    border: 'border-green-200',
-    text: 'text-green-800',
-    dot: 'bg-green-500',
-    icon: 'M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z',
-  },
-}
 
 const steps = [
   { key: 'en_attente', label: 'Reçu' },
@@ -141,28 +109,28 @@ onMounted(async () => {
         <!-- Statut principal -->
         <div :class="[
           'rounded-2xl border p-5 flex items-center gap-4',
-          statusConfig[report.status].bg,
-          statusConfig[report.status].border,
+          getStatusConfig(report.status).tailwindBg,
+          'border-gray-200',
         ]">
           <div :class="[
             'w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0',
-            statusConfig[report.status].bg,
+            getStatusConfig(report.status).iconBg,
           ]">
-            <svg class="w-5 h-5" :class="statusConfig[report.status].text"
-                 fill="none" stroke="currentColor" stroke-width="1.5"
-                 viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    :d="statusConfig[report.status].icon"/>
-            </svg>
+            <AppIcon
+              :name="getStatusConfig(report.status).icon"
+              :size="20"
+              :class="getStatusConfig(report.status).iconColor"
+            />
           </div>
           <div>
-            <p class="text-xs font-medium opacity-60"
-               :class="statusConfig[report.status].text">
+            <p class="text-xs font-medium opacity-60 text-gray-600">
               Statut actuel
             </p>
-            <p class="text-base font-semibold"
-               :class="statusConfig[report.status].text">
-              {{ statusConfig[report.status].label }}
+            <p :class="[
+              'text-base font-semibold',
+              getStatusConfig(report.status).tailwindText
+            ]">
+              {{ getStatusConfig(report.status).label }}
             </p>
           </div>
         </div>

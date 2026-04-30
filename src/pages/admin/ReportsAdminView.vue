@@ -15,10 +15,13 @@ import AppModal from '@/components/AppModal.vue'
 import AppButton from '@/components/AppButton.vue'
 import type { ButtonAction } from '@/components/AppButton.vue'
 import ReportDetailSidebar from '@/components/admin/ReportDetailSidebar.vue'
+import { useUnreadComments } from '@/composables/useUnreadComments'
+import AppIcon from '@/components/AppIcon.vue'
 
 const { apiFetch, invalidateCachePattern, invalidateCache } = useApi()
 const { categories: tenantCategories, getCategoryLabel } = useTenantCategories()
 const { STATUS_OPTIONS } = useReportStatuses()
+const { unreadByReport } = useUnreadComments()
 
 const reports = ref<Report[]>([])
 const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
@@ -41,12 +44,32 @@ const deleteLoading = ref(false)
 const reportToDelete = ref<Report | null>(null)
 const bulkDeleteModalOpen = ref(false)
 
-const statCards = computed(() => [
-  { label: 'Total', value: stats.value.total, icon: '📊', bg: 'bg-primary-50', text: 'text-primary' },
-  { label: 'En attente', value: stats.value.en_attente, icon: '🕐', bg: 'bg-neutral-100', text: 'text-neutral-700' },
-  { label: 'Pris en charge', value: stats.value.pris_en_charge, icon: '🔧', bg: 'bg-warning-50', text: 'text-warning-600' },
-  { label: 'Résolus', value: stats.value.resolu, icon: '✅', bg: 'bg-success-50', text: 'text-success-600' },
-])
+const statCards = computed(() => {
+  const { getStatusConfig } = useReportStatuses()
+  
+  return [
+    {
+      label: 'Total',
+      value: stats.value.total,
+      icon: 'BarChart3',
+      iconBg: 'bg-blue-100',
+      iconColor: 'text-blue-600',
+      valueColor: 'text-blue-900',
+    },
+    {
+      ...getStatusConfig('en_attente'),
+      value: stats.value.en_attente,
+    },
+    {
+      ...getStatusConfig('pris_en_charge'),
+      value: stats.value.pris_en_charge,
+    },
+    {
+      ...getStatusConfig('resolu'),
+      value: stats.value.resolu,
+    },
+  ]
+})
 
 const filteredReports = computed(() => {
   let filtered = reports.value.filter(r => {
@@ -358,18 +381,45 @@ onMounted(fetchData)
 
     <template v-else>
       <!-- Stats cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
         <div
           v-for="stat in statCards"
           :key="stat.label"
-          class="rounded-ds-lg p-5"
-          :class="stat.bg"
+          class="bg-white rounded-2xl border border-gray-200
+                 p-4 sm:p-5 hover:shadow-md
+                 transition-shadow duration-200"
         >
-          <div class="flex items-center justify-between">
-            <span class="text-2xl">{{ stat.icon }}</span>
-            <span class="text-2xl font-bold" :class="stat.text">{{ stat.value }}</span>
+          <div class="flex items-start justify-between gap-3">
+            <!-- Icon -->
+            <div
+              class="w-10 h-10 rounded-xl flex items-center
+                     justify-center flex-shrink-0"
+              :class="stat.iconBg"
+            >
+              <AppIcon
+                :name="stat.icon"
+                :size="20"
+                :class="stat.iconColor"
+              />
+            </div>
+
+            <!-- Value -->
+            <div class="text-right min-w-0 flex-1">
+              <div
+                class="text-2xl sm:text-3xl font-bold
+                       leading-none"
+                :class="stat.valueColor"
+              >
+                {{ stat.value }}
+              </div>
+            </div>
           </div>
-          <p class="text-xs font-medium text-neutral-600 mt-2">{{ stat.label }}</p>
+
+          <!-- Label -->
+          <p class="text-xs font-medium text-gray-500
+                    mt-3 leading-tight">
+            {{ stat.label }}
+          </p>
         </div>
       </div>
 
@@ -462,6 +512,14 @@ onMounted(fetchData)
                   title="Signalement créé avec l'aide de l'IA"
                 >
                   ✨ IA
+                </span>
+                <span
+                  v-if="unreadByReport[row.id]"
+                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold flex-shrink-0"
+                  title="Nouveaux messages"
+                >
+                  <AppIcon name="MessageCircle" :size="12" />
+                  {{ unreadByReport[row.id] }}
                 </span>
               </div>
               <p class="text-xs text-neutral-400 truncate max-w-[200px]">{{ row.address_approx || '—' }}</p>
