@@ -103,7 +103,7 @@ const handleUpdateStatus = (status: 'en_attente' | 'pris_en_charge' | 'resolu') 
               <StatusTimeline :current-status="report.status" />
             </div>
 
-            <!-- Conversations -->
+            <!-- Messages -->
             <div class="border-t border-neutral-200 pt-4">
               <ReportComments
                 :report-id="report.id"

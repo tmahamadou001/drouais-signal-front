@@ -144,7 +144,7 @@ watch(reportId, (id) => {
         <StatusTimeline :current-status="report.status" :history="history" />
       </div>
 
-      <!-- Conversations (uniquement si citoyen connecté et auteur) -->
+      <!-- Messages (uniquement si citoyen connecté et auteur) -->
       <div
         v-if="authStore.isAuthenticated
               && report.user_id === authStore.user?.id"

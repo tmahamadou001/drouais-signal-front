@@ -144,7 +144,7 @@ onMounted(load)
     <!-- Titre section -->
     <div class="flex items-center justify-between">
       <h3 class="text-sm font-semibold text-gray-900">
-        Conversations
+        Messages
       </h3>
       <span
         v-if="comments.length"
@@ -165,7 +165,7 @@ onMounted(load)
                   animate-spin"/>
     </div>
 
-    <!-- Fil de conversations -->
+    <!-- Fil de Messages -->
     <div v-else class="space-y-3">
 
       <!-- État vide -->
@@ -174,7 +174,7 @@ onMounted(load)
         class="text-center py-6"
       >
         <p class="text-sm text-gray-400">
-          Aucun message de la mairie pour l'instant.
+          Aucun message pour l'instant.
         </p>
       </div>
 
