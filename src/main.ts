@@ -26,9 +26,6 @@ if ('serviceWorker' in navigator) {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
 
-      // Force update SW immediately
-      await registration.update()
-
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'NAVIGATE') {
           window.location.href = event.data.url
@@ -42,7 +39,10 @@ if ('serviceWorker' in navigator) {
         newWorker.addEventListener('statechange', () => {
           if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
             newWorker.postMessage({ type: 'SKIP_WAITING' })
-            window.location.reload()
+            if (!sessionStorage.getItem('sw-reloaded')) {
+              sessionStorage.setItem('sw-reloaded', '1')
+              window.location.reload()
+            }
           }
         })
       })
