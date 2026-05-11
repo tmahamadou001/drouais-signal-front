@@ -1,4 +1,4 @@
-const VERSION = '2.1.3'
+const VERSION = '2.1.4'
 const CACHE_NAME = `onsignale-v${VERSION}`
 const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
 const API_CACHE_NAME = `onsignale-api-v${VERSION}`
@@ -13,6 +13,7 @@ const PRECACHE_ASSETS = [
 
 const NEVER_CACHE_PATTERNS = [
   /\/api\//,
+  /api\.onsignale\.fr/,
   /supabase\.co/,
   /\/auth\//,
   /tile\.openstreetmap\.org/,

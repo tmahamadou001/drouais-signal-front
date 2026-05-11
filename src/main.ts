@@ -25,6 +25,10 @@ if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
       const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+
+      // Force update SW immediately
+      await registration.update()
+
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'NAVIGATE') {
           window.location.href = event.data.url
@@ -42,6 +46,7 @@ if ('serviceWorker' in navigator) {
           }
         })
       })
+      
     } catch (error) {
       console.error('Error registering SW:', error)
     }
