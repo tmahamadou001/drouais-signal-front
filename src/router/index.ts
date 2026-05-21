@@ -94,6 +94,12 @@ const router = createRouter({
           name: 'AdminPlatform',
           component: () => import('@/pages/admin/PlatformAdminView.vue'),
           meta: { requiresSuperAdmin: true },
+        },
+        {
+          path: 'audit',
+          name: 'AdminAudit',
+          component: () => import('@/pages/admin/AuditLogsAdminView.vue'),
+          meta: { requiresSuperAdmin: true },
         }
       ]
     },

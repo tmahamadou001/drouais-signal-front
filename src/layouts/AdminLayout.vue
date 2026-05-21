@@ -59,6 +59,14 @@ const navItems = computed(() => [
     route: '/admin/plateforme',
     visible: authStore.isSuperAdmin,
   },
+  {
+    id: 'audit',
+    label: 'Logs d\'audit',
+    shortLabel: 'Audit',
+    icon: 'FileText',
+    route: '/admin/audit',
+    visible: authStore.isSuperAdmin,
+  },
 ].filter((item) => item.visible))
 
 onMounted(() => {

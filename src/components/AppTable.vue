@@ -8,6 +8,7 @@ interface Column<T> {
   align?: 'left' | 'center' | 'right'
   hidden?: 'sm' | 'md' | 'lg'
   sortable?: boolean
+  width?: string
   render?: (row: T) => string
 }
 
@@ -127,6 +128,7 @@ defineExpose({
                 getAlignClass(column.align),
                 getHiddenClass(column.hidden),
               ]"
+              :style="column.width ? { width: column.width } : {}"
             >
               {{ column.label }}
             </th>
@@ -156,6 +158,7 @@ defineExpose({
                 getAlignClass(column.align),
                 getHiddenClass(column.hidden),
               ]"
+              :style="column.width ? { width: column.width } : {}"
             >
               <slot :name="`cell-${column.key}`" :row="row" :value="row[column.key]">
                 {{ column.render ? column.render(row) : row[column.key] }}

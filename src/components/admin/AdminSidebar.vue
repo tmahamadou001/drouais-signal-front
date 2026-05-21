@@ -69,6 +69,14 @@ const navItems = computed(() => [
     badge: null,
     visible: auth.isSuperAdmin,
   },
+  {
+    id: 'audit',
+    label: 'Logs d\'audit',
+    icon: 'FileText',
+    route: '/admin/audit',
+    badge: null,
+    visible: auth.isSuperAdmin,
+  },
 ].filter((item) => item.visible))
 
 function isActiveRoute(itemRoute: string): boolean {
