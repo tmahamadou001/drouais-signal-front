@@ -20,33 +20,21 @@ export const useAuthStore = defineStore('auth', () => {
   // ─── Getters ──────────────────────────────────────────
   const isAuthenticated = computed(() => !!user.value)
 
-  const isSuperAdmin = computed(
-    () =>
-      user.value?.user_metadata?.role === 'super_admin' ||
-      tenantRole.value === 'super_admin'
-  )
+  const isSuperAdmin = computed(() => tenantRole.value === 'super_admin')
 
   const isAdmin = computed(
-    () =>
-      isSuperAdmin.value ||
-      user.value?.user_metadata?.role === 'admin' ||
-      tenantRole.value === 'admin'
+    () => isSuperAdmin.value || tenantRole.value === 'admin'
   )
 
   const isAgent = computed(
-    () =>
-      isAdmin.value ||
-      user.value?.user_metadata?.role === 'agent' ||
-      tenantRole.value === 'agent'
+    () => isAdmin.value || tenantRole.value === 'agent'
   )
 
   const isObserver = computed(
     () => isAgent.value || tenantRole.value === 'observer'
   )
 
-  const userRole = computed(
-    () => tenantRole.value ?? user.value?.user_metadata?.role ?? 'citizen'
-  )
+  const userRole = computed(() => tenantRole.value ?? 'citizen')
 
   const userEmail = computed(() => user.value?.email ?? '')
 
