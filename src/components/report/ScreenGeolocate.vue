@@ -414,16 +414,10 @@ async function handleSubmit() {
       formData.append('anonymous_email', props.anonymousEmail)
     }
 
-    let apiKey: string | undefined
-    if (props.isAnonymous) {
-      apiKey = tenantStore.config?.api_key
-    }
-
     const response = await apiFetch<{ id: string; anonymous_token?: string }>('/api/reports', {
       method: 'POST',
       body: formData,
       isFormData: true,
-      apiKey,
     })
 
     invalidateCachePattern(/^\/api\/map\/markers/)

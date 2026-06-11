@@ -22,7 +22,6 @@ export interface TenantConfig {
   map_lng: number
   map_zoom: number
   map_radius_km: number
-  api_key?: string
   feature_anonymous_reports: boolean
   feature_votes: boolean
   feature_ai_analysis: boolean
