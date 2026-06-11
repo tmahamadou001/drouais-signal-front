@@ -1,5 +1,6 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import { pinia } from '@/stores/pinia'
 
 const router = createRouter({
   history: createWebHistory(),
@@ -119,7 +120,7 @@ const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
-  const auth = useAuthStore()
+  const auth = useAuthStore(pinia)
 
   // Wait for initial session check to complete
   if (!auth.initialized) {

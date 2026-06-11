@@ -6,6 +6,7 @@ import type { User, Session } from '@supabase/supabase-js'
 import type { LoginCredentials, RegisterCredentials } from '@/types/auth'
 import { detectSlug } from '@/utils/detectSlug'
 import { useTenantStore } from '@/stores/tenant'
+import { pinia } from '@/stores/pinia'
 
 export const useAuthStore = defineStore('auth', () => {
   // ─── State ────────────────────────────────────────────
@@ -119,7 +120,7 @@ export const useAuthStore = defineStore('auth', () => {
     setLoading(true)
 
     try {
-      const tenantStore = useTenantStore()
+      const tenantStore = useTenantStore(pinia)
       const slug = tenantStore.data?.slug
       const appDomain = import.meta.env.VITE_APP_DOMAIN
       const redirectOrigin =
