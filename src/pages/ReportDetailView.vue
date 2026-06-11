@@ -49,10 +49,12 @@ onMounted(async () => {
     report.value = data.report
     history.value = data.history
 
-    const voteData = await apiFetch<{ has_voted: boolean }>(
-      `/api/reports/${id}/my-vote`
-    )
-    hasVoted.value = voteData.has_voted
+    if (authStore.isAuthenticated) {
+      const voteData = await apiFetch<{ has_voted: boolean }>(
+        `/api/reports/${id}/my-vote`
+      )
+      hasVoted.value = voteData.has_voted
+    }
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -134,6 +136,7 @@ watch(reportId, (id) => {
             :report-id="report.id"
             :initial-count="report.vote_count || 0"
             :initial-has-voted="hasVoted"
+            :is-authenticated="authStore.isAuthenticated"
           />
         </div>
       </div>

@@ -1,16 +1,19 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useRouter, RouterLink } from 'vue-router'
 
 interface Props {
   reportId: string
   initialCount: number
   initialHasVoted: boolean
+  isAuthenticated: boolean
 }
 
 const props = defineProps<Props>()
 
 const { apiFetch, invalidateCache } = useApi()
+const router = useRouter()
 
 const voteCount = ref(props.initialCount)
 const hasVoted = ref(props.initialHasVoted)
@@ -35,6 +38,11 @@ const buttonClass = computed(() => {
 
 async function handleVote() {
   if (isLoading.value) return
+
+  if (!props.isAuthenticated) {
+    router.push({ name: 'login' })
+    return
+  }
 
   errorMessage.value = ''
   isLoading.value = true
@@ -93,10 +101,14 @@ async function handleVote() {
       :class="buttonClass"
       :disabled="isLoading"
       @click="handleVote"
+      :title="!isAuthenticated ? 'Connectez-vous pour voter' : undefined"
     >
       <span v-if="isLoading" class="inline-block w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin"></span>
       <span v-else>{{ buttonText }}</span>
     </button>
+    <p v-if="!isAuthenticated" class="text-xs text-neutral-500">
+      <RouterLink :to="{ name: 'login' }" class="underline hover:text-neutral-700">Connectez-vous</RouterLink> pour soutenir ce signalement
+    </p>
     
     <Transition
       enter-active-class="transition-opacity duration-200"
