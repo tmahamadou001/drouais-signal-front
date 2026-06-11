@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed, provide } from 'vue'
-import { RouterLink } from 'vue-router'
+import { RouterLink, useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
 import { useTenantCategories } from '@/composables/useTenantCategories'
@@ -13,6 +13,7 @@ import InstallButton from '@/components/InstallButton.vue'
 const { apiFetch } = useApi()
 const tenantStore = useTenantStore()
 const { categories } = useTenantCategories()
+const router = useRouter()
 
 const categoryDescription = computed(() =>
   categories.value.slice(0, 3).map((c) => c.label.toLowerCase()).join(', ') + '…'
@@ -28,7 +29,7 @@ onMounted(async () => {
       apiFetch<AdminStats>('/api/admin/stats', {
         cache: { maxAge: 10_000 }
       }),
-      apiFetch<{ markers: any[] }>('/api/map/markers', {
+      apiFetch<{ markers: any[] }>('/api/map/markers?exclude_resolved=true', {
         cache: { maxAge: 10_000 }
       })
     ])
@@ -46,10 +47,10 @@ onMounted(async () => {
 provide('preloadedMarkers', markersPromise)
 
 const statCards = computed(() => [
-  { label: 'Signalements', value: stats.value.total, color: 'bg-primary', textColor: 'text-primary' },
-  { label: 'En attente', value: stats.value.en_attente, color: 'bg-neutral-400', textColor: 'text-neutral-600' },
-  { label: 'Pris en charge', value: stats.value.pris_en_charge, color: 'bg-warning', textColor: 'text-warning-600' },
-  { label: 'Résolus', value: stats.value.resolu, color: 'bg-success', textColor: 'text-success-600' },
+  { label: 'Signalements', value: stats.value.total, color: 'bg-primary', textColor: 'text-primary', filter: null },
+  { label: 'En attente', value: stats.value.en_attente, color: 'bg-neutral-400', textColor: 'text-neutral-600', filter: 'en_attente' },
+  { label: 'Pris en charge', value: stats.value.pris_en_charge, color: 'bg-warning', textColor: 'text-warning-600', filter: 'pris_en_charge' },
+  { label: 'Résolus', value: stats.value.resolu, color: 'bg-success', textColor: 'text-success-600', filter: 'resolu' },
 ])
 </script>
 
@@ -117,17 +118,19 @@ const statCards = computed(() => [
           
           <!-- Stats réelles -->
           <template v-else>
-            <div
+            <component
+              :is="'button'"
               v-for="stat in statCards"
               :key="stat.label"
-              class="flex items-center gap-3 px-4 py-3 rounded-ds-lg bg-neutral-50"
+              @click="router.push({ name: 'reports-list', query: stat.filter ? { status: stat.filter } : {} })"
+              class="flex items-center gap-3 px-4 py-3 rounded-ds-lg bg-neutral-50 hover:bg-neutral-100 hover:shadow-sm transition-all cursor-pointer text-left w-full group"
             >
-              <div class="w-2 h-8 rounded-full" :class="stat.color"></div>
+              <div class="w-2 h-8 rounded-full transition-transform group-hover:scale-110" :class="stat.color"></div>
               <div>
                 <p class="text-2xl font-bold" :class="stat.textColor">{{ stat.value }}</p>
-                <p class="text-xs text-neutral-500 font-medium">{{ stat.label }}</p>
+                <p class="text-xs text-neutral-500 font-medium group-hover:text-neutral-700 transition-colors">{{ stat.label }} →</p>
               </div>
-            </div>
+            </component>
           </template>
         </div>
       </div>
@@ -156,6 +159,13 @@ const statCards = computed(() => [
       <MapSkeleton v-if="loading" />
       <div v-else class="h-[500px] rounded-ds-lg overflow-hidden shadow-ds-lg border border-neutral-200">
         <MapView :show-all-markers="true" />
+      </div>
+
+      <div class="mt-4 flex items-center justify-between text-sm text-neutral-500">
+        <span>Les signalements résolus ne sont pas affichés sur la carte.</span>
+        <RouterLink :to="{ name: 'reports-list' }" class="text-primary font-medium hover:underline">
+          Voir tous les signalements →
+        </RouterLink>
       </div>
     </section>
   </div>

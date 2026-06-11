@@ -54,7 +54,19 @@ onMounted(async () => {
           </svg>
         </div>
         <h2 class="text-xl font-bold text-gray-900">Compte confirmé !</h2>
-        <p class="text-gray-500 text-sm">Votre compte est activé.</p>
+        <p class="text-gray-500 text-sm">Votre compte est activé. Vous pouvez maintenant faire votre premier signalement.</p>
+        <router-link
+          to="/signaler"
+          class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors mt-2"
+        >
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Faire mon premier signalement
+        </router-link>
+        <router-link to="/" class="block text-sm text-gray-400 hover:text-gray-600 mt-1">
+          Retour à l'accueil
+        </router-link>
       </div>
 
       <!-- Erreur -->

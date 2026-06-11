@@ -160,64 +160,48 @@ onBeforeUnmount(() => {
   marker = null
 })
 
-function formatAddressResult(address: any): string {
+function formatBanFeature(feature: any): string {
+  const p = feature.properties
   const parts = [
-    address.house_number && address.road 
-      ? `${address.house_number} ${address.road}` 
-      : address.road,
-    address.postcode,
-    address.city || address.town || address.village,
+    p.name,
+    p.postcode && p.city ? `${p.postcode} ${p.city}` : p.city || p.postcode,
   ].filter(Boolean)
-
   return parts.join(', ')
 }
 
 async function reverseGeocode(latitude: number, longitude: number) {
   const cacheKey = `${latitude.toFixed(4)},${longitude.toFixed(4)}`
-  
+
   if (geocodeCache.has(cacheKey)) {
     addressApprox.value = geocodeCache.get(cacheKey)!
     return
   }
 
   try {
-    const url = new URL('https://nominatim.openstreetmap.org/reverse')
-    url.searchParams.set('lat', latitude.toString())
+    const url = new URL('https://api-adresse.data.gouv.fr/reverse/')
     url.searchParams.set('lon', longitude.toString())
-    url.searchParams.set('format', 'json')
-    url.searchParams.set('addressdetails', '1')
-    url.searchParams.set('zoom', '18')
+    url.searchParams.set('lat', latitude.toString())
 
     const controller = new AbortController()
-    const timeoutId = setTimeout(() => controller.abort(), 5000) // 5s timeout
+    const timeoutId = setTimeout(() => controller.abort(), 5000)
 
-    const res = await fetch(url.toString(), {
-      signal: controller.signal,
-      headers: {
-        'Accept-Language': 'fr',
-        'User-Agent': 'OnSignale/1.0',
-      },
-    })
-
+    const res = await fetch(url.toString(), { signal: controller.signal })
     clearTimeout(timeoutId)
 
     if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
     const data = await res.json()
+    const feature = data.features?.[0]
 
-    if (!data.address) {
+    if (!feature) {
       addressApprox.value = `${latitude.toFixed(4)}, ${longitude.toFixed(4)}`
       return
     }
 
-    const formattedAddress = formatAddressResult(data.address)
-    
-    const trimmedAddress = formattedAddress.length > 80 
-      ? formattedAddress.substring(0, 77) + '...' 
-      : formattedAddress
-
-    geocodeCache.set(cacheKey, trimmedAddress)
-    addressApprox.value = trimmedAddress
+    const formatted = formatBanFeature(feature)
+    const trimmed = formatted.length > 80 ? formatted.substring(0, 77) + '...' : formatted
+    geocodeCache.set(cacheKey, trimmed)
+    addressApprox.value = trimmed
 
   } catch (err) {
     console.error('Erreur reverse geocoding:', err)
@@ -236,44 +220,32 @@ const searchAddress = (query: string) => {
   
   searchTimeout = setTimeout(async () => {
     try {
-      const url = new URL('https://nominatim.openstreetmap.org/search')
-      
+      const url = new URL('https://api-adresse.data.gouv.fr/search/')
       url.searchParams.set('q', query)
-      url.searchParams.set('format', 'json')
       url.searchParams.set('limit', '5')
-      url.searchParams.set('countrycodes', 'fr')
-      url.searchParams.set('addressdetails', '1')
-      url.searchParams.set('zoom', '18')
+      url.searchParams.set('autocomplete', '1')
 
       searchAbortController = new AbortController()
       const timeoutId = setTimeout(() => searchAbortController?.abort(), 5000)
 
-      const res = await fetch(url.toString(), {
-        signal: searchAbortController.signal,
-        headers: {
-          'Accept-Language': 'fr',
-          'User-Agent': 'OnSignale/1.0',
-        },
-      })
-
+      const res = await fetch(url.toString(), { signal: searchAbortController.signal })
       clearTimeout(timeoutId)
       if (!res.ok) throw new Error(`HTTP ${res.status}`)
 
-      const results = await res.json()
+      const data = await res.json()
 
-      searchResults.value = results.map((r: any) => ({
-        ...r,
-        displayName: formatAddressResult(r.address),
+      searchResults.value = (data.features ?? []).map((f: any) => ({
+        lat: f.geometry.coordinates[1].toString(),
+        lon: f.geometry.coordinates[0].toString(),
+        displayName: formatBanFeature(f),
       }))
 
     } catch (err: any) {
-      if (err.name === 'AbortError') {
-        return
-      }
+      if (err.name === 'AbortError') return
       console.error('Erreur recherche adresse:', err)
       searchResults.value = []
     }
-  }, 500)
+  }, 300)
 }
 
 function selectAddress(result: any) {
