@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
-import { useApi } from '@/composables/useApi'
+import { useApi, ApiError } from '@/composables/useApi'
 import { useRouter, RouterLink } from 'vue-router'
 
 interface Props {
@@ -40,7 +40,7 @@ async function handleVote() {
   if (isLoading.value) return
 
   if (!props.isAuthenticated) {
-    router.push({ name: 'login' })
+    router.push({ name: 'auth' })
     return
   }
 
@@ -68,17 +68,16 @@ async function handleVote() {
 
     invalidateCache(`/api/reports/${props.reportId}`)
   } catch (error: any) {
-    console.error('Erreur vote:', error)
-    
-    if (error.message?.includes('already_voted')) {
-      errorMessage.value = 'Vous avez déjà voté pour ce signalement'
+    const code = error instanceof ApiError ? error.code : ''
+    if (code === 'already_voted') {
+      errorMessage.value = 'Vous avez déjà voté pour ce signalement.'
       hasVoted.value = true
-    } else if (error.message?.includes('report_resolved')) {
-      errorMessage.value = 'Ce signalement est déjà résolu'
-    } else if (error.message?.includes('rate_limit')) {
-      errorMessage.value = 'Trop de requêtes, réessayez plus tard'
+    } else if (code === 'bad_request') {
+      errorMessage.value = 'Ce signalement est déjà résolu.'
+    } else if (code === 'rate_limit') {
+      errorMessage.value = 'Trop de requêtes, réessayez dans quelques instants.'
     } else {
-      errorMessage.value = 'Erreur de connexion'
+      errorMessage.value = error.message || 'Une erreur est survenue.'
     }
     
     voteCount.value = previousCount
@@ -107,7 +106,7 @@ async function handleVote() {
       <span v-else>{{ buttonText }}</span>
     </button>
     <p v-if="!isAuthenticated" class="text-xs text-neutral-500">
-      <RouterLink :to="{ name: 'login' }" class="underline hover:text-neutral-700">Connectez-vous</RouterLink> pour soutenir ce signalement
+      <RouterLink :to="{ name: 'auth' }" class="underline hover:text-neutral-700">Connectez-vous</RouterLink> pour soutenir ce signalement
     </p>
     
     <Transition

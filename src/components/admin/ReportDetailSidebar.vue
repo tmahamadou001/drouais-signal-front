@@ -7,6 +7,7 @@ import MapView from '@/components/MapView.vue'
 import AppButton from '@/components/AppButton.vue'
 import AppIcon from '@/components/AppIcon.vue'
 import ReportComments from '@/components/report/ReportComments.vue'
+import CategoryAvatar from '@/components/CategoryAvatar.vue'
 
 interface Props {
   open: boolean
@@ -55,6 +56,11 @@ const handleUpdateStatus = (status: 'en_attente' | 'pris_en_charge' | 'resolu') 
               :src="report.photo_url"
               class="w-full h-48 object-cover rounded-ds-lg"
               :alt="report.title"
+            />
+            <CategoryAvatar
+              v-else
+              :category="report.category"
+              class="w-full h-32 rounded-ds-lg border border-neutral-200"
             />
 
             <div>

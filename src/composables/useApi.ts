@@ -1,8 +1,11 @@
 import { useAuthStore } from '@/stores/auth'
 import { detectSlug } from '@/utils/detectSlug'
 import { useApiCache } from './useApiCache'
+import { ApiError, resolveApiErrorMessage } from '@/utils/apiError'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+export { ApiError } from '@/utils/apiError'
 
 interface ApiOptions {
   method?: string
@@ -12,7 +15,6 @@ interface ApiOptions {
   cache?: {
     maxAge: number
   }
-  apiKey?: string
 }
 
 export function useApi() {
@@ -20,7 +22,7 @@ export function useApi() {
 
   async function apiFetch<T = any>(path: string, options: ApiOptions = {}): Promise<T> {
     const auth = useAuthStore()
-    const { method = 'GET', body, isFormData = false, signal, cache, apiKey } = options
+    const { method = 'GET', body, isFormData = false, signal, cache } = options
 
     if (cache && method === 'GET') {
       const cacheKey = `${path}`
@@ -39,10 +41,6 @@ export function useApi() {
       headers['Authorization'] = `Bearer ${auth.accessToken}`
     }
 
-    if (apiKey) {
-      headers['X-API-Key'] = apiKey
-    }
-
     if (!isFormData && body) {
       headers['Content-Type'] = 'application/json'
     }
@@ -56,7 +54,10 @@ export function useApi() {
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.error || `Erreur ${response.status}`)
+      const code = errorData.error || `http_${response.status}`
+      const detail = Array.isArray(errorData.details) && errorData.details[0]?.message
+      const message = resolveApiErrorMessage(code, detail || errorData.message)
+      throw new ApiError(code, message, response.status)
     }
 
     const data = await response.json()

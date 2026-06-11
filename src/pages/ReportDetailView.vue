@@ -13,6 +13,7 @@ import VoteButton from '@/components/VoteButton.vue'
 import { useRealtimeReport } from '@/composables/useRealtimeReport'
 import ReportComments from '@/components/report/ReportComments.vue'
 import { useAuthStore } from '@/stores/auth'
+import CategoryAvatar from '@/components/CategoryAvatar.vue'
 
 const route = useRoute()
 const { apiFetch, invalidateCache } = useApi()
@@ -103,12 +104,18 @@ watch(reportId, (id) => {
     </p>
 
     <div v-else-if="report" class="space-y-6">
-      <!-- Photo -->
-      <div v-if="report.photo_url" class="rounded-ds-xl overflow-hidden border border-neutral-200">
+      <!-- Photo ou avatar générique -->
+      <div class="rounded-ds-xl overflow-hidden border border-neutral-200">
         <img
+          v-if="report.photo_url"
           :src="report.photo_url"
           :alt="report.title"
           class="w-full h-64 sm:h-80 object-cover"
+        />
+        <CategoryAvatar
+          v-else
+          :category="report.category"
+          class="w-full h-48 sm:h-64 border border-neutral-200 rounded-ds-xl"
         />
       </div>
 

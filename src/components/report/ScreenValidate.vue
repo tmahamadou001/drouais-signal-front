@@ -120,9 +120,9 @@ const canValidate = computed(() => {
         </div>
       </div>
 
-      <!-- Warning for low confidence -->
+      <!-- Warning for low confidence (only when AI failed, not when photo was skipped) -->
       <div
-        v-else
+        v-else-if="store.aiError"
         class="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-ds-lg"
       >
         <svg class="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">

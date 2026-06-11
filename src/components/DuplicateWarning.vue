@@ -1,6 +1,8 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import VoteButton from './VoteButton.vue'
+import { useAuthStore } from '@/stores/auth'
+import CategoryAvatar from '@/components/CategoryAvatar.vue'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useReportStatuses } from '@/composables/useReportStatuses'
 
@@ -32,6 +34,7 @@ const emit = defineEmits<Emits>()
 const votedReports = ref<Set<string>>(new Set())
 const { getCategoryLabel, getCategoryIcon } = useTenantCategories()
 const { getStatusConfig } = useReportStatuses()
+const authStore = useAuthStore()
 
 function formatDistance(meters: number): string {
   if (meters < 1000) {
@@ -90,14 +93,17 @@ function handleContinue() {
         class="bg-white border border-amber-200 rounded-lg p-4 space-y-3"
       >
         <div class="flex gap-4">
-          <div
-            v-if="report.photo_url"
-            class="flex-shrink-0 w-20 h-20 bg-gray-100 rounded-lg overflow-hidden"
-          >
+          <div class="flex-shrink-0 w-20 h-20 rounded-lg overflow-hidden border border-neutral-200">
             <img
+              v-if="report.photo_url"
               :src="report.photo_url"
               :alt="report.title"
               class="w-full h-full object-cover"
+            />
+            <CategoryAvatar
+              v-else
+              :category="report.category"
+              class="w-full h-full"
             />
           </div>
           
@@ -162,6 +168,7 @@ function handleContinue() {
             :report-id="report.id"
             :initial-count="report.vote_count"
             :initial-has-voted="false"
+            :is-authenticated="authStore.isAuthenticated"
             @click="handleVoted(report.id)"
           />
           <div

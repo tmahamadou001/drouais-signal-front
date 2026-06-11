@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import CategoryAvatar from '@/components/CategoryAvatar.vue'
 import { useTenantStore } from '@/stores/tenant'
 import { useReportStatuses } from '@/composables/useReportStatuses'
 import AppIcon from '@/components/AppIcon.vue'
@@ -229,12 +230,17 @@ onMounted(async () => {
         </div>
 
         <!-- Photo -->
-        <div v-if="report.photo_url"
-             class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
+        <div class="bg-white border border-gray-200 rounded-2xl overflow-hidden">
           <img
+            v-if="report.photo_url"
             :src="report.photo_url"
             :alt="report.title"
             class="w-full max-h-72 object-cover"
+          />
+          <CategoryAvatar
+            v-else
+            :category="report.category"
+            class="w-full h-48"
           />
         </div>
 

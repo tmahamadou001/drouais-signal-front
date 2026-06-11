@@ -153,6 +153,11 @@ onBeforeUnmount(() => {
   clearTimeout(searchTimeout)
   searchAbortController?.abort()
   geocodeCache.clear()
+  if (map) {
+    map.remove()
+    map = null
+  }
+  marker = null
 })
 
 function formatAddressResult(address: any): string {
@@ -384,7 +389,9 @@ function handleVoted(reportId: string) {
 
 // Soumission du signalement
 async function handleSubmit() {
-  if (!lat.value || !lng.value || !store.category || !store.title?.trim() || !store.photoFile) {
+  console.log('submit');
+  
+  if (!lat.value || !lng.value || !store.category || !store.title?.trim()) {
     return
   }
 
@@ -426,6 +433,8 @@ async function handleSubmit() {
     emit('submitted', response.id, response.anonymous_token)
   } catch (err: any) {
     error.value = err.message || 'Une erreur est survenue lors de l\'envoi.'
+    // Scroll to error so user sees it on mobile
+    window.scrollTo({ top: 0, behavior: 'smooth' })
   } finally {
     submitting.value = false
   }

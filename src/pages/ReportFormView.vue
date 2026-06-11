@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onUnmounted } from 'vue'
+import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReportStore } from '@/stores/report'
 import { useApi } from '@/composables/useApi'
@@ -15,7 +15,7 @@ const router = useRouter()
 const { apiFetch } = useApi()
 const store = useReportStore()
 
-onUnmounted(() => {
+onMounted(() => {
   store.reset()
 })
 
@@ -33,7 +33,7 @@ const onPhotoSelected = async (file: File, previewUrl: string) => {
 
   try {
     const compressedFile = await compressImage(file)
-    
+
     const formData = new FormData()
     formData.append('photo', compressedFile)
 
@@ -54,10 +54,15 @@ const onPhotoSelected = async (file: File, previewUrl: string) => {
     } else {
       store.setAiResult(data)
     }
-  } catch (err) {
-    console.error('Erreur analyse photo:', err)
+  } catch {
+    // analyze-photo failure (network, 413, timeout…) is non-blocking —
+    // the user lands on the manual form with fields empty
     store.setAiError()
   }
+}
+
+const onSkipPhoto = () => {
+  store.skipPhoto()
 }
 
 const onSubmitSuccess = (id: string, anonymousToken?: string) => {
@@ -86,6 +91,7 @@ const onSubmitSuccess = (id: string, anonymousToken?: string) => {
       <ScreenPhoto
         v-if="store.currentScreen === 2"
         @photo-selected="onPhotoSelected"
+        @skip="onSkipPhoto"
       />
 
       <!-- Screen 3: AI Analysis Loading -->

@@ -58,7 +58,18 @@ export const useReportStore = defineStore('report', {
       this.aiError = true
       this.aiLoading = false
       this.aiResult = null
-      // Passer en mode manuel avec champs vides
+      this.category = ''
+      this.title = ''
+      this.description = ''
+      this.currentScreen = 4
+    },
+
+    skipPhoto() {
+      this.photoFile = null
+      this.photoPreviewUrl = null
+      this.aiResult = null
+      this.aiError = false
+      this.aiLoading = false
       this.category = ''
       this.title = ''
       this.description = ''

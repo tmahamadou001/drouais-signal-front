@@ -1,26 +1,46 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 
+const MAX_SIZE = 5 * 1024 * 1024
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+
 const emit = defineEmits<{
   photoSelected: [file: File, previewUrl: string]
+  skip: []
 }>()
 
 const previewUrl = ref<string | null>(null)
+const photoError = ref<string | null>(null)
 const cameraInputRef = ref<HTMLInputElement | null>(null)
 const galleryInputRef = ref<HTMLInputElement | null>(null)
 
-
-async function handleFileSelect(event: Event) {
+function handleFileSelect(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
 
-  // Créer preview immédiatement
+  photoError.value = null
+
+  if (!ALLOWED_TYPES.includes(file.type)) {
+    photoError.value = 'Format non supporté. Utilisez JPG, PNG, WebP ou GIF.'
+    target.value = ''
+    return
+  }
+
+  if (file.size > MAX_SIZE) {
+    photoError.value = 'Photo trop volumineuse (max 5 Mo). Choisissez une image plus légère ou continuez sans photo.'
+    target.value = ''
+    return
+  }
+
   const preview = URL.createObjectURL(file)
   previewUrl.value = preview
-
-
   emit('photoSelected', file, preview)
+}
+
+function retryPhoto() {
+  photoError.value = null
+  previewUrl.value = null
 }
 
 function openCamera() {
@@ -84,26 +104,37 @@ function openGallery() {
         </div>
       </div>
 
+      <!-- Photo error -->
+      <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 -translate-y-1">
+        <div v-if="photoError" class="rounded-ds-lg border border-orange-200 bg-orange-50 p-4 space-y-3">
+          <p class="text-sm text-orange-800 font-medium">{{ photoError }}</p>
+          <div class="flex gap-2">
+            <button
+              @click="retryPhoto"
+              class="flex-1 px-3 py-2 text-sm font-medium bg-white border border-orange-300 text-orange-700 rounded-lg hover:bg-orange-50 transition-colors"
+            >
+              Choisir une autre photo
+            </button>
+            <button
+              @click="emit('skip')"
+              class="flex-1 px-3 py-2 text-sm font-medium bg-orange-100 text-orange-800 rounded-lg hover:bg-orange-200 transition-colors"
+            >
+              Continuer sans photo
+            </button>
+          </div>
+        </div>
+      </Transition>
+
       <!-- Action Buttons -->
-      <div class="space-y-3">
+      <div v-if="!photoError" class="space-y-3">
         <!-- Camera Button -->
         <button
           @click="openCamera"
           class="w-full flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white rounded-ds-lg font-semibold hover:bg-primary-600 active:scale-98 transition-all shadow-lg shadow-primary/20"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z"
-            />
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M15 13a3 3 0 11-6 0 3 3 0 016 0z"
-            />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
           <span>Prendre une photo</span>
         </button>
@@ -114,14 +145,20 @@ function openGallery() {
           class="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white text-dark border-2 border-neutral-200 rounded-ds-lg font-semibold hover:border-primary hover:bg-primary-50/30 active:scale-98 transition-all"
         >
           <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z"
-            />
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
           </svg>
           <span>Choisir dans la galerie</span>
+        </button>
+
+        <!-- Skip Button -->
+        <button
+          @click="emit('skip')"
+          class="w-full flex items-center justify-center gap-2 px-6 py-3 text-sm text-neutral-500 border border-dashed border-neutral-300 rounded-ds-lg hover:border-neutral-400 hover:text-neutral-700 hover:bg-neutral-50 transition-all"
+        >
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 9l3 3m0 0l-3 3m3-3H8m13 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+          </svg>
+          Continuer sans photo
         </button>
       </div>
 
