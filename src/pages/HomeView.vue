@@ -4,6 +4,8 @@ import { RouterLink, useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { usePullToRefresh } from '@/composables/usePullToRefresh'
+import { usePageVisibility } from '@/composables/usePageVisibility'
 import type { AdminStats } from '@/types'
 import MapView from '@/components/MapView.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
@@ -23,26 +25,26 @@ const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, reso
 const loading = ref(true)
 const markersPromise = ref<Promise<any> | null>(null)
 
-onMounted(async () => {
+async function fetchHome() {
   try {
     const [statsData, markersData] = await Promise.all([
-      apiFetch<AdminStats>('/api/admin/stats', {
-        cache: { maxAge: 10_000 }
-      }),
-      apiFetch<{ markers: any[] }>('/api/map/markers?exclude_resolved=true', {
-        cache: { maxAge: 10_000 }
-      })
+      apiFetch<AdminStats>('/api/admin/stats'),
+      apiFetch<{ markers: any[] }>('/api/map/markers?exclude_resolved=true'),
     ])
-    
     stats.value = statsData
-    
     markersPromise.value = Promise.resolve(markersData)
+    markFetched()
   } catch (err) {
     console.error('Erreur chargement:', err)
   } finally {
     loading.value = false
   }
-})
+}
+
+onMounted(fetchHome)
+
+const { isPulling, pullDistance, isRefreshing } = usePullToRefresh(fetchHome)
+const { markFetched } = usePageVisibility(fetchHome)
 
 provide('preloadedMarkers', markersPromise)
 
@@ -55,7 +57,27 @@ const statCards = computed(() => [
 </script>
 
 <template>
-  <div>
+  <!-- Indicateur pull-to-refresh -->
+  <div
+    class="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-transform duration-150"
+    :style="{ transform: `translateY(${pullDistance - 48}px)` }"
+  >
+    <div class="bg-white shadow-md rounded-full w-10 h-10 flex items-center justify-center border border-neutral-200">
+      <svg
+        class="w-5 h-5 text-primary transition-transform duration-300"
+        :class="isRefreshing ? 'animate-spin' : ''"
+        :style="!isRefreshing ? { transform: `rotate(${(pullDistance / 72) * 180}deg)` } : {}"
+        fill="none" stroke="currentColor" viewBox="0 0 24 24"
+      >
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+      </svg>
+    </div>
+  </div>
+
+  <div
+    :style="isPulling ? { transform: `translateY(${pullDistance * 0.3}px)`, transition: 'none' } : { transition: 'transform 0.2s ease' }"
+  >
     <!-- Hero -->
     <section class="relative overflow-hidden bg-gradient-to-br from-primary-800 via-primary to-primary-400">
       <!-- Decorative pattern -->
@@ -170,3 +192,4 @@ const statCards = computed(() => [
     </section>
   </div>
 </template>
+
