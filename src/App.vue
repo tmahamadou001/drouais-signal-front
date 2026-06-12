@@ -1,5 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+
+async function readSwVersion(): Promise<string | null> {
+  try {
+    const res = await fetch('/sw.js', { cache: 'no-store' })
+    const text = await res.text()
+    const match = text.match(/const VERSION\s*=\s*['"]([^'"]+)['"]/)
+    return match?.[1] ?? null
+  } catch {
+    return null
+  }
+}
+
+const appVersion = ref<string | null>(null)
 import { RouterLink, RouterView, useRoute } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
@@ -17,9 +30,10 @@ const checkMobile = () => {
   isMobile.value = window.innerWidth < 768
 }
 
-onMounted(() => {
+onMounted(async () => {
   checkMobile()
   window.addEventListener('resize', checkMobile)
+  appVersion.value = await readSwVersion()
 })
 
 onUnmounted(() => {
@@ -201,6 +215,7 @@ watch(
             OnSignale — {{ tenantStore.name }}
           </div>
           <div class="flex items-center gap-4 text-sm text-neutral-400">
+            <span v-if="appVersion" class="tabular-nums">v{{ appVersion }}</span>
             <RouterLink to="/mentions-legales" class="hover:text-neutral-600 hover:underline transition-colors">
               Mentions légales
             </RouterLink>
