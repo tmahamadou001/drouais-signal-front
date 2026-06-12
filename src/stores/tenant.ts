@@ -35,25 +35,41 @@ export const useTenantStore = defineStore('tenant', () => {
     loading.value = true
     error.value = null
 
-    try {
-      const tenantSlug = detectSlug()
-      const response = await fetch(`${API_URL}/api/tenant/config`, {
-        headers: { 'X-Tenant-Slug': tenantSlug },
-      })
+    const tenantSlug = detectSlug()
+    const MAX_ATTEMPTS = 3
+    const RETRY_DELAY_MS = 800
 
-      if (!response.ok) {
-        throw new Error('Tenant introuvable')
+    for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+      try {
+        const response = await fetch(`${API_URL}/api/tenant/config`, {
+          headers: { 'X-Tenant-Slug': tenantSlug },
+        })
+
+        if (response.status === 404) {
+          // Tenant inexistant — inutile de réessayer
+          error.value = 'Tenant introuvable'
+          break
+        }
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`)
+        }
+
+        const result = await response.json()
+        data.value = result
+        applyTheme(result.config?.primary_color ?? '#1A56A0')
+        error.value = null
+        break
+      } catch (err: any) {
+        if (attempt < MAX_ATTEMPTS) {
+          await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt))
+        } else {
+          error.value = 'Impossible de charger la configuration. Vérifiez votre connexion.'
+        }
       }
-
-      const result = await response.json()
-      data.value = result
-      applyTheme(result.config?.primary_color ?? '#1A56A0')
-    } catch (err: any) {
-      error.value = err.message
-      // Ne pas bloquer l'app si le tenant ne charge pas
-    } finally {
-      loading.value = false
     }
+
+    loading.value = false
   }
 
   // ─── Appliquer le thème CSS ────────────────────────────

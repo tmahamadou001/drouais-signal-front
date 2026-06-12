@@ -132,7 +132,7 @@ function getAuthorLabel(
     return [meta.first_name, meta.last_name]
       .filter(Boolean).join(' ')
   }
-  return 'Agent municipal'
+  return 'Admin'
 }
 
 onMounted(load)

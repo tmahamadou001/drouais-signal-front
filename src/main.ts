@@ -23,29 +23,14 @@ bootstrap()
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', async () => {
     try {
-      const registration = await navigator.serviceWorker.register('/sw.js', { scope: '/' })
+      await navigator.serviceWorker.register('/sw.js', { scope: '/' })
 
+      // Messages entrants du SW (ex: AUTH_REDIRECT)
       navigator.serviceWorker.addEventListener('message', (event) => {
         if (event.data?.type === 'NAVIGATE') {
           window.location.href = event.data.url
         }
       })
-
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing
-        if (!newWorker) return
-
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            newWorker.postMessage({ type: 'SKIP_WAITING' })
-            if (!sessionStorage.getItem('sw-reloaded')) {
-              sessionStorage.setItem('sw-reloaded', '1')
-              window.location.reload()
-            }
-          }
-        })
-      })
-      
     } catch (error) {
       console.error('Error registering SW:', error)
     }
