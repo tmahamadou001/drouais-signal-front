@@ -57,6 +57,7 @@ const statCards = computed(() => [
 </script>
 
 <template>
+  <div>
   <!-- Indicateur pull-to-refresh -->
   <div
     class="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-transform duration-150"
@@ -190,6 +191,7 @@ const statCards = computed(() => [
         </RouterLink>
       </div>
     </section>
+  </div>
   </div>
 </template>
 
