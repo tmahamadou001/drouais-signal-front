@@ -1,4 +1,4 @@
-const VERSION = '2.7.0'
+const VERSION = '2.8.0'
 const CACHE_NAME = `onsignale-v${VERSION}`
 const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
 const API_CACHE_NAME = `onsignale-api-v${VERSION}`

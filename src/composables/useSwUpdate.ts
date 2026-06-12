@@ -15,6 +15,9 @@ export function useSwUpdate() {
     if (!isPwa || !('serviceWorker' in navigator)) return
 
     navigator.serviceWorker.ready.then((registration) => {
+      // Force la vérification d'une nouvelle version au montage
+      registration.update()
+
       // SW déjà en attente au chargement (ex: onglet rouvert)
       if (registration.waiting) {
         waitingWorker = registration.waiting
