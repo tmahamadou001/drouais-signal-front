@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch } from 'vue'
+import { ref, onMounted, computed, watch, nextTick } from 'vue'
 import { useApi } from '@/composables/useApi'
 import AppIcon from '@/components/AppIcon.vue'
 import { useTenantCategories } from '@/composables/useTenantCategories'
@@ -142,6 +142,11 @@ async function initMap() {
     attribution: '© OpenStreetMap contributors',
     maxZoom: 19
   }).addTo(map)
+
+  // Attendre que le DOM ait calculé les dimensions du conteneur
+  // avant de charger les données (évite "source width is 0" sur le canvas)
+  await nextTick()
+  map.invalidateSize()
 
   await fetchHeatmapData()
 }

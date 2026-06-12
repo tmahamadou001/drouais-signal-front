@@ -65,11 +65,18 @@ export function useRealtimeDashboard(options: {
     }, 3000)
   }
 
-  function connect() {
+  async function connect() {
+    // Toujours supprimer l'ancien canal avant d'en créer un nouveau
+    // pour éviter le "mismatch between server and client bindings"
+    if (channel) {
+      await supabase.removeChannel(channel)
+      channel = null
+    }
+
     connectionStatus.value = 'connecting'
 
     channel = supabase
-      .channel('dashboard-admin-realtime')
+      .channel(`dashboard-admin-${Date.now()}`)
       .on(
         'postgres_changes',
         {
