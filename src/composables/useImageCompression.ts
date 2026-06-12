@@ -1,21 +1,26 @@
-const MAX_DIMENSION = 1920
-const JPEG_QUALITY = 0.85
-const SIZE_THRESHOLD = 4.5 * 1024 * 1024 // compresse uniquement si > 4.5 MB
+const MAX_WIDTH = 1920
+const MAX_HEIGHT = 1920
+const QUALITY = 0.85
+const MAX_SIZE_BYTES = 4.5 * 1024 * 1024 // 4.5 MB — marge sous la limite serveur de 5 MB
 
-export const compressImage = async (file: File): Promise<File> => {
-  if (file.size <= SIZE_THRESHOLD) return file
+export async function compressImage(file: File): Promise<File> {
+  // Pas une image ou déjà assez petite → on retourne tel quel
+  if (!file.type.startsWith('image/') || file.size <= MAX_SIZE_BYTES) {
+    return file
+  }
 
   return new Promise((resolve, reject) => {
     const img = new Image()
-    const url = URL.createObjectURL(file)
+    const objectUrl = URL.createObjectURL(file)
 
     img.onload = () => {
-      URL.revokeObjectURL(url)
+      URL.revokeObjectURL(objectUrl)
 
       let { width, height } = img
 
-      if (width > MAX_DIMENSION || height > MAX_DIMENSION) {
-        const ratio = Math.min(MAX_DIMENSION / width, MAX_DIMENSION / height)
+      // Calcul du ratio pour ne pas dépasser MAX_WIDTH x MAX_HEIGHT
+      if (width > MAX_WIDTH || height > MAX_HEIGHT) {
+        const ratio = Math.min(MAX_WIDTH / width, MAX_HEIGHT / height)
         width = Math.round(width * ratio)
         height = Math.round(height * ratio)
       }
@@ -38,20 +43,20 @@ export const compressImage = async (file: File): Promise<File> => {
             reject(new Error('Compression échouée'))
             return
           }
+          // Conserver le nom d'origine avec extension .jpg
           const name = file.name.replace(/\.[^.]+$/, '.jpg')
           resolve(new File([blob], name, { type: 'image/jpeg', lastModified: Date.now() }))
         },
         'image/jpeg',
-        JPEG_QUALITY,
+        QUALITY,
       )
     }
 
     img.onerror = () => {
-      URL.revokeObjectURL(url)
-      reject(new Error("Impossible de lire l'image"))
+      URL.revokeObjectURL(objectUrl)
+      reject(new Error('Impossible de lire l\'image'))
     }
 
-    img.src = url
+    img.src = objectUrl
   })
 }
-

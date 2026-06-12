@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
+import { compressImage } from '@/utils/image'
 
 const MAX_SIZE = 5 * 1024 * 1024
-const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'image/heic', 'image/heif']
 
 const emit = defineEmits<{
   photoSelected: [file: File, previewUrl: string]
@@ -11,31 +12,45 @@ const emit = defineEmits<{
 
 const previewUrl = ref<string | null>(null)
 const photoError = ref<string | null>(null)
+const compressing = ref(false)
 const cameraInputRef = ref<HTMLInputElement | null>(null)
 const galleryInputRef = ref<HTMLInputElement | null>(null)
 
-function handleFileSelect(event: Event) {
+async function handleFileSelect(event: Event) {
   const target = event.target as HTMLInputElement
   const file = target.files?.[0]
   if (!file) return
 
   photoError.value = null
 
-  if (!ALLOWED_TYPES.includes(file.type)) {
-    photoError.value = 'Format non supporté. Utilisez JPG, PNG, WebP ou GIF.'
+  if (!ALLOWED_TYPES.includes(file.type) && !file.type.startsWith('image/')) {
+    photoError.value = 'Format non supporté. Utilisez JPG, PNG ou WebP.'
     target.value = ''
     return
   }
 
-  if (file.size > MAX_SIZE) {
-    photoError.value = 'Photo trop volumineuse (max 5 Mo). Choisissez une image plus légère ou continuez sans photo.'
-    target.value = ''
-    return
-  }
+  compressing.value = true
+  try {
+    const compressed = await compressImage(file)
 
-  const preview = URL.createObjectURL(file)
-  previewUrl.value = preview
-  emit('photoSelected', file, preview)
+    console.log('compressed', compressed);
+    
+
+    if (compressed.size > MAX_SIZE) {
+      photoError.value = 'Photo trop volumineuse même après compression. Essayez une image plus légère.'
+      target.value = ''
+      return
+    }
+
+    const preview = URL.createObjectURL(compressed)
+    previewUrl.value = preview
+    emit('photoSelected', compressed, preview)
+  } catch {
+    photoError.value = 'Impossible de traiter cette photo. Essayez un autre format.'
+    target.value = ''
+  } finally {
+    compressing.value = false
+  }
 }
 
 function retryPhoto() {
@@ -103,6 +118,17 @@ function openGallery() {
           />
         </div>
       </div>
+
+      <!-- Compression en cours -->
+      <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0">
+        <div v-if="compressing" class="flex items-center justify-center gap-2 py-2 text-sm text-neutral-500">
+          <svg class="w-4 h-4 animate-spin text-primary" fill="none" viewBox="0 0 24 24">
+            <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4" />
+            <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8z" />
+          </svg>
+          Optimisation de la photo…
+        </div>
+      </Transition>
 
       <!-- Photo error -->
       <Transition enter-active-class="transition-all duration-200" enter-from-class="opacity-0 -translate-y-1">

@@ -2,6 +2,7 @@
 import { onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReportStore } from '@/stores/report'
+import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
 import StepIndicator from '@/components/report/StepIndicator.vue'
 import ScreenAuthChoice from '@/components/report/ScreenAuthChoice.vue'
@@ -14,9 +15,14 @@ import { compressImage } from '@/utils/image'
 const router = useRouter()
 const { apiFetch } = useApi()
 const store = useReportStore()
+const auth = useAuthStore()
 
 onMounted(() => {
   store.reset()
+  // Utilisateur connecté → on saute l'écran de choix
+  if (auth.user) {
+    store.setAuthMode(false)
+  }
 })
 
 const onAuthModeSelected = (mode: 'authenticated' | 'anonymous') => {
