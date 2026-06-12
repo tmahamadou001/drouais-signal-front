@@ -60,6 +60,11 @@ const router = createRouter({
       component: () => import('@/pages/ReportsListView.vue'),
     },
     {
+      path: '/mentions-legales',
+      name: 'legal',
+      component: () => import('@/pages/LegalView.vue'),
+    },
+    {
       path: '/signalement/:id',
       name: 'report-detail',
       component: () => import('@/pages/ReportDetailView.vue'),

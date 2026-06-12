@@ -58,6 +58,27 @@ watch(() => route.path, () => {
 watch(() => route.path, () => {
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
 })
+
+// Update document title + OG meta tags once tenant is loaded
+function updateMeta(cityName: string, tenantName: string) {
+  const title = `OnSignale — Signalement urbain à ${cityName}`
+  const description = `Signalez un problème urbain à ${cityName} en quelques clics. Voirie, éclairage, déchets… les services techniques s'en occupent.`
+
+  document.title = title
+  document.querySelector('meta[name="description"]')?.setAttribute('content', description)
+  document.querySelector('meta[property="og:title"]')?.setAttribute('content', title)
+  document.querySelector('meta[property="og:description"]')?.setAttribute('content', description)
+  document.querySelector('meta[name="twitter:title"]')?.setAttribute('content', title)
+  document.querySelector('meta[name="twitter:description"]')?.setAttribute('content', description)
+}
+
+watch(
+  () => tenantStore.config?.city_name ?? tenantStore.name,
+  (cityName) => {
+    if (cityName) updateMeta(cityName, tenantStore.name)
+  },
+  { immediate: true }
+)
 </script>
 
 <template>
@@ -178,9 +199,11 @@ watch(() => route.path, () => {
             </div>
             OnSignale — {{ tenantStore.name }}
           </div>
-          <p class="text-sm text-neutral-400">
-            Service de signalement urbain citoyen
-          </p>
+          <div class="flex items-center gap-4 text-sm text-neutral-400">
+            <RouterLink to="/mentions-legales" class="hover:text-neutral-600 hover:underline transition-colors">
+              Mentions légales
+            </RouterLink>
+          </div>
         </div>
       </div>
     </footer>
