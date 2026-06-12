@@ -16,34 +16,29 @@ const reports = ref<Report[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
 
+// Appelé ici dans setup() — le contexte de composant est actif, onUnmounted fonctionne
+if (authStore.user?.id) {
+  useRealtimeMyReports(authStore.user.id, {
+    onStatusChange: (reportId, newStatus) => {
+      invalidateCache('/api/reports/mine')
+      invalidateCache(`/api/reports/${reportId}`)
+      const report = reports.value.find((r) => r.id === reportId)
+      if (report) report.status = newStatus as any
+    },
+    onVoteChange: (reportId, newCount) => {
+      invalidateCache('/api/reports/mine')
+      invalidateCache(`/api/reports/${reportId}`)
+      const report = reports.value.find((r) => r.id === reportId)
+      if (report) report.vote_count = newCount
+    },
+  })
+}
+
 onMounted(async () => {
   try {
     reports.value = await apiFetch<Report[]>('/api/reports/mine', {
       cache: { maxAge: 5_000 }
     })
-
-    if (authStore.user?.id) {
-      useRealtimeMyReports(authStore.user.id, {
-        onStatusChange: (reportId, newStatus) => {
-          invalidateCache('/api/reports/mine')
-          invalidateCache(`/api/reports/${reportId}`)
-
-          const report = reports.value.find((r) => r.id === reportId)
-          if (report) {
-            report.status = newStatus as any
-          }
-        },
-        onVoteChange: (reportId, newCount) => {
-          invalidateCache('/api/reports/mine')
-          invalidateCache(`/api/reports/${reportId}`)
-          
-          const report = reports.value.find((r) => r.id === reportId)
-          if (report) {
-            report.vote_count = newCount
-          }
-        },
-      })
-    }
   } catch (err: any) {
     error.value = err.message
   } finally {

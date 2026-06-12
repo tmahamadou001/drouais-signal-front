@@ -1,4 +1,4 @@
-const VERSION = '2.6.0'
+const VERSION = '2.7.0'
 const CACHE_NAME = `onsignale-v${VERSION}`
 const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
 const API_CACHE_NAME = `onsignale-api-v${VERSION}`
@@ -69,7 +69,21 @@ self.addEventListener('fetch', (event) => {
   if (request.mode === 'navigate') {
     event.respondWith(
       fetch(request)
-        .catch(() => caches.match('/offline.html'))
+        .then((response) => {
+          // Si la réponse est correcte (HTML de l'app), on la met en cache et on la retourne
+          if (response && response.ok) {
+            const clone = response.clone()
+            caches.open(STATIC_CACHE_NAME).then((cache) => cache.put('/index.html', clone))
+            return response
+          }
+          // Réponse invalide (ex: 404 serveur) → SPA fallback
+          return caches.match('/index.html')
+        })
+        .catch(() =>
+          // Hors ligne → toujours servir index.html depuis le cache (pas offline.html)
+          // pour que Vue Router puisse afficher la page
+          caches.match('/index.html')
+        )
     )
     return
   }

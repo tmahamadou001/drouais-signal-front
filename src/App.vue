@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { useApi } from '@/composables/useApi'
 import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
+import SwUpdateBanner from '@/components/SwUpdateBanner.vue'
 
 const auth = useAuthStore()
 const tenantStore = useTenantStore()
@@ -207,5 +208,7 @@ watch(
         </div>
       </div>
     </footer>
+
+    <SwUpdateBanner />
   </div>
 </template>

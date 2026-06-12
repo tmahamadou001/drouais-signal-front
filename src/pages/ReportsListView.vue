@@ -79,6 +79,7 @@ onMounted(fetchReports)
 </script>
 
 <template>
+  <div>
   <!-- Indicateur pull-to-refresh -->
   <div
     class="fixed top-0 left-0 right-0 z-50 flex justify-center pointer-events-none transition-transform duration-150"
@@ -184,5 +185,6 @@ onMounted(fetchReports)
         Suivant →
       </button>
     </div>
+  </div>
   </div>
 </template>

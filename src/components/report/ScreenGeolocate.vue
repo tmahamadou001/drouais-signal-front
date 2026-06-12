@@ -361,8 +361,6 @@ function handleVoted(reportId: string) {
 
 // Soumission du signalement
 async function handleSubmit() {
-  console.log('submit');
-  
   if (!lat.value || !lng.value || !store.category || !store.title?.trim()) {
     return
   }
