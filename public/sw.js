@@ -1,4 +1,4 @@
-const VERSION = '2.8.0'
+const VERSION = '2.9.0'
 const CACHE_NAME = `onsignale-v${VERSION}`
 const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
 const API_CACHE_NAME = `onsignale-api-v${VERSION}`
@@ -36,7 +36,8 @@ self.addEventListener('install', (event) => {
       return cache.addAll(PRECACHE_ASSETS)
     })
   )
-  self.skipWaiting()
+  // Pas de skipWaiting ici — le SW attend que l'utilisateur confirme la mise à jour
+  // via le message SKIP_WAITING envoyé par SwUpdateBanner
 })
 
 self.addEventListener('activate', (event) => {
