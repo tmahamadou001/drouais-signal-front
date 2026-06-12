@@ -194,44 +194,28 @@ export const useAuthStore = defineStore('auth', () => {
     setLoading(true)
 
     try {
-      const { error: err } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/auth/reset-password`,
+      const API_URL = import.meta.env.VITE_API_URL ?? 'http://localhost:3001'
+      const slug = detectSlug()
+
+      const response = await fetch(`${API_URL}/api/auth/forgot-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          ...(slug ? { 'X-Tenant-Slug': slug } : {}),
+        },
+        body: JSON.stringify({ email }),
       })
 
-      if (err) {
-        error.value = formatAuthError(err.message)
-        return { success: false, error: error.value }
+      if (!response.ok) {
+        const data = await response.json().catch(() => ({}))
+        error.value = data.message ?? 'Une erreur est survenue.'
+        return { success: false, error: error.value ?? undefined }
       }
 
       return { success: true }
     } catch (err: any) {
-      error.value = formatAuthError(err.message)
-      return { success: false, error: error.value }
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ─── RÉINITIALISER MOT DE PASSE ───────────────────────
-  async function resetPassword(
-    newPassword: string
-  ): Promise<{ success: boolean; error?: string }> {
-    setLoading(true)
-
-    try {
-      const { error: err } = await supabase.auth.updateUser({
-        password: newPassword,
-      })
-
-      if (err) {
-        error.value = formatAuthError(err.message)
-        return { success: false, error: error.value }
-      }
-
-      return { success: true }
-    } catch (err: any) {
-      error.value = formatAuthError(err.message)
-      return { success: false, error: error.value }
+      error.value = 'Une erreur est survenue. Vérifiez votre connexion.'
+      return { success: false, error: error.value ?? undefined }
     } finally {
       setLoading(false)
     }
@@ -275,7 +259,6 @@ export const useAuthStore = defineStore('auth', () => {
     register,
     login,
     forgotPassword,
-    resetPassword,
     signOut,
     fetchTenantRole,
     clearError,

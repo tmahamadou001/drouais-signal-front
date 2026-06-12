@@ -39,14 +39,14 @@ const router = createRouter({
       meta: { guestOnly: true },
     },
     {
-      path: '/auth/reset-password',
-      name: 'reset-password',
-      component: () => import('@/pages/ResetPasswordView.vue'),
-    },
-    {
       path: '/auth/callback',
       name: 'auth-callback',
       component: () => import('@/pages/AuthCallbackView.vue'),
+    },
+    {
+      path: '/set-password',
+      name: 'set-password',
+      component: () => import('@/pages/SetPasswordView.vue'),
     },
     {
       path: '/mes-signalements',
@@ -94,6 +94,11 @@ const router = createRouter({
           path: 'rapport',
           name: 'AdminWeekly',
           component: () => import('@/pages/admin/WeeklyReportAdminView.vue')
+        },
+        {
+          path: 'equipe',
+          name: 'AdminTeam',
+          component: () => import('@/pages/admin/TeamAdminView.vue')
         },
         {
           path: 'parametres',

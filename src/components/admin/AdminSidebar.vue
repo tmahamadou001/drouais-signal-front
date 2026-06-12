@@ -54,6 +54,14 @@ const navItems = computed(() => [
     visible: tenant.features.weeklyReport && auth.isAdmin,
   },
   {
+    id: 'team',
+    label: 'Équipe',
+    icon: 'Users',
+    route: '/admin/equipe',
+    badge: null,
+    visible: auth.isAdmin,
+  },
+  {
     id: 'settings',
     label: 'Paramètres',
     icon: 'Settings',
