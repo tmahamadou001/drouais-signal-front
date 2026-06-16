@@ -9,7 +9,8 @@ function applyUpdate() {
   waitingWorker.postMessage({ type: 'SKIP_WAITING' })
 }
 
-// Appelé une seule fois, peu importe combien de composants utilisent useSwUpdate()
+const UPDATE_INTERVAL_MS = 30 * 60 * 1000
+
 function init() {
   if (initialized || typeof window === 'undefined') return
   if (!('serviceWorker' in navigator)) return
@@ -38,6 +39,14 @@ function init() {
         }
       })
     })
+
+    document.addEventListener('visibilitychange', () => {
+      if (document.visibilityState === 'visible') {
+        registration.update()
+      }
+    })
+
+    setInterval(() => registration.update(), UPDATE_INTERVAL_MS)
   })
 
   navigator.serviceWorker.addEventListener('controllerchange', () => {
