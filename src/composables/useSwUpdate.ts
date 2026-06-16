@@ -1,48 +1,51 @@
-import { ref, onMounted } from 'vue'
+import { ref } from 'vue'
 
-export function useSwUpdate() {
-  const hasUpdate = ref(false)
-  let waitingWorker: ServiceWorker | null = null
+const hasUpdate = ref(false)
+let waitingWorker: ServiceWorker | null = null
+let initialized = false
+
+function applyUpdate() {
+  if (!waitingWorker) return
+  waitingWorker.postMessage({ type: 'SKIP_WAITING' })
+}
+
+// Appelé une seule fois, peu importe combien de composants utilisent useSwUpdate()
+function init() {
+  if (initialized || typeof window === 'undefined') return
+  if (!('serviceWorker' in navigator)) return
 
   const isPwa = window.matchMedia('(display-mode: standalone)').matches
+  if (!isPwa) return
 
-  function applyUpdate() {
-    if (!waitingWorker) return
-    waitingWorker.postMessage({ type: 'SKIP_WAITING' })
-  }
+  initialized = true
 
-  onMounted(() => {
-    if (!isPwa || !('serviceWorker' in navigator)) return
+  navigator.serviceWorker.ready.then((registration) => {
+    registration.update()
 
-    navigator.serviceWorker.ready.then((registration) => {
-      // Force la vérification d'une nouvelle version au montage
-      registration.update()
+    if (registration.waiting) {
+      waitingWorker = registration.waiting
+      hasUpdate.value = true
+    }
 
-      // SW déjà en attente au chargement (ex: onglet rouvert)
-      if (registration.waiting) {
-        waitingWorker = registration.waiting
-        hasUpdate.value = true
-      }
+    registration.addEventListener('updatefound', () => {
+      const newWorker = registration.installing
+      if (!newWorker) return
 
-      // SW qui s'installe pendant la session
-      registration.addEventListener('updatefound', () => {
-        const newWorker = registration.installing
-        if (!newWorker) return
-
-        newWorker.addEventListener('statechange', () => {
-          if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
-            waitingWorker = newWorker
-            hasUpdate.value = true
-          }
-        })
+      newWorker.addEventListener('statechange', () => {
+        if (newWorker.state === 'installed' && navigator.serviceWorker.controller) {
+          waitingWorker = newWorker
+          hasUpdate.value = true
+        }
       })
-    })
-
-    // Rechargement automatique quand le nouveau SW prend le contrôle
-    navigator.serviceWorker.addEventListener('controllerchange', () => {
-      window.location.reload()
     })
   })
 
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    window.location.reload()
+  })
+}
+
+export function useSwUpdate() {
+  init()
   return { hasUpdate, applyUpdate }
 }

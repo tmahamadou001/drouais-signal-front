@@ -20,8 +20,10 @@ import { useApi } from '@/composables/useApi'
 import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
 import SwUpdateBanner from '@/components/SwUpdateBanner.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import { useSwUpdate } from '@/composables/useSwUpdate'
 
 const auth = useAuthStore()
+const { hasUpdate, applyUpdate } = useSwUpdate()
 const tenantStore = useTenantStore()
 const route = useRoute()
 
@@ -180,6 +182,19 @@ watch(
             {{ link.label }}
           </RouterLink>
           
+          <!-- Mise à jour PWA disponible -->
+          <button
+            v-if="hasUpdate"
+            @click="applyUpdate"
+            class="w-full flex items-center gap-2 px-3 py-2 rounded-ds
+                   text-sm font-semibold text-primary bg-primary/8
+                   hover:bg-primary/15 transition-colors"
+          >
+            <AppIcon name="RefreshCw" :size="15" />
+            Mettre à jour l'application
+            <span class="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
+          </button>
+
           <button
             v-if="auth.user"
             @click="auth.signOut()"
