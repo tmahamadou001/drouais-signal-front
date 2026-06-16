@@ -3,6 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { useRouter } from 'vue-router'
+import AppIcon from '@/components/AppIcon.vue'
 
 const emit = defineEmits<{
   modeSelected: [mode: 'authenticated' | 'anonymous']
@@ -75,13 +76,7 @@ function skipEmail() {
         >
           <div class="w-11 h-11 bg-primary-50 rounded-xl flex items-center
                       justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-primary" fill="none" stroke="currentColor"
-                 stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0z
-                   M4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0
-                   0112 21.75c-2.676 0-5.216-.584-7.499-1.632z"/>
-            </svg>
+            <AppIcon name="User" :size="20" :stroke-width="1.5" class="text-primary" />
           </div>
           <div class="flex-1 min-w-0">
             <div class="flex items-center gap-2 mb-1">
@@ -103,19 +98,12 @@ function skipEmail() {
                 'Notifications automatiques',
                 'Participer aux votes',
               ]" :key="feat" class="flex items-center gap-2 text-xs text-gray-600">
-                <svg class="w-3.5 h-3.5 text-primary flex-shrink-0" fill="none"
-                     stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
-                </svg>
+                <AppIcon name="Check" :size="14" :stroke-width="2.5" class="text-primary flex-shrink-0" />
                 {{ feat }}
               </li>
             </ul>
           </div>
-          <svg class="w-5 h-5 text-primary flex-shrink-0 mt-0.5
-                     group-hover:translate-x-0.5 transition-transform"
-               fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
-          </svg>
+          <AppIcon name="ChevronRight" :size="20" :stroke-width="2" class="text-primary flex-shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform" />
         </button>
 
         <!-- Séparateur -->
@@ -134,13 +122,7 @@ function skipEmail() {
         >
           <div class="w-11 h-11 bg-gray-100 rounded-xl flex items-center
                       justify-center flex-shrink-0">
-            <svg class="w-5 h-5 text-gray-500" fill="none" stroke="currentColor"
-                 stroke-width="1.5" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25
-                   2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25
-                   2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
-            </svg>
+            <AppIcon name="Lock" :size="20" :stroke-width="1.5" class="text-gray-500" />
           </div>
           <div class="flex-1 min-w-0">
             <p class="text-base font-semibold text-gray-900 mb-1">
@@ -152,29 +134,19 @@ function skipEmail() {
             </p>
             <ul class="space-y-1.5">
               <li class="flex items-center gap-2 text-xs text-gray-600">
-                <svg class="w-3.5 h-3.5 text-green-500 flex-shrink-0" fill="none"
-                     stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
-                </svg>
+                <AppIcon name="Check" :size="14" :stroke-width="2.5" class="text-green-500 flex-shrink-0" />
                 Aucun compte requis
               </li>
               <li v-for="feat in [
                 'Pas d\'historique ni de notifications',
                 'Votes non disponibles',
               ]" :key="feat" class="flex items-center gap-2 text-xs text-gray-400">
-                <svg class="w-3.5 h-3.5 text-gray-300 flex-shrink-0" fill="none"
-                     stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M4.5 12.75l6 6 9-13.5"/>
-                </svg>
+                <AppIcon name="Check" :size="14" :stroke-width="2.5" class="text-gray-300 flex-shrink-0" />
                 {{ feat }}
               </li>
             </ul>
           </div>
-          <svg class="w-5 h-5 text-gray-400 flex-shrink-0 mt-0.5
-                     group-hover:translate-x-0.5 transition-transform"
-               fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5"/>
-          </svg>
+          <AppIcon name="ChevronRight" :size="20" :stroke-width="2" class="text-gray-400 flex-shrink-0 mt-0.5 group-hover:translate-x-0.5 transition-transform" />
         </button>
       </div>
 
@@ -185,11 +157,7 @@ function skipEmail() {
           class="flex items-center gap-1.5 text-sm text-gray-500
                  hover:text-gray-700 mb-6 transition-colors"
         >
-          <svg class="w-4 h-4" fill="none" stroke="currentColor"
-               stroke-width="2" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M15.75 19.5L8.25 12l7.5-7.5"/>
-          </svg>
+          <AppIcon name="ChevronLeft" :size="16" :stroke-width="2" />
           Retour
         </button>
 
@@ -241,13 +209,7 @@ function skipEmail() {
 
           <div class="flex items-center justify-center gap-1.5 mt-5
                       pt-4 border-t border-gray-100">
-            <svg class="w-3 h-3 text-gray-300" fill="none" stroke="currentColor"
-                 stroke-width="2" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25
-                   2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25
-                   2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z"/>
-            </svg>
+            <AppIcon name="Lock" :size="12" :stroke-width="2" class="text-gray-300" />
             <span class="text-xs text-gray-400">
               Email utilisé uniquement pour le suivi de ce signalement
             </span>

@@ -1,4 +1,6 @@
 <script setup lang="ts">
+import AppIcon from '@/components/AppIcon.vue'
+
 const props = defineProps<{
   currentStep: 1 | 2 | 3 | 4
 }>()
@@ -45,15 +47,12 @@ function getStepStatus(stepNumber: number) {
               'bg-white border-2 border-neutral-300 text-neutral-400': getStepStatus(step.number) === 'future',
             }"
           >
-            <svg
+            <AppIcon
               v-if="getStepStatus(step.number) === 'completed'"
-              class="w-4 h-4"
-              fill="none"
-              stroke="currentColor"
-              viewBox="0 0 24 24"
-            >
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7" />
-            </svg>
+              name="Check"
+              :size="16"
+              :stroke-width="3"
+            />
             <span v-else>{{ step.number }}</span>
           </div>
 

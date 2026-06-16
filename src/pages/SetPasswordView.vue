@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import AppIcon from '@/components/AppIcon.vue'
 
 const router = useRouter()
 const tenantStore = useTenantStore()
@@ -98,9 +99,7 @@ async function submit() {
       <!-- Erreur lien invalide -->
       <div v-else-if="status === 'error'" class="text-center space-y-4">
         <div class="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-          <svg class="w-8 h-8 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v4m0 4h.01M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" />
-          </svg>
+          <AppIcon name="TriangleAlert" :size="32" class="text-red-600" />
         </div>
         <h1 class="text-xl font-bold text-gray-900">Lien invalide</h1>
         <p class="text-sm text-gray-500">{{ errorMessage }}</p>
@@ -112,9 +111,7 @@ async function submit() {
       <!-- Succès -->
       <div v-else-if="status === 'success'" class="text-center space-y-4">
         <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
+          <AppIcon name="Check" :size="32" class="text-green-600" />
         </div>
         <h1 class="text-xl font-bold text-gray-900">Mot de passe créé !</h1>
         <p class="text-sm text-gray-500">Votre compte est maintenant actif. Connectez-vous pour accéder à votre espace.</p>
@@ -130,9 +127,7 @@ async function submit() {
       <div v-else class="bg-white border border-neutral-200 rounded-2xl p-8 shadow-sm space-y-6">
         <div class="text-center">
           <div class="w-12 h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-4">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
-            </svg>
+            <AppIcon name="Lock" :size="24" class="text-white" />
           </div>
           <h1 class="text-xl font-bold text-gray-900">Créer votre mot de passe</h1>
           <p class="text-sm text-gray-500 mt-1">Choisissez un mot de passe pour accéder à votre espace OnSignale.</p>
@@ -154,13 +149,8 @@ async function submit() {
                 @click="showPassword = !showPassword"
                 class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
               >
-                <svg v-if="showPassword" class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" />
-                </svg>
-                <svg v-else class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                </svg>
+                <AppIcon v-if="showPassword" name="EyeOff" :size="16" />
+                <AppIcon v-else name="Eye" :size="16" />
               </button>
             </div>
           </div>
@@ -185,10 +175,7 @@ async function submit() {
             :disabled="submitting || !password || !passwordConfirm"
             class="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg text-sm hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
           >
-            <svg v-if="submitting" class="w-4 h-4 animate-spin" viewBox="0 0 24 24" fill="none">
-              <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-              <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
-            </svg>
+            <AppIcon v-if="submitting" name="Loader2" :size="16" class="animate-spin" />
             {{ submitting ? 'Enregistrement…' : 'Créer mon mot de passe' }}
           </button>
         </form>

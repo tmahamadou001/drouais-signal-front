@@ -89,14 +89,7 @@ onMounted(async () => {
            class="bg-white border border-red-200 rounded-2xl p-6 text-center">
         <div class="w-12 h-12 bg-red-50 rounded-xl flex items-center
                     justify-center mx-auto mb-4">
-          <svg class="w-6 h-6 text-red-400" fill="none" stroke="currentColor"
-               stroke-width="1.5" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-              d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948
-                 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949
-                 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126z
-                 M12 15.75h.007v.008H12v-.008z"/>
-          </svg>
+          <AppIcon name="TriangleAlert" :size="24" :stroke-width="1.5" class="text-red-400" />
         </div>
         <p class="font-semibold text-gray-900 mb-1">Lien invalide</p>
         <p class="text-sm text-gray-500">
@@ -209,14 +202,7 @@ onMounted(async () => {
           <div class="flex items-start gap-3 pt-1">
             <div class="w-7 h-7 bg-gray-100 rounded-lg flex items-center
                         justify-center flex-shrink-0 mt-0.5">
-              <svg class="w-3.5 h-3.5 text-gray-500" fill="none"
-                   stroke="currentColor" stroke-width="1.5"
-                   viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round"
-                  d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z
-                     M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5
-                     17.642 4.5 10.5a7.5 7.5 0 1115 0z"/>
-              </svg>
+              <AppIcon name="MapPin" :size="14" :stroke-width="1.5" class="text-gray-500" />
             </div>
             <div>
               <p class="text-sm font-medium text-gray-900">

@@ -5,6 +5,7 @@ import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import DuplicateWarning from '@/components/DuplicateWarning.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const tenantStore = useTenantStore()
 const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
@@ -423,9 +424,7 @@ const canSubmit = computed(() => {
         @click="emit('back')"
         class="flex items-center gap-2 text-primary font-medium hover:underline"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+        <AppIcon name="ChevronLeft" :size="20" />
         <span>Retour</span>
       </button>
 
@@ -470,10 +469,7 @@ const canSubmit = computed(() => {
           @click="startGPS"
           class="w-full flex items-center justify-center gap-3 px-6 py-4 bg-primary text-white rounded-ds-lg font-semibold hover:bg-primary-600 active:scale-98 transition-all shadow-lg shadow-primary/20"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+          <AppIcon name="MapPin" :size="24" />
           <span>Utiliser ma position GPS</span>
         </button>
 
@@ -481,9 +477,7 @@ const canSubmit = computed(() => {
           @click="goToManual"
           class="w-full flex items-center justify-center gap-3 px-6 py-4 bg-white text-dark border-2 border-neutral-200 rounded-ds-lg font-semibold hover:border-primary hover:bg-primary-50/30 active:scale-98 transition-all"
         >
-          <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
+          <AppIcon name="Search" :size="24" />
           <span>Saisir l'adresse manuellement</span>
         </button>
       </div>
@@ -517,14 +511,7 @@ const canSubmit = computed(() => {
           class="p-4 bg-orange-50 border border-orange-200 rounded-ds-lg space-y-3"
         >
           <div class="flex items-start gap-3">
-            <svg class="w-5 h-5 text-orange-600 flex-shrink-0 mt-0.5"
-                 fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0
-                       2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694
-                       -1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
-            </svg>
+            <AppIcon name="TriangleAlert" :size="20" class="text-orange-600 flex-shrink-0 mt-0.5" />
             <div class="flex-1">
               <p class="font-semibold text-orange-900 text-sm">
                 Localisation non autorisée
@@ -563,14 +550,7 @@ const canSubmit = computed(() => {
                    text-white rounded-ds-lg text-sm font-semibold
                    transition-colors active:scale-98"
           >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor"
-                 viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4 4v5h.582m15.356 2A8.001 8.001 0
-                       004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003
-                       8.003 0 01-15.357-2m15.357 2H15"/>
-            </svg>
+            <AppIcon name="RotateCcw" :size="16" />
             <span>Réessayer la localisation</span>
           </button>
         </div>
@@ -581,15 +561,7 @@ const canSubmit = computed(() => {
           class="flex items-start gap-3 p-4 bg-orange-50
                  border border-orange-200 rounded-ds-lg"
         >
-          <svg class="w-5 h-5 text-orange-600 flex-shrink-0"
-               fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round"
-                  stroke-width="2"
-                  d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0
-                     2.502-1.667 1.732-3L13.732 4c-.77-1.333
-                     -2.694-1.333-3.464 0L3.34 16c-.77 1.333.192
-                     3 1.732 3z"/>
-          </svg>
+          <AppIcon name="TriangleAlert" :size="20" class="text-orange-600 flex-shrink-0" />
           <p class="text-sm text-orange-900">
             <span v-if="gpsError === 'TIMEOUT'">
               Délai dépassé — saisissez l'adresse manuellement
@@ -613,9 +585,7 @@ const canSubmit = computed(() => {
               :placeholder="`Ex: 12 rue du Centre, ${cityName}`"
               class="w-full px-4 py-3 pl-11 rounded-ds-lg border-2 border-neutral-300 transition-all focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
-            <svg class="w-5 h-5 text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+            <AppIcon name="Search" :size="20" class="text-neutral-400 absolute left-3 top-1/2 -translate-y-1/2" />
           </div>
         </div>
 
@@ -635,10 +605,7 @@ const canSubmit = computed(() => {
       <!-- ÉTAT 2: Carte avec position -->
       <div v-else-if="gpsState === 'located'" class="space-y-4">
         <div class="flex items-start gap-3 p-4 bg-green-50 border border-green-200 rounded-ds-lg">
-          <svg class="w-6 h-6 text-green-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
+          <AppIcon name="MapPin" :size="24" class="text-green-600 flex-shrink-0" />
           <div class="flex-1">
             <p class="font-semibold text-green-900">📍 Position détectée</p>
             <p class="text-sm text-green-700 mt-1">{{ addressApprox || 'Adresse en cours de récupération...' }}</p>
@@ -667,9 +634,7 @@ const canSubmit = computed(() => {
           v-if="isOutOfBounds"
           class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-ds-lg"
         >
-          <svg class="w-6 h-6 text-red-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-          </svg>
+          <AppIcon name="XCircle" :size="24" class="text-red-600 flex-shrink-0 mt-0.5" />
           <div>
             <p class="font-semibold text-red-900">Position hors périmètre</p>
             <p class="text-sm text-red-700 mt-1">
@@ -698,9 +663,7 @@ const canSubmit = computed(() => {
         v-if="error"
         class="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-ds-lg"
       >
-        <svg class="w-6 h-6 text-red-600 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-        </svg>
+        <AppIcon name="AlertCircle" :size="24" class="text-red-600 flex-shrink-0" />
         <div class="flex-1">
           <p class="font-semibold text-red-900">Erreur</p>
           <p class="text-sm text-red-700">{{ error }}</p>
@@ -719,18 +682,8 @@ const canSubmit = computed(() => {
               : 'bg-neutral-200 text-neutral-400 cursor-not-allowed'
           "
         >
-          <svg
-            v-if="submitting"
-            class="w-5 h-5 animate-spin"
-            fill="none"
-            stroke="currentColor"
-            viewBox="0 0 24 24"
-          >
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-          </svg>
-          <svg v-else class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" />
-          </svg>
+          <AppIcon v-if="submitting" name="Loader2" :size="20" class="animate-spin" />
+          <AppIcon v-else name="Check" :size="20" />
           <span>{{ submitting ? 'Envoi en cours...' : 'Envoyer le signalement' }}</span>
         </button>
         <p v-if="!canSubmit" class="text-xs text-center text-neutral-500">

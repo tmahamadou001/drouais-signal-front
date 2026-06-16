@@ -8,6 +8,7 @@ import ReportCard from '@/components/ReportCard.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
 import EmptyState from '@/components/EmptyState.vue'
 import { useRealtimeMyReports } from '@/composables/useRealtimeMyReports'
+import AppIcon from '@/components/AppIcon.vue'
 
 const { apiFetch, invalidateCache } = useApi()
 const authStore = useAuthStore()
@@ -58,9 +59,7 @@ onMounted(async () => {
         to="/signaler"
         class="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-ds hover:bg-primary-600 transition-colors"
       >
-        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" />
-        </svg>
+        <AppIcon name="Plus" :size="16" />
         Nouveau
       </RouterLink>
     </div>

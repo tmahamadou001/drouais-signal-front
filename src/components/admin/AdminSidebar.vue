@@ -141,9 +141,7 @@ const hoveredItemData = computed(() => {
           title="Retour à l'accueil"
         >
           <div class="w-6 h-6 bg-primary rounded flex items-center justify-center group-hover:bg-primary-600 transition-colors">
-            <svg viewBox="0 0 20 20" class="w-3.5 h-3.5 text-white" fill="currentColor">
-              <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-            </svg>
+            <AppIcon name="Shield" :size="14" class="text-white" />
           </div>
           <AppIcon name="Home" :size="16" class="text-gray-500 group-hover:text-gray-700" />
         </RouterLink>

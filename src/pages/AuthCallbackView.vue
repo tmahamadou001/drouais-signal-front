@@ -3,6 +3,7 @@ import { onMounted, ref } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
+import AppIcon from '@/components/AppIcon.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -44,14 +45,7 @@ onMounted(async () => {
       <!-- Succès -->
       <div v-else-if="status === 'success'" class="space-y-3">
         <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M5 13l4 4L19 7"
-            />
-          </svg>
+          <AppIcon name="Check" :size="32" class="text-green-600" />
         </div>
         <h2 class="text-xl font-bold text-gray-900">Compte confirmé !</h2>
         <p class="text-gray-500 text-sm">Votre compte est activé. Vous pouvez maintenant faire votre premier signalement.</p>
@@ -59,9 +53,7 @@ onMounted(async () => {
           to="/signaler"
           class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors mt-2"
         >
-          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-          </svg>
+          <AppIcon name="PlusCircle" :size="20" />
           Faire mon premier signalement
         </router-link>
         <router-link to="/" class="block text-sm text-gray-400 hover:text-gray-600 mt-1">

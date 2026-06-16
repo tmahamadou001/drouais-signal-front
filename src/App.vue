@@ -19,6 +19,7 @@ import { useTenantStore } from '@/stores/tenant'
 import { useApi } from '@/composables/useApi'
 import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
 import SwUpdateBanner from '@/components/SwUpdateBanner.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const auth = useAuthStore()
 const tenantStore = useTenantStore()
@@ -158,9 +159,7 @@ watch(
               class="md:hidden p-2 rounded-ds text-neutral-500 hover:bg-neutral-100"
               @click="mobileMenuOpen = !mobileMenuOpen"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16" />
-              </svg>
+              <AppIcon name="Menu" :size="20" />
             </button>
           </div>
         </div>

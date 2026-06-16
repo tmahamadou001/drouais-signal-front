@@ -1,13 +1,12 @@
 <script setup lang="ts">
 import { RouterLink } from 'vue-router'
+import AppIcon from '@/components/AppIcon.vue'
 </script>
 
 <template>
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-12">
     <RouterLink to="/" class="text-sm text-primary font-medium hover:underline inline-flex items-center gap-1 mb-8">
-      <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-      </svg>
+      <AppIcon name="ChevronLeft" :size="16" />
       Retour à l'accueil
     </RouterLink>
 

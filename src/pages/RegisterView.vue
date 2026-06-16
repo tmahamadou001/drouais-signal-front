@@ -2,6 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
+import AppIcon from '@/components/AppIcon.vue'
 
 const router = useRouter()
 const authStore = useAuthStore()
@@ -68,14 +69,7 @@ async function handleSubmit() {
         class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 text-center space-y-4"
       >
         <div class="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto">
-          <svg class="w-8 h-8 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path
-              stroke-linecap="round"
-              stroke-linejoin="round"
-              stroke-width="2"
-              d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
-            />
-          </svg>
+          <AppIcon name="Mail" :size="32" class="text-green-600" />
         </div>
         <div>
           <h2 class="text-lg font-semibold text-gray-900">Vérifiez votre email</h2>

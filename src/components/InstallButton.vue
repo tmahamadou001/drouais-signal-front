@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, onMounted, computed } from 'vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const deferredPrompt = ref<any>(null)
 const isIOS = ref(false)
@@ -88,9 +89,7 @@ const buttonText = computed(() => {
     @click="handleInstall"
     class="inline-flex items-center gap-2 px-4 py-2 bg-primary text-white font-medium rounded-lg hover:bg-primary-600 transition-colors"
   >
-    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z" />
-    </svg>
+    <AppIcon name="Smartphone" :size="20" />
     {{ buttonText }}
   </button>
 </template>

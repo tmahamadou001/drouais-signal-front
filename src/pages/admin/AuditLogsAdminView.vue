@@ -362,6 +362,7 @@ const formatAction = (action: string) => {
     'report.deleted': 'Signalement supprimé',
     'report.created': 'Signalement créé',
     'report.bulk_deleted': 'Suppression multiple',
+    'report.service_notified': 'Service notifié',
     'tenant.created': 'Tenant créé',
     'tenant.status_changed': 'Statut tenant modifié',
     'tenant_config.updated': 'Config modifiée',
@@ -375,22 +376,13 @@ const getActionBadgeClass = (action: string) => {
   if (action.includes('created')) return 'bg-green-100 text-green-800'
   if (action.includes('updated') || action.includes('changed')) return 'bg-blue-100 text-blue-800'
   if (action.includes('invited')) return 'bg-purple-100 text-purple-800'
+  if (action.includes('service_notified')) return 'bg-yellow-100 text-yellow-800'
   return 'bg-gray-100 text-gray-800'
 }
 
 const formatMetadata = (metadata: Record<string, any>) => {
   if (!metadata || Object.keys(metadata).length === 0) return '-'
-  
-  const parts: string[] = []
-  if (metadata.report_title) parts.push(metadata.report_title)
-  if (metadata.old_status && metadata.new_status) {
-    parts.push(`${metadata.old_status} → ${metadata.new_status}`)
-  }
-  if (metadata.created_user_email) parts.push(metadata.created_user_email)
-  if (metadata.tenant_name) parts.push(metadata.tenant_name)
-  if (metadata.count) parts.push(`${metadata.count} éléments`)
-  
-  return parts.length > 0 ? parts.join(' | ') : JSON.stringify(metadata)
+  return  JSON.stringify(metadata).replace(/,/g, ', ')
 }
 
 onMounted(() => {

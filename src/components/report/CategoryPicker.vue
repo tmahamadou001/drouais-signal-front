@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import AppIcon from '@/components/AppIcon.vue'
 
 const props = defineProps<{
   modelValue: string
@@ -33,9 +34,7 @@ function selectCategory(key: string) {
           @click="emit('close')"
           class="w-8 h-8 rounded-full hover:bg-neutral-100 flex items-center justify-center transition-colors"
         >
-          <svg class="w-5 h-5 text-neutral-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-          </svg>
+          <AppIcon name="X" :size="20" class="text-neutral-600" />
         </button>
       </div>
 

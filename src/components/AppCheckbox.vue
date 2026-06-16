@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
+import AppIcon from './AppIcon.vue'
 
 interface Props {
   modelValue: boolean
@@ -64,19 +65,7 @@ const handleClick = () => {
           : '',
       ]"
     >
-      <!-- Check icon -->
-      <svg
-        v-if="isChecked"
-        :class="sizeConfig.icon"
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        stroke-width="3"
-        stroke-linecap="round"
-        stroke-linejoin="round"
-      >
-        <path d="M4.5 12.75l6 6 9-13.5"/>
-      </svg>
+      <AppIcon v-if="isChecked" name="Check" :class="sizeConfig.icon" :stroke-width="3" class="text-white" />
 
       <div
         v-else-if="isIndeterminate"

@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import { useReportStore } from '@/stores/report'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import CategoryPicker from './CategoryPicker.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const { categories, getCategoryIcon, getCategoryLabel } = useTenantCategories()
 
@@ -94,9 +95,7 @@ const canValidate = computed(() => {
         @click="emit('back')"
         class="flex items-center gap-2 text-primary font-medium hover:underline"
       >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
-        </svg>
+        <AppIcon name="ChevronLeft" :size="20" />
         <span>Retour</span>
       </button>
 
@@ -125,9 +124,7 @@ const canValidate = computed(() => {
         v-else-if="store.aiError"
         class="flex items-start gap-3 p-4 bg-orange-50 border border-orange-200 rounded-ds-lg"
       >
-        <svg class="w-6 h-6 text-orange-600 flex-shrink-0 mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-        </svg>
+        <AppIcon name="TriangleAlert" :size="24" class="text-orange-600 flex-shrink-0 mt-0.5" />
         <div class="flex-1">
           <p class="font-semibold text-orange-900">{{ config.message }}</p>
         </div>
@@ -153,13 +150,9 @@ const canValidate = computed(() => {
               <span class="font-semibold text-dark">
                 {{ getCategoryLabel(store.category) }}
               </span>
-              <svg class="w-4 h-4 text-primary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-              </svg>
+              <AppIcon name="Pencil" :size="16" class="text-primary" />
             </div>
-            <svg class="w-5 h-5 text-neutral-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-            </svg>
+            <AppIcon name="ChevronRight" :size="20" class="text-neutral-400" />
           </button>
 
           <!-- Low Confidence: Category selector -->
@@ -197,9 +190,7 @@ const canValidate = computed(() => {
             :class="[config.borderClass, config.bgClass]"
           >
             <span class="font-medium text-dark">{{ store.title }}</span>
-            <svg class="w-4 h-4 text-primary flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
+            <AppIcon name="Pencil" :size="16" class="text-primary flex-shrink-0" />
           </div>
 
           <!-- Edit mode or Medium/Low confidence -->
@@ -229,9 +220,7 @@ const canValidate = computed(() => {
             :class="[config.borderClass, config.bgClass]"
           >
             <p class="text-dark flex-1">{{ store.description }}</p>
-            <svg class="w-4 h-4 text-primary flex-shrink-0 mt-1 ml-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
-            </svg>
+            <AppIcon name="Pencil" :size="16" class="text-primary flex-shrink-0 mt-1 ml-2" />
           </div>
 
           <!-- Edit mode or Medium/Low confidence -->
@@ -260,9 +249,7 @@ const canValidate = computed(() => {
         "
       >
         <span>{{ confidence === 'fort' ? 'Valider et localiser' : 'Confirmer et localiser' }}</span>
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
-        </svg>
+        <AppIcon name="ChevronRight" :size="20" />
       </button>
 
       <!-- Unlock all fields link (only for high confidence) -->

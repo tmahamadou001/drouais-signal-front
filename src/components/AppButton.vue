@@ -138,15 +138,7 @@ const closeMenu = () => {
         :size="size === 'xs' ? 14 : size === 'lg' ? 20 : 16"
       />
       
-      <svg
-        v-if="loading"
-        class="animate-spin h-4 w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-      >
-        <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/>
-        <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"/>
-      </svg>
+      <AppIcon v-if="loading" name="Loader2" :size="16" class="animate-spin" />
       
       <span v-if="loading">Chargement...</span>
       <slot v-else />
@@ -157,14 +149,7 @@ const closeMenu = () => {
         :size="size === 'xs' ? 14 : size === 'lg' ? 20 : 16"
       />
       
-      <svg
-        v-if="actions && actions.length > 0"
-        class="w-4 h-4 ml-1"
-        fill="currentColor"
-        viewBox="0 0 20 20"
-      >
-        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd"/>
-      </svg>
+      <AppIcon v-if="actions && actions.length > 0" name="ChevronDown" :size="16" class="ml-1" />
     </button>
     
     <!-- Dropdown Menu -->

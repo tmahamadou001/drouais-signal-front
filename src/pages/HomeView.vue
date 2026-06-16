@@ -11,6 +11,7 @@ import MapView from '@/components/MapView.vue'
 import SkeletonCard from '@/components/SkeletonCard.vue'
 import MapSkeleton from '@/components/MapSkeleton.vue'
 import InstallButton from '@/components/InstallButton.vue'
+import AppIcon from '@/components/AppIcon.vue'
 
 const { apiFetch } = useApi()
 const tenantStore = useTenantStore()
@@ -64,15 +65,13 @@ const statCards = computed(() => [
     :style="{ transform: `translateY(${pullDistance - 48}px)` }"
   >
     <div class="bg-white shadow-md rounded-full w-10 h-10 flex items-center justify-center border border-neutral-200">
-      <svg
-        class="w-5 h-5 text-primary transition-transform duration-300"
+      <AppIcon
+        name="RotateCcw"
+        :size="20"
+        class="text-primary transition-transform duration-300"
         :class="isRefreshing ? 'animate-spin' : ''"
         :style="!isRefreshing ? { transform: `rotate(${(pullDistance / 72) * 180}deg)` } : {}"
-        fill="none" stroke="currentColor" viewBox="0 0 24 24"
-      >
-        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-          d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-      </svg>
+      />
     </div>
   </div>
 
@@ -107,9 +106,7 @@ const statCards = computed(() => [
               to="/signaler"
               class="inline-flex items-center justify-center gap-2 bg-white text-primary font-semibold px-6 py-3 rounded-ds-lg hover:bg-neutral-50 transition-colors shadow-ds-lg"
             >
-              <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3m0 0v3m0-3h3m-3 0H9m12 0a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
+              <AppIcon name="PlusCircle" :size="20" />
               Faire un signalement
             </RouterLink>
             <a
@@ -117,9 +114,7 @@ const statCards = computed(() => [
               class="inline-flex items-center justify-center gap-2 bg-white/10 backdrop-blur-sm text-white font-medium px-6 py-3 rounded-ds-lg hover:bg-white/20 transition-colors border border-white/20"
             >
               Voir la carte
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 14l-7 7m0 0l-7-7m7 7V3" />
-              </svg>
+              <AppIcon name="ArrowDown" :size="16" />
             </a>
           </div>
 
@@ -172,9 +167,6 @@ const statCards = computed(() => [
           </span>
           <span class="flex items-center gap-1.5">
             <span class="w-3 h-3 rounded-full bg-warning"></span> Pris en charge
-          </span>
-          <span class="flex items-center gap-1.5">
-            <span class="w-3 h-3 rounded-full bg-success"></span> Résolu
           </span>
         </div>
       </div>
