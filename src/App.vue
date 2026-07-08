@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { Analytics } from '@vercel/analytics/vue';
 
 async function readSwVersion(): Promise<string | null> {
   try {
@@ -100,6 +101,9 @@ watch(
 </script>
 
 <template>
+  <!-- Analytics-->
+  <Analytics />
+  
   <div class="min-h-screen flex flex-col">
     <!-- Header -->
     <header v-if="showHeader" class="bg-white border-b border-neutral-200 sticky top-0 z-[1000]">
