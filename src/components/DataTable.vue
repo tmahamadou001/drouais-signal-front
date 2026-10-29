@@ -47,6 +47,24 @@ const props = withDefaults(defineProps<{
   expandedKey?: string | number | null
   /** Lignes fantômes pendant le chargement. Aligné sur la taille de page. */
   skeletonRows?: number
+  /**
+   * Hauteur d'une ligne, en pixels.
+   *
+   * Fixe, parce que la grille l'est : des lignes qui s'adaptent à leur contenu
+   * feraient sauter l'alignement d'une ligne à l'autre.
+   *
+   * Elle n'était pas respectée. Les lignes sont des enfants d'un conteneur
+   * `flex-col`, donc `flex-shrink: 1` par défaut : quinze lignes dans une
+   * hauteur contrainte se faisaient écraser de 64 px à **41**, et la vignette
+   * de catégorie (38 px) touchait les bordures. Augmenter la hauteur ne
+   * changeait rien — elles se comprimaient d'autant. D'où le `flex-none` sur
+   * la ligne, sans lequel ce réglage n'a aucun effet.
+   *
+   * 58 px : la vignette (38 px) et deux lignes de texte (33 px) y tiennent
+   * avec 10 px de marge. Le design visait 64, qui s'est révélé trop aéré une
+   * fois réellement appliqué — l'œil s'était habitué aux 41 px écrasés.
+   */
+  rowHeight?: number
   emptyMessage?: string
   emptyIcon?: string
   /** Signale une ligne sans la sélectionner : un signalement qui vient d'arriver. */
@@ -64,6 +82,7 @@ const props = withDefaults(defineProps<{
   selected: () => [],
   loading: false,
   skeletonRows: 8,
+  rowHeight: 58,
   emptyMessage: 'Aucune donnée à afficher.',
   emptyIcon: 'Inbox',
   itemLabel: 'éléments',
@@ -101,6 +120,8 @@ const minWidth = computed(() => {
 
   return `${fixed + flexible * 260 + (props.selectable ? 36 : 0) + 36}px`
 })
+
+const rowStyle = computed(() => ({ height: `${props.rowHeight}px` }))
 
 const selectedSet = computed(() => new Set(props.selected))
 
@@ -219,8 +240,8 @@ const rangeLabel = computed(() => {
             <div
               v-for="index in skeletonRows"
               :key="`skeleton-${index}`"
-              class="grid h-16 items-center gap-3 border-b border-hairline px-[18px]"
-              :style="gridStyle"
+              class="grid flex-none items-center gap-3 border-b border-hairline px-[18px]"
+              :style="[gridStyle, rowStyle]"
             >
               <AppSkeleton v-if="selectable" class="h-4 w-4 rounded-[5px]" />
               <AppSkeleton v-for="column in columns" :key="column.key" class="h-3 rounded" />
@@ -230,14 +251,14 @@ const rangeLabel = computed(() => {
           <template v-for="row in rows" v-else :key="row[rowKey]">
           <div
             :id="`row-${row[rowKey]}`"
-            class="relative grid h-16 items-center gap-3 border-b border-hairline px-[18px] transition-colors"
+            class="relative grid flex-none items-center gap-3 border-b border-hairline px-[18px] transition-colors"
             :class="[
               selectedSet.has(row[rowKey])
                 ? 'bg-brand-50'
                 : highlightRow?.(row) ? 'bg-status-done-bg' : 'hover:bg-canvas',
               $attrs.onRowClick !== undefined ? 'cursor-pointer' : '',
             ]"
-            :style="gridStyle"
+            :style="[gridStyle, rowStyle]"
             @click="emit('row-click', row)"
           >
             <span

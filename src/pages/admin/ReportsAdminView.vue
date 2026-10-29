@@ -348,20 +348,31 @@ const COLUMNS = computed<DataColumn[]>(() => [
    * La référence en premier, avant le titre.
    *
    * C'est l'identifiant qu'un habitant dicte au téléphone et qu'une mairie
-   * colle dans un e-mail : la retrouver demandait d'ouvrir la fiche. 128 px
-   * tiennent `LAL-2026-00418` sans rupture — le format est fixe, la colonne
-   * peut donc l'être aussi.
+   * colle dans un e-mail : la retrouver demandait d'ouvrir la fiche. Le format
+   * est fixe (`LAL-2026-00418`), la colonne peut donc l'être aussi, et au plus
+   * juste : 112 px tiennent la référence sans rupture.
    */
-  { key: 'reference',  label: 'RÉFÉRENCE', width: '128px' },
+  { key: 'reference',  label: 'RÉFÉRENCE', width: '112px' },
+  /**
+   * La seule piste élastique : tout ce que les autres n'occupent pas lui
+   * revient.
+   *
+   * Les six colonnes fixes ont été resserrées de 74 px au total à son profit.
+   * C'est elle qui porte le titre, et un titre coupé est la seule donnée de
+   * cette table qu'on ne peut pas reconstituer de tête — un statut, une date
+   * ou un nombre se devinent, « Dégradation du pavage et joints… » non.
+   */
   { key: 'title',      label: 'SIGNALEMENT' },
-  // 190 px : « Arbres, végétation et animaux » est un libellé de la taxonomie
-  // nationale, pas un cas limite inventé — à 140 px il se coupait au milieu
-  // d'un mot, et une catégorie tronquée ne se devine pas.
-  { key: 'category',   label: 'CATÉGORIE', width: '190px' },
-  { key: 'status',     label: 'STATUT',    width: '150px' },
-  { key: 'votes',      label: 'CONSTATS',  width: '92px' },
-  { key: 'created_at', label: 'DATE',      width: '116px' },
-  ...(canAct.value ? [{ key: 'actions', label: 'ACTIONS', width: '84px', align: 'right' as const }] : []),
+  // « Arbres, végétation et animaux » est un libellé de la taxonomie nationale,
+  // pas un cas limite inventé : il tient sur deux lignes à cette largeur, et se
+  // coupait au milieu d'un mot en dessous de 170 px.
+  { key: 'category',   label: 'CATÉGORIE', width: '176px' },
+  // « Pris en charge » est le plus long des libellés de statut : la pastille,
+  // son icône et ses marges font 131 px.
+  { key: 'status',     label: 'STATUT',    width: '140px' },
+  { key: 'votes',      label: 'CONSTATS',  width: '78px' },
+  { key: 'created_at', label: 'DATE',      width: '104px' },
+  ...(canAct.value ? [{ key: 'actions', label: 'ACTIONS', width: '76px', align: 'right' as const }] : []),
 ])
 </script>
 

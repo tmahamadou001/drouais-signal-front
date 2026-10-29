@@ -231,12 +231,19 @@ function fullDetail(log: AuditLog) {
   ]
 }
 
+/**
+ * Les cinq premières colonnes sont dimensionnées au plus juste pour laisser
+ * `DÉTAILS` respirer : c'est elle qui porte les pastilles de métadonnées, et
+ * c'est la seule dont le contenu varie d'une action à l'autre. Les autres
+ * affichent des formats connus — une date, une adresse e-mail, un libellé
+ * d'action, un slug, une adresse IP — qu'on peut mesurer une fois pour toutes.
+ */
 const COLUMNS = computed<DataColumn[]>(() => [
-  { key: 'created_at', label: 'DATE',        width: '132px' },
-  { key: 'user',       label: 'UTILISATEUR', width: '232px' },
-  { key: 'action',     label: 'ACTION',      width: '190px' },
-  ...(isSuperAdmin.value ? [{ key: 'tenant_slug', label: 'COMMUNE', width: '108px' }] : []),
-  { key: 'ip_address', label: 'IP',          width: '96px' },
+  { key: 'created_at', label: 'DATE',        width: '120px' },
+  { key: 'user',       label: 'UTILISATEUR', width: '216px' },
+  { key: 'action',     label: 'ACTION',      width: '172px' },
+  ...(isSuperAdmin.value ? [{ key: 'tenant_slug', label: 'COMMUNE', width: '96px' }] : []),
+  { key: 'ip_address', label: 'IP',          width: '88px' },
   { key: 'metadata',   label: 'DÉTAILS' },
 ])
 </script>
