@@ -1,257 +1,232 @@
 <script setup lang="ts">
+/**
+ * Le parc : toutes les collectivités de la plateforme.
+ *
+ * Écran de super-administration, et le dernier écrit en palette Tailwind brute
+ * — `bg-green-100`, `text-primary`, `border-neutral-200` — avec son formulaire
+ * en accordéon, son bandeau d'erreur en ligne et ses statuts affichés en clair
+ * dans la langue de la base : la colonne disait `trial`, `suspended`.
+ *
+ * Deux choses changent au-delà des jetons :
+ *
+ *  - **le formulaire passe en modale.** Il s'ouvrait au-dessus du tableau et
+ *    repoussait vers le bas la liste dans laquelle on vérifie justement que la
+ *    commune n'existe pas déjà ;
+ *  - **suspendre demande confirmation.** C'est le seul geste de cet écran qui
+ *    coupe l'accès d'une mairie entière, et il se faisait par une liste
+ *    déroulante — un pixel de trop et le contrat d'un client changeait d'état.
+ */
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
+import { useToast } from '@/composables/useToast'
+import AppIcon from '@/components/AppIcon.vue'
+import AppModal from '@/components/AppModal.vue'
+import DataTable, { type DataColumn } from '@/components/DataTable.vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import PlatformStatsCards from '@/pages/admin/platform/PlatformStatsCards.vue'
+import CreateTenantDialog, { type NewTenant } from '@/pages/admin/platform/CreateTenantDialog.vue'
+import { tenantStatusInfo, planLabel, ASSIGNABLE_TENANT_STATUSES } from '@/lib/tenantStatus'
 
-const { apiFetch } = useApi()
+interface PlatformTenant {
+  id: string
+  slug: string
+  name: string
+  status: string
+  plan: string
+  reports_count?: { count: number }[]
+}
 
-const tenants = ref<any[]>([])
+const { apiFetch, invalidateCachePattern } = useApi()
+const toast = useToast()
+
+const tenants = ref<PlatformTenant[]>([])
 const loading = ref(true)
-const error = ref<string | null>(null)
-const showCreateForm = ref(false)
 const creating = ref(false)
+const createOpen = ref(false)
 
-const newTenant = ref({
-  slug: '',
-  name: '',
-  cityName: '',
-  contactEmail: '',
-  plan: 'starter',
-  primaryColor: '#1A56A0',
-})
+/** La suspension en attente de confirmation. */
+const suspending = ref<PlatformTenant | null>(null)
+
+const COLUMNS: DataColumn[] = [
+  { key: 'name',          label: 'COLLECTIVITÉ' },
+  { key: 'status',        label: 'STATUT',       width: '150px' },
+  { key: 'plan',          label: 'PLAN',         width: '120px' },
+  { key: 'reports_count', label: 'SIGNALEMENTS', width: '130px' },
+  { key: 'actions',       label: 'STATUT',       width: '160px', align: 'right' },
+]
 
 const stats = computed(() => ({
-  active: tenants.value.filter((t) => t.status === 'active').length,
-  trial: tenants.value.filter((t) => t.status === 'trial').length,
-  demo: tenants.value.filter((t) => t.status === 'demo').length,
-  suspended: tenants.value.filter((t) => t.status === 'suspended').length,
+  active: tenants.value.filter((one) => one.status === 'active').length,
+  trial: tenants.value.filter((one) => one.status === 'trial').length,
+  demo: tenants.value.filter((one) => one.status === 'demo').length,
+  suspended: tenants.value.filter((one) => one.status === 'suspended').length,
   total: tenants.value.length,
 }))
 
-const statusColors: Record<string, string> = {
-  active: 'bg-green-100 text-green-700',
-  trial: 'bg-yellow-100 text-yellow-700',
-  demo: 'bg-blue-100 text-blue-700',
-  suspended: 'bg-red-100 text-red-700',
+const takenSlugs = computed(() => tenants.value.map((one) => one.slug))
+
+function reason(err: unknown, fallback: string): string {
+  const message = (err as { message?: string })?.message
+  return message && message !== 'Failed to fetch' ? message : fallback
 }
 
-const loadTenants = async () => {
+async function load() {
   loading.value = true
-  error.value = null
   try {
-    tenants.value = await apiFetch('/api/tenant/all',
-      {
-        cache: { maxAge: 600_000 } // Cache 10 minutes
-      }
-    )
-  } catch (err: any) {
-    error.value = err.message ?? 'Erreur chargement'
+    tenants.value = await apiFetch<PlatformTenant[]>('/api/tenant/all', {
+      cache: { maxAge: 600_000 },
+    })
+  } catch (err) {
+    toast.error('Parc indisponible', reason(err, 'Rechargez la page dans un instant.'))
   } finally {
     loading.value = false
   }
 }
 
-const updateStatus = async (tenantId: string, status: string) => {
+function refresh() {
+  invalidateCachePattern(/^\/api\/tenant\/all/)
+  return load()
+}
+
+async function setStatus(tenant: PlatformTenant, status: string) {
+  if (status === tenant.status) return
+
+  // Suspendre coupe l'accès d'une mairie entière : on le demande deux fois.
+  if (status === 'suspended') {
+    suspending.value = tenant
+    return
+  }
+
+  await applyStatus(tenant, status)
+}
+
+async function applyStatus(tenant: PlatformTenant, status: string) {
   try {
-    await apiFetch(`/api/tenant/${tenantId}/status`, {
-      method: 'PATCH',
-      body: { status },
-    })
-    await loadTenants()
-  } catch (err: any) {
-    error.value = err.message
+    await apiFetch(`/api/tenant/${tenant.id}/status`, { method: 'PATCH', body: { status } })
+    await refresh()
+    toast.success(`${tenant.name} · ${tenantStatusInfo(status).label}`)
+  } catch (err) {
+    toast.error('Changement de statut impossible', reason(err, 'Réessayez dans un instant.'))
+    // La liste garde l'ancienne valeur : la recharger remet le sélecteur droit.
+    await refresh()
   }
 }
 
-const createTenant = async () => {
-  if (!newTenant.value.slug || !newTenant.value.name || !newTenant.value.cityName) return
+async function confirmSuspend() {
+  if (!suspending.value) return
+  const tenant = suspending.value
+  suspending.value = null
+  await applyStatus(tenant, 'suspended')
+}
+
+async function createTenant(tenant: NewTenant) {
   creating.value = true
   try {
-    await apiFetch('/api/tenant', {
-      method: 'POST',
-      body: newTenant.value,
-    })
-    showCreateForm.value = false
-    newTenant.value = { slug: '', name: '', cityName: '', contactEmail: '', plan: 'starter', primaryColor: '#1A56A0' }
-    await loadTenants()
-  } catch (err: any) {
-    error.value = err.message
+    await apiFetch('/api/tenant', { method: 'POST', body: tenant })
+    await refresh()
+    toast.success(`${tenant.name} créée`, `${tenant.slug}.onsignale.fr`)
+    createOpen.value = false
+  } catch (err) {
+    toast.error('Création impossible', reason(err, 'Vérifiez les champs saisis.'))
   } finally {
     creating.value = false
   }
 }
 
-onMounted(() => {
-  loadTenants()
-})
+onMounted(load)
 </script>
 
 <template>
-  <div class="p-4 md:p-6 space-y-6">
-    <div class="flex items-center justify-between">
-      <div>
-        <h1 class="text-2xl font-display font-bold text-gray-900">Plateforme</h1>
-        <p class="text-sm text-gray-500 mt-1">Super Admin — gestion de tous les tenants</p>
-      </div>
-      <button
-        @click="showCreateForm = !showCreateForm"
-        class="inline-flex items-center gap-2 bg-primary text-white text-sm font-semibold px-4 py-2 rounded-xl hover:opacity-90 transition-opacity"
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas">
+    <AdminPageHeader>
+      <template #actions>
+        <button
+          class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] bg-brand-700 px-3.5 transition-colors hover:bg-brand-800"
+          @click="createOpen = true"
+        >
+          <AppIcon name="Plus" :size="16" :stroke-width="2" class="text-white" />
+          <span class="text-[13px] font-semibold leading-none text-white">Nouvelle collectivité</span>
+        </button>
+      </template>
+    </AdminPageHeader>
+
+    <div class="flex min-h-0 flex-1 flex-col gap-[18px] overflow-hidden px-7 py-[22px]">
+      <PlatformStatsCards :stats="stats" />
+
+      <DataTable
+        :columns="COLUMNS"
+        :rows="tenants"
+        row-key="id"
+        :loading="loading"
+        :skeleton-rows="8"
+        :total="tenants.length"
+        :visible-count="tenants.length"
+        item-label="collectivités"
+        empty-icon="Globe"
+        empty-message="Aucune collectivité sur la plateforme."
       >
-        <span class="text-lg leading-none">+</span>
-        Nouvelle ville
-      </button>
-    </div>
-
-    <div v-if="error" class="p-3 bg-red-50 border border-red-200 rounded-xl text-sm text-red-700">
-      {{ error }}
-    </div>
-
-    <!-- Formulaire création -->
-    <div
-      v-if="showCreateForm"
-      class="bg-white border border-neutral-200 rounded-2xl p-6 space-y-4"
-    >
-      <h2 class="font-semibold text-gray-800">Créer un nouveau tenant</h2>
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Slug (unique)</label>
-          <input
-            v-model="newTenant.slug"
-            placeholder="ex: la-loupe"
-            class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Nom de la ville</label>
-          <input
-            v-model="newTenant.name"
-            placeholder="ex: Ville de La Loupe"
-            class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Nom de la commune</label>
-          <input
-            v-model="newTenant.cityName"
-            placeholder="ex: La Loupe"
-            class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Email contact</label>
-          <input
-            v-model="newTenant.contactEmail"
-            type="email"
-            placeholder="contact@ville.fr"
-            class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm outline-none focus:border-primary"
-          />
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Plan</label>
-          <select
-            v-model="newTenant.plan"
-            class="w-full px-3 py-2 rounded-xl border border-neutral-200 text-sm outline-none"
-          >
-            <option value="starter">Starter</option>
-            <option value="agglo">Agglo</option>
-            <option value="enterprise">Enterprise</option>
-          </select>
-        </div>
-        <div>
-          <label class="block text-xs font-medium text-gray-600 mb-1">Couleur primaire</label>
-          <div class="flex items-center gap-2">
-            <input
-              v-model="newTenant.primaryColor"
-              type="color"
-              class="h-9 w-14 rounded-lg cursor-pointer border border-gray-200"
-            />
-            <span class="text-xs text-gray-500 font-mono">{{ newTenant.primaryColor }}</span>
+        <template #cell-name="{ row }">
+          <div class="min-w-0">
+            <div class="truncate text-sm font-semibold leading-[1.3] text-ink">{{ row.name }}</div>
+            <div class="truncate text-xs leading-[1.3] text-muted">{{ row.slug }}.onsignale.fr</div>
           </div>
-        </div>
-      </div>
-      <div class="flex gap-3">
-        <button
-          @click="createTenant"
-          :disabled="creating || !newTenant.slug || !newTenant.name || !newTenant.cityName"
-          class="px-6 py-2.5 bg-primary text-white font-medium rounded-xl hover:opacity-90 disabled:opacity-50 text-sm"
-        >
-          {{ creating ? 'Création...' : 'Créer' }}
-        </button>
-        <button
-          @click="showCreateForm = false"
-          class="px-6 py-2.5 border border-neutral-200 text-gray-600 font-medium rounded-xl hover:bg-gray-50 text-sm"
-        >
-          Annuler
-        </button>
-      </div>
-    </div>
+        </template>
 
-    <!-- Stats globales -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div
-        v-for="stat in [
-          { label: 'Actifs', value: stats.active, color: 'text-green-600' },
-          { label: 'Trial', value: stats.trial, color: 'text-yellow-600' },
-          { label: 'Suspendus', value: stats.suspended, color: 'text-red-600' },
-          { label: 'Total', value: stats.total, color: 'text-gray-900' },
-        ]"
-        :key="stat.label"
-        class="bg-white rounded-2xl border border-neutral-200 p-4"
-      >
-        <p class="text-xs text-gray-500">{{ stat.label }}</p>
-        <p class="text-3xl font-bold mt-1" :class="stat.color">{{ stat.value }}</p>
-      </div>
-    </div>
-
-    <!-- Table tenants -->
-    <div class="bg-white rounded-2xl border border-neutral-200 overflow-hidden">
-      <div v-if="loading" class="py-12 text-center text-sm text-gray-400">Chargement...</div>
-      <table v-else class="w-full text-sm">
-        <thead class="bg-neutral-50 border-b border-neutral-200">
-          <tr>
-            <th class="text-left px-4 py-3 font-semibold text-neutral-600">Ville</th>
-            <th class="text-left px-4 py-3 font-semibold text-neutral-600 hidden sm:table-cell">Statut</th>
-            <th class="text-left px-4 py-3 font-semibold text-neutral-600 hidden md:table-cell">Plan</th>
-            <th class="text-center px-4 py-3 font-semibold text-neutral-600 hidden lg:table-cell">Signalements</th>
-            <th class="text-right px-4 py-3 font-semibold text-neutral-600">Action</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="tenant in tenants"
-            :key="tenant.id"
-            class="border-b border-neutral-100 hover:bg-neutral-50"
+        <template #cell-status="{ row }">
+          <span
+            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-[5px] text-xs font-semibold leading-none"
+            :class="tenantStatusInfo(row.status).classes"
           >
-            <td class="px-4 py-3">
-              <p class="font-medium text-gray-900">{{ tenant.name }}</p>
-              <p class="text-xs text-gray-400">{{ tenant.slug }}.onsignale.fr</p>
-            </td>
-            <td class="px-4 py-3 hidden sm:table-cell">
-              <span
-                class="px-2.5 py-1 rounded-full text-xs font-medium"
-                :class="statusColors[tenant.status] ?? 'bg-gray-100 text-gray-600'"
-              >
-                {{ tenant.status }}
-              </span>
-            </td>
-            <td class="px-4 py-3 hidden md:table-cell text-gray-500">{{ tenant.plan }}</td>
-            <td class="px-4 py-3 hidden lg:table-cell text-center text-gray-500">
-              {{ tenant.reports_count?.[0]?.count ?? 0 }}
-            </td>
-            <td class="px-4 py-3 text-right">
-              <select
-                :value="tenant.status"
-                @change="updateStatus(tenant.id, ($event.target as HTMLSelectElement).value)"
-                class="text-xs border border-neutral-200 rounded-lg px-2 py-1 bg-white"
-              >
-                <option value="trial">Trial</option>
-                <option value="active">Actif</option>
-                <option value="demo">Démo</option>
-                <option value="suspended">Suspendu</option>
-              </select>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+            <AppIcon :name="tenantStatusInfo(row.status).icon" :size="13" :stroke-width="2" />
+            {{ tenantStatusInfo(row.status).label }}
+          </span>
+        </template>
+
+        <template #cell-plan="{ row }">
+          <span class="truncate text-[13px] font-medium leading-none text-muted">
+            {{ planLabel(row.plan) }}
+          </span>
+        </template>
+
+        <template #cell-reports_count="{ row }">
+          <span class="text-[13px] font-semibold leading-none tabular-nums text-ink">
+            {{ row.reports_count?.[0]?.count ?? 0 }}
+          </span>
+        </template>
+
+        <template #cell-actions="{ row }">
+          <select
+            :value="row.status"
+            class="h-[30px] rounded-lg border border-line bg-white px-2 text-xs font-medium text-ink outline-none focus:border-brand-700"
+            @change="setStatus(row, ($event.target as HTMLSelectElement).value)"
+            @click.stop
+          >
+            <option v-for="status in ASSIGNABLE_TENANT_STATUSES" :key="status" :value="status">
+              {{ tenantStatusInfo(status).label }}
+            </option>
+          </select>
+        </template>
+      </DataTable>
     </div>
+
+    <CreateTenantDialog
+      :open="createOpen"
+      :creating="creating"
+      :taken-slugs="takenSlugs"
+      @close="createOpen = false"
+      @submit="createTenant"
+    />
+
+    <AppModal
+      :open="suspending !== null"
+      title="Suspendre cette collectivité"
+      :description="`${suspending?.name ?? 'Cette commune'} perdra l’accès au back-office, et ses habitants ne pourront plus déposer de signalement. Les données sont conservées.`"
+      confirm-text="Suspendre"
+      cancel-text="Annuler"
+      confirm-variant="danger"
+      @confirm="confirmSuspend"
+      @cancel="suspending = null; void refresh()"
+      @close="suspending = null; void refresh()"
+    />
   </div>
 </template>

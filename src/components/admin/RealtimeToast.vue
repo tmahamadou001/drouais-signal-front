@@ -11,13 +11,19 @@ defineEmits<{
   click: [reportId: string]
 }>()
 
-function getIcon(type: RealtimeNotification['type']) {
-  const icons = {
-    new_report: '🔔',
-    status_change: '🔄',
-    new_vote: '▲',
-  }
-  return icons[type]
+/**
+ * Le dessin et la teinte d'une notification.
+ *
+ * Des glyphes lucide et non des emoji : ils se dessinent différemment d'un
+ * système à l'autre, ne prennent pas la couleur du statut, et jurent au milieu
+ * d'un jeu d'icônes au trait — la même raison qui les a fait disparaître des
+ * catégories.
+ */
+const STYLES: Record<RealtimeNotification['type'], { icon: string; tint: string }> = {
+  new_report:    { icon: 'Inbox',         tint: 'bg-brand-50 text-brand-700' },
+  status_change: { icon: 'RefreshCw',     tint: 'bg-status-progress-bg text-status-progress-fg' },
+  new_vote:      { icon: 'Users',         tint: 'bg-status-done-bg text-status-done-fg' },
+  citizen_reply: { icon: 'MessageCircle', tint: 'bg-brand-50 text-brand-700' },
 }
 
 function timeAgo(date: Date): string {
@@ -30,35 +36,37 @@ function timeAgo(date: Date): string {
 </script>
 
 <template>
-  <div
-    class="fixed top-4 right-4 z-50 flex flex-col gap-2 max-w-sm w-full pointer-events-none"
-  >
+  <div class="font-ui pointer-events-none fixed right-4 top-4 z-[60] flex w-full max-w-sm flex-col gap-2">
     <TransitionGroup name="toast">
       <div
         v-for="notif in notifications"
         :key="notif.id"
-        class="bg-white rounded-xl shadow-lg border border-gray-200 p-4 pointer-events-auto cursor-pointer hover:shadow-xl transition-shadow"
+        class="pointer-events-auto cursor-pointer rounded-[14px] border border-line bg-white p-3.5 shadow-ds-lg transition-shadow hover:shadow-xl"
         @click="$emit('click', notif.reportId)"
       >
         <div class="flex items-start gap-3">
-          <span class="text-xl flex-shrink-0">
-            {{ getIcon(notif.type) }}
-          </span>
+          <div
+            class="flex h-9 w-9 flex-none items-center justify-center rounded-[10px]"
+            :class="STYLES[notif.type].tint"
+          >
+            <AppIcon :name="STYLES[notif.type].icon" :size="18" :stroke-width="1.75" />
+          </div>
 
-          <div class="flex-1 min-w-0">
-            <p class="text-sm font-semibold text-gray-900 truncate">
+          <div class="min-w-0 flex-1">
+            <p class="truncate text-sm font-semibold leading-[1.3] text-ink">
               {{ notif.reportTitle }}
             </p>
-            <p class="text-xs text-gray-500 mt-0.5">
+            <p class="mt-0.5 text-xs leading-[1.3] text-muted">
               {{ notif.message }}
             </p>
-            <p class="text-xs text-gray-400 mt-1">
+            <p class="mt-1 text-[11px] font-medium leading-none text-faint">
               {{ timeAgo(notif.timestamp) }}
             </p>
           </div>
 
           <button
-            class="text-gray-400 hover:text-gray-600 flex-shrink-0 p-0.5 transition-colors"
+            class="flex-none p-0.5 text-faint transition-colors hover:text-ink"
+            :aria-label="`Masquer : ${notif.reportTitle}`"
             @click.stop="$emit('dismiss', notif.id)"
           >
             <AppIcon name="X" :size="16" />

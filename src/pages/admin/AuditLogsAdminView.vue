@@ -1,223 +1,34 @@
-<template>
-  <div class="min-h-screen bg-gray-50 p-6">
-    <div class="max-w-7xl mx-auto">
-      <!-- Header -->
-      <div class="mb-6">
-        <h1 class="text-3xl font-bold text-gray-900">Logs d'audit</h1>
-        <p class="text-gray-600 mt-2">Historique de toutes les actions effectuées sur la plateforme</p>
-      </div>
-
-      <!-- Filtres -->
-      <div class="bg-white rounded-lg shadow p-6 mb-6">
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          <!-- Recherche -->
-          <div class="lg:col-span-2">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Recherche</label>
-            <input
-              v-model="filters.search"
-              type="text"
-              placeholder="Email, ID, contenu..."
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @input="debouncedSearch"
-            />
-          </div>
-
-          <!-- Filtre tenant (super admin uniquement) -->
-          <div v-if="isSuperAdmin">
-            <label class="block text-sm font-medium text-gray-700 mb-2">Tenant</label>
-            <select
-              v-model="filters.tenant"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @change="loadLogs"
-            >
-              <option value="">Tous les tenants</option>
-              <option v-for="tenant in tenants" :key="tenant.slug" :value="tenant.slug">
-                {{ tenant.name }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Filtre action -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Action</label>
-            <select
-              v-model="filters.action"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @change="loadLogs"
-            >
-              <option value="">Toutes les actions</option>
-              <option v-for="action in actions" :key="action" :value="action">
-                {{ formatAction(action) }}
-              </option>
-            </select>
-          </div>
-
-          <!-- Filtre utilisateur -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Utilisateur</label>
-            <input
-              v-model="filters.user"
-              type="text"
-              placeholder="Email utilisateur"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @input="debouncedSearch"
-            />
-          </div>
-
-          <!-- Période -->
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Date début</label>
-            <input
-              v-model="filters.startDate"
-              type="date"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @change="loadLogs"
-            />
-          </div>
-
-          <div>
-            <label class="block text-sm font-medium text-gray-700 mb-2">Date fin</label>
-            <input
-              v-model="filters.endDate"
-              type="date"
-              class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-              @change="loadLogs"
-            />
-          </div>
-
-          <!-- Bouton reset -->
-          <div class="flex items-end">
-            <button
-              @click="resetFilters"
-              class="w-full px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition"
-            >
-              Réinitialiser
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Error -->
-      <div v-if="error" class="bg-red-50 border border-red-200 rounded-lg p-4 mb-6">
-        <p class="text-red-800">{{ error }}</p>
-      </div>
-
-      <!-- Table -->
-      <AppTable
-        :columns="tableColumns"
-        :data="logs"
-        row-key="id"
-        :loading="loading"
-        empty-message="Aucun log d'audit trouvé"
-      >
-        <!-- Date -->
-        <template #cell-created_at="{ row }">
-          <span class="text-sm text-gray-900">{{ formatDate(row.created_at) }}</span>
-        </template>
-
-        <!-- Utilisateur -->
-        <template #cell-user="{ row }">
-          <div>
-            <div class="text-sm font-medium text-gray-900">{{ row.user_email || 'Anonyme' }}</div>
-            <div class="text-sm text-gray-500">{{ row.user_role || '-' }}</div>
-          </div>
-        </template>
-
-        <!-- Action -->
-        <template #cell-action="{ row }">
-          <span :class="getActionBadgeClass(row.action)" class="px-2 py-1 text-xs font-medium rounded-full whitespace-nowrap inline-block">
-            {{ formatAction(row.action) }}
-          </span>
-        </template>
-
-        <!-- Tenant (super admin uniquement) -->
-        <template #cell-tenant_slug="{ row }">
-          <span class="text-sm text-gray-900">{{ row.tenant_slug || '-' }}</span>
-        </template>
-
-        <!-- Détails -->
-        <template #cell-metadata="{ row }">
-          <AppTruncate
-            :text="formatMetadata(row.metadata)"
-            :max-length="35"
-          />
-        </template>
-
-        <!-- IP -->
-        <template #cell-ip_address="{ row }">
-          <span class="text-sm text-gray-500">{{ row.ip_address || '-' }}</span>
-        </template>
-
-        <!-- Footer avec pagination -->
-        <template #footer>
-          <div class="bg-gray-50 px-6 py-4 flex items-center justify-between border-t border-gray-200">
-            <div class="text-sm text-gray-700">
-              Affichage de {{ (pagination.page - 1) * pagination.limit + 1 }} à 
-              {{ Math.min(pagination.page * pagination.limit, pagination.total) }} 
-              sur {{ pagination.total }} résultats
-            </div>
-            <div class="flex gap-2">
-              <AppButton
-                variant="secondary"
-                size="sm"
-                @click="previousPage"
-                :disabled="pagination.page === 1"
-              >
-                Précédent
-              </AppButton>
-              <AppButton
-                variant="secondary"
-                size="sm"
-                @click="nextPage"
-                :disabled="pagination.page >= pagination.totalPages"
-              >
-                Suivant
-              </AppButton>
-            </div>
-          </div>
-        </template>
-      </AppTable>
-    </div>
-  </div>
-</template>
-
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+/**
+ * Les logs d'audit, repris de l'export Claude Design (planche « Logs d'audit »).
+ *
+ * Deux changements de fond par rapport à la version précédente :
+ *
+ *  - **les filtres tiennent sur une ligne.** Ils occupaient un bloc de six
+ *    champs étiquetés qui poussait la table sous la ligne de flottaison ; or on
+ *    vient ici pour lire des lignes, pas pour remplir un formulaire ;
+ *  - **chaque action porte son dessin et sa couleur.** « Signalement supprimé »
+ *    et « Signalement créé » se distinguent d'un coup d'œil dans une colonne
+ *    qui, sinon, est un mur de texte gris.
+ *
+ * Les quatre compteurs viennent de `GET /api/audit/stats`, qui n'est pas filtré
+ * par commune : cet écran est réservé au super administrateur, et ces chiffres
+ * portent sur la plateforme entière. L'en-tête de la carte le dit.
+ */
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { useAuthStore } from '@/stores/auth'
 import { useApi } from '@/composables/useApi'
-import AppTable from '@/components/AppTable.vue'
-import AppButton from '@/components/AppButton.vue'
-import AppTruncate from '@/components/AppTruncate.vue'
+import DataTable, { type DataColumn } from '@/components/DataTable.vue'
+import { PAGE_SIZE } from '@/composables/usePageSize'
+import AppIcon from '@/components/AppIcon.vue'
+import { describeMetadata } from '@/lib/auditMetadata'
+import { auditActionInfo } from '@/lib/auditActions'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import FilterSelect from '@/components/admin/FilterSelect.vue'
 
 const { apiFetch } = useApi()
-
 const authStore = useAuthStore()
 const isSuperAdmin = computed(() => authStore.isSuperAdmin)
-
-// Colonnes du tableau
-const tableColumns = computed(() => {
-  const columns: Array<{
-    key: string
-    label: string
-    align?: 'left' | 'center' | 'right'
-    width?: string
-  }> = [
-    { key: 'created_at', label: 'Date', align: 'left' as const, width: '140px' },
-    { key: 'user', label: 'Utilisateur', align: 'left' as const, width: '220px' },
-    { key: 'action', label: 'Action', align: 'left' as const, width: '180px' },
-  ]
-  
-  if (isSuperAdmin.value) {
-    columns.push({ key: 'tenant_slug', label: 'Tenant', align: 'left' as const, width: '120px' })
-  }
-  
-  columns.push(
-    { key: 'ip_address', label: 'IP', align: 'left' as const, width: '130px' },
-    { key: 'metadata', label: 'Détails', align: 'left' as const },
-  )
-  
-  return columns
-})
 
 interface AuditLog {
   id: string
@@ -233,61 +44,88 @@ interface AuditLog {
   user_agent: string | null
 }
 
-interface Tenant {
-  slug: string
-  name: string
+interface AuditStats {
+  totalLogs: number
+  actionStats: Record<string, number>
+  period: string
 }
 
 const logs = ref<AuditLog[]>([])
-const tenants = ref<Tenant[]>([])
+const tenants = ref<{ slug: string; name: string }[]>([])
 const actions = ref<string[]>([])
+const stats = ref<AuditStats | null>(null)
 const loading = ref(false)
 const error = ref<string | null>(null)
 
-const filters = ref({
-  search: '',
-  tenant: '',
-  user: '',
-  action: '',
-  startDate: '',
-  endDate: '',
-})
+const search = ref('')
+const filterTenant = ref<string | number>('')
+const filterAction = ref<string | number>('')
+const filterUser = ref('')
+const startDate = ref('')
+const endDate = ref('')
 
-const pagination = ref({
-  page: 1,
-  limit: 25,
-  total: 0,
-  totalPages: 0,
-})
+const pagination = ref({ page: 1, limit: PAGE_SIZE, total: 0, totalPages: 0 })
+
+// ─── Vocabulaire des actions ─────────────────────────────────────────────────
+
+const actionOptions = computed(() => [
+  { value: '', label: 'Toutes les actions' },
+  ...actions.value.map((action) => ({ value: action, label: auditActionInfo(action).label })),
+])
+
+const tenantOptions = computed(() => [
+  { value: '', label: 'Tous les tenants' },
+  ...tenants.value.map((tenant) => ({ value: tenant.slug, label: tenant.name })),
+])
+
+// ─── Compteurs ───────────────────────────────────────────────────────────────
+
+const countOf = (...keys: string[]) =>
+  keys.reduce((sum, key) => sum + (stats.value?.actionStats[key] ?? 0), 0)
+
+const summary = computed(() => [
+  { key: 'total',    label: 'entrées sur la période',  value: stats.value?.totalLogs ?? 0,                            icon: 'List',      tint: 'bg-brand-50 text-brand-700' },
+  { key: 'created',  label: 'signalements créés',      value: countOf('report.created'),                              icon: 'Plus',      tint: 'bg-status-done-bg text-status-done-fg' },
+  { key: 'status',   label: 'changements de statut',   value: countOf('report.status_changed'),                       icon: 'RefreshCw', tint: 'bg-status-progress-bg text-status-progress-fg' },
+  { key: 'deleted',  label: 'suppressions',            value: countOf('report.deleted', 'report.bulk_deleted'),       icon: 'Trash2',    tint: 'bg-status-danger-bg text-[#B42222]' },
+])
+
+// ─── Chargement ──────────────────────────────────────────────────────────────
 
 let debounceTimer: number | null = null
 
-const debouncedSearch = () => {
+function debouncedSearch() {
   if (debounceTimer) clearTimeout(debounceTimer)
   debounceTimer = window.setTimeout(() => {
     pagination.value.page = 1
-    loadLogs()
+    void loadLogs()
   }, 500)
 }
 
-const loadLogs = async () => {
+onBeforeUnmount(() => {
+  if (debounceTimer) clearTimeout(debounceTimer)
+})
+
+async function loadLogs() {
   loading.value = true
   error.value = null
 
   try {
     const params = new URLSearchParams({
-      page: pagination.value.page.toString(),
-      limit: pagination.value.limit.toString(),
+      page: String(pagination.value.page),
+      limit: String(pagination.value.limit),
     })
 
-    if (filters.value.search) params.append('search', filters.value.search)
-    if (filters.value.tenant) params.append('tenant', filters.value.tenant)
-    if (filters.value.user) params.append('user', filters.value.user)
-    if (filters.value.action) params.append('action', filters.value.action)
-    if (filters.value.startDate) params.append('startDate', filters.value.startDate)
-    if (filters.value.endDate) params.append('endDate', filters.value.endDate)
+    if (search.value) params.append('search', search.value)
+    if (filterTenant.value) params.append('tenant', String(filterTenant.value))
+    if (filterUser.value) params.append('user', filterUser.value)
+    if (filterAction.value) params.append('action', String(filterAction.value))
+    if (startDate.value) params.append('startDate', startDate.value)
+    if (endDate.value) params.append('endDate', endDate.value)
 
-    const data = await apiFetch(`/api/audit/logs?${params}`)
+    const data = await apiFetch<{ data: AuditLog[]; pagination: typeof pagination.value }>(
+      `/api/audit/logs?${params}`
+    )
     logs.value = data.data
     pagination.value = data.pagination
   } catch (err: any) {
@@ -297,97 +135,332 @@ const loadLogs = async () => {
   }
 }
 
-const loadTenants = async () => {
+async function loadStats() {
   if (!isSuperAdmin.value) return
-
   try {
-    const data = await apiFetch('/api/audit/tenants')
+    stats.value = await apiFetch<AuditStats>('/api/audit/stats')
+  } catch {
+    stats.value = null
+  }
+}
+
+async function loadTenants() {
+  if (!isSuperAdmin.value) return
+  try {
+    const data = await apiFetch<{ tenants: { slug: string; name: string }[] }>('/api/audit/tenants')
     tenants.value = data.tenants
   } catch (err) {
     console.error('Erreur chargement tenants:', err)
   }
 }
 
-const loadActions = async () => {
+async function loadActions() {
   try {
-    const data = await apiFetch('/api/audit/actions')
+    const data = await apiFetch<{ actions: string[] }>('/api/audit/actions')
     actions.value = data.actions
   } catch (err) {
     console.error('Erreur chargement actions:', err)
   }
 }
 
-const resetFilters = () => {
-  filters.value = {
-    search: '',
-    tenant: '',
-    user: '',
-    action: '',
-    startDate: '',
-    endDate: '',
-  }
+function applyFilters() {
   pagination.value.page = 1
-  loadLogs()
+  void loadLogs()
 }
 
-const previousPage = () => {
-  if (pagination.value.page > 1) {
-    pagination.value.page--
-    loadLogs()
-  }
+const hasFilters = computed(() =>
+  Boolean(search.value || filterTenant.value || filterAction.value || filterUser.value || startDate.value || endDate.value)
+)
+
+function resetFilters() {
+  search.value = ''
+  filterTenant.value = ''
+  filterAction.value = ''
+  filterUser.value = ''
+  startDate.value = ''
+  endDate.value = ''
+  applyFilters()
 }
 
-const nextPage = () => {
-  if (pagination.value.page < pagination.value.totalPages) {
-    pagination.value.page++
-    loadLogs()
-  }
-}
-
-const formatDate = (date: string) => {
-  return new Date(date).toLocaleString('fr-FR', {
-    day: '2-digit',
-    month: '2-digit',
-    year: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-const formatAction = (action: string) => {
-  const labels: Record<string, string> = {
-    'user.created': 'Compte créé',
-    'user.invited': 'Utilisateur invité',
-    'report.status_changed': 'Statut modifié',
-    'report.deleted': 'Signalement supprimé',
-    'report.created': 'Signalement créé',
-    'report.bulk_deleted': 'Suppression multiple',
-    'report.service_notified': 'Service notifié',
-    'tenant.created': 'Tenant créé',
-    'tenant.status_changed': 'Statut tenant modifié',
-    'tenant_config.updated': 'Config modifiée',
-    'tenant_categories.updated': 'Catégories modifiées',
-  }
-  return labels[action] || action
-}
-
-const getActionBadgeClass = (action: string) => {
-  if (action.includes('deleted')) return 'bg-red-100 text-red-800'
-  if (action.includes('created')) return 'bg-green-100 text-green-800'
-  if (action.includes('updated') || action.includes('changed')) return 'bg-blue-100 text-blue-800'
-  if (action.includes('invited')) return 'bg-purple-100 text-purple-800'
-  if (action.includes('service_notified')) return 'bg-yellow-100 text-yellow-800'
-  return 'bg-gray-100 text-gray-800'
-}
-
-const formatMetadata = (metadata: Record<string, any>) => {
-  if (!metadata || Object.keys(metadata).length === 0) return '-'
-  return  JSON.stringify(metadata).replace(/,/g, ', ')
+function goToPage(page: number) {
+  if (page < 1 || page > pagination.value.totalPages) return
+  pagination.value.page = page
+  void loadLogs()
 }
 
 onMounted(() => {
-  loadLogs()
-  loadTenants()
-  loadActions()
+  void loadLogs()
+  void loadStats()
+  void loadTenants()
+  void loadActions()
 })
+
+// ─── Mise en forme ───────────────────────────────────────────────────────────
+
+/** La date sur deux lignes : le jour se compare, l'heure se lit ensuite. */
+function dateParts(value: string): { day: string; time: string } {
+  const date = new Date(value)
+  return {
+    day: date.toLocaleDateString('fr-FR', { day: '2-digit', month: '2-digit', year: 'numeric' }),
+    time: date.toLocaleTimeString('fr-FR', { hour: '2-digit', minute: '2-digit' }),
+  }
+}
+
+/**
+ * La ligne dépliée, s'il y en a une.
+ *
+ * Une seule à la fois : ouvrir un détail referme le précédent. Un tableau où
+ * plusieurs lignes s'étendent devient impossible à parcourir, et on vient ici
+ * pour comparer des entrées, pas pour les empiler.
+ */
+const expandedId = ref<string | null>(null)
+
+function toggle(log: AuditLog) {
+  expandedId.value = expandedId.value === log.id ? null : log.id
+}
+
+/** Le détail complet d'une entrée : tout ce que la ligne ne peut pas montrer. */
+function fullDetail(log: AuditLog) {
+  const fields = describeMetadata(log.metadata)
+
+  return [
+    ...fields,
+    { key: 'entity', label: 'Objet', value: `${log.entity_type}${log.entity_id ? ` · ${log.entity_id}` : ''}`, primary: false },
+    { key: 'ip', label: 'Adresse IP', value: log.ip_address || '—', primary: false },
+    { key: 'agent', label: 'Navigateur', value: log.user_agent || '—', primary: false },
+  ]
+}
+
+const COLUMNS = computed<DataColumn[]>(() => [
+  { key: 'created_at', label: 'DATE',        width: '132px' },
+  { key: 'user',       label: 'UTILISATEUR', width: '232px' },
+  { key: 'action',     label: 'ACTION',      width: '190px' },
+  ...(isSuperAdmin.value ? [{ key: 'tenant_slug', label: 'COMMUNE', width: '108px' }] : []),
+  { key: 'ip_address', label: 'IP',          width: '96px' },
+  { key: 'metadata',   label: 'DÉTAILS' },
+])
 </script>
+
+<template>
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas">
+
+    <AdminPageHeader>
+      <template #actions>
+        <div class="flex h-8 flex-none items-center gap-[7px] rounded-[10px] bg-brand-50 px-[11px]">
+          <AppIcon name="ShieldCheck" :size="15" :stroke-width="1.75" class="text-brand-700" />
+          <span class="whitespace-nowrap text-xs font-semibold leading-none text-brand-700">
+            Accès restreint
+          </span>
+        </div>
+      </template>
+    </AdminPageHeader>
+
+    <div class="flex min-h-0 flex-1 flex-col gap-3.5 overflow-y-auto px-7 py-[22px]">
+
+      <!-- Filtres -->
+      <div class="flex flex-none flex-wrap items-center gap-2.5">
+        <label class="flex h-[38px] w-full max-w-[380px] flex-1 items-center gap-[9px] rounded-[10px] border border-line bg-white px-3">
+          <AppIcon name="Search" :size="16" :stroke-width="1.75" class="flex-none text-muted" />
+          <input
+            v-model="search"
+            type="search"
+            placeholder="E-mail, identifiant, contenu…"
+            class="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+            @input="debouncedSearch"
+          />
+        </label>
+
+        <FilterSelect
+          v-if="isSuperAdmin"
+          v-model="filterTenant"
+          :options="tenantOptions"
+          icon="Building2"
+          menu-width="200px"
+          @update:model-value="applyFilters"
+        />
+
+        <FilterSelect
+          v-model="filterAction"
+          :options="actionOptions"
+          icon="Activity"
+          menu-width="220px"
+          @update:model-value="applyFilters"
+        />
+
+        <label class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] border border-line bg-white px-3">
+          <AppIcon name="User" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          <input
+            v-model="filterUser"
+            type="search"
+            placeholder="Tous les utilisateurs"
+            class="w-[150px] min-w-0 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+            @input="debouncedSearch"
+          />
+        </label>
+
+        <label class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] border border-line bg-white px-3">
+          <AppIcon name="Calendar" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          <input
+            v-model="startDate"
+            type="date"
+            class="bg-transparent text-[13px] tabular-nums text-ink outline-none"
+            @change="applyFilters"
+          />
+          <span class="text-[13px] text-faint">–</span>
+          <input
+            v-model="endDate"
+            type="date"
+            class="bg-transparent text-[13px] tabular-nums text-ink outline-none"
+            @change="applyFilters"
+          />
+        </label>
+
+        <button
+          v-if="hasFilters"
+          class="ml-auto flex flex-none items-center gap-1.5 whitespace-nowrap text-[13px] font-semibold leading-none text-brand-700 hover:underline"
+          @click="resetFilters"
+        >
+          <AppIcon name="RotateCcw" :size="15" :stroke-width="2" />
+          Réinitialiser
+        </button>
+      </div>
+
+      <!-- Compteurs de la plateforme -->
+      <div v-if="stats" class="grid flex-none grid-cols-2 gap-3.5 lg:grid-cols-4">
+        <div
+          v-for="card in summary"
+          :key="card.key"
+          class="flex items-center gap-3 rounded-[14px] border border-line bg-white px-4 py-3.5"
+        >
+          <div class="flex h-9 w-9 flex-none items-center justify-center rounded-[10px]" :class="card.tint">
+            <AppIcon :name="card.icon" :size="18" :stroke-width="1.75" />
+          </div>
+          <div class="min-w-0">
+            <div class="text-xl font-bold leading-[1.1] tabular-nums text-ink">
+              {{ card.value.toLocaleString('fr-FR') }}
+            </div>
+            <div class="truncate text-xs font-medium leading-[1.3] text-muted">
+              {{ card.label }}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div
+        v-if="error"
+        class="flex-none rounded-[14px] border border-[#F3C9C9] bg-status-danger-bg px-[18px] py-4 text-sm text-status-danger"
+      >
+        {{ error }}
+      </div>
+
+      <DataTable
+        :columns="COLUMNS"
+        :rows="logs"
+        row-key="id"
+        :loading="loading"
+        :skeleton-rows="PAGE_SIZE"
+        empty-icon="ScrollText"
+        empty-message="Aucune entrée ne correspond à ces filtres."
+        :page="pagination.page"
+        :page-size="pagination.limit"
+        :total="pagination.total"
+        item-label="entrées"
+        :expanded-key="expandedId"
+        @page-change="goToPage"
+        @row-click="toggle"
+      >
+        <template #cell-created_at="{ row }">
+          <div class="flex flex-col gap-[3px]">
+            <span class="whitespace-nowrap text-[13px] font-semibold leading-none tabular-nums text-ink">
+              {{ dateParts(row.created_at).day }}
+            </span>
+            <span class="whitespace-nowrap text-[11px] font-medium leading-none tabular-nums text-muted">
+              {{ dateParts(row.created_at).time }}
+            </span>
+          </div>
+        </template>
+
+        <template #cell-user="{ row }">
+          <div class="min-w-0">
+            <div class="truncate text-[13px] font-semibold leading-[1.3] text-ink">
+              {{ row.user_email || 'Anonyme' }}
+            </div>
+            <div class="truncate text-[11px] font-medium leading-[1.3] text-muted">
+              {{ row.user_role || '—' }}
+            </div>
+          </div>
+        </template>
+
+        <template #cell-action="{ row }">
+          <span
+            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-[5px] text-xs font-semibold leading-none"
+            :class="auditActionInfo(row.action).classes"
+          >
+            <AppIcon :name="auditActionInfo(row.action).icon" :size="13" :stroke-width="2" />
+            {{ auditActionInfo(row.action).label }}
+          </span>
+        </template>
+
+        <template #cell-tenant_slug="{ row }">
+          <span class="truncate text-[13px] font-medium leading-none text-ink">
+            {{ row.tenant_slug || '—' }}
+          </span>
+        </template>
+
+        <template #cell-ip_address="{ row }">
+          <span class="truncate text-xs font-medium leading-none tabular-nums text-muted">
+            {{ row.ip_address || '—' }}
+          </span>
+        </template>
+
+        <!-- Les métadonnées en paires étiquetées : « Nouveau statut · Résolu »
+             plutôt que `{"new_status":"resolu"}` tronqué à soixante caractères. -->
+        <template #cell-metadata="{ row }">
+          <div class="flex min-w-0 items-center gap-1.5">
+            <span
+              v-for="field in describeMetadata(row.metadata).slice(0, 2)"
+              :key="field.key"
+              class="flex min-w-0 items-baseline gap-1 whitespace-nowrap rounded-md bg-canvas px-2 py-1 text-[11px] leading-none"
+            >
+              <span class="flex-none font-medium text-faint">{{ field.label }}</span>
+              <span class="truncate font-semibold text-ink">{{ field.value }}</span>
+            </span>
+
+            <span
+              v-if="describeMetadata(row.metadata).length > 2"
+              class="flex-none whitespace-nowrap text-[11px] font-medium leading-none text-faint"
+            >
+              +{{ describeMetadata(row.metadata).length - 2 }}
+            </span>
+
+            <span
+              v-if="describeMetadata(row.metadata).length === 0"
+              class="text-xs text-faint"
+            >
+              —
+            </span>
+
+            <AppIcon
+              :name="expandedId === row.id ? 'ChevronDown' : 'ChevronRight'"
+              :size="16" :stroke-width="1.75"
+              class="ml-auto flex-none text-faint"
+            />
+          </div>
+        </template>
+
+        <!-- Le détail complet, sous la ligne : tout ce qui a été enregistré,
+             sans rogner les colonnes pour toutes les autres entrées. -->
+        <template #row-detail="{ row }">
+          <div class="grid gap-x-8 gap-y-3 border-b border-hairline bg-canvas px-[18px] py-4 sm:grid-cols-2 lg:grid-cols-3">
+            <div v-for="field in fullDetail(row)" :key="field.key" class="flex min-w-0 flex-col gap-1">
+              <span class="whitespace-nowrap text-[11px] font-semibold leading-none tracking-[0.06em] text-muted">
+                {{ field.label.toUpperCase() }}
+              </span>
+              <span class="break-words text-[13px] leading-[1.4] text-ink">{{ field.value }}</span>
+            </div>
+          </div>
+        </template>
+      </DataTable>
+    </div>
+  </div>
+</template>

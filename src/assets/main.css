@@ -15,9 +15,13 @@
     background-color: #FAFAFA;
   }
 
-  h1, h2, h3 {
-    font-family: 'Playfair Display', Georgia, serif;
-  }
+  /*
+   * Aucune règle de titre ici.
+   *
+   * `h1, h2, h3 { Playfair Display }` était un reste de la v1 : il repassait en
+   * serif les titres des écrans repris du design, qui sont en Instrument Sans.
+   * Les trois pages qui veulent encore le serif portent `font-display`.
+   */
 }
 
 @layer components {

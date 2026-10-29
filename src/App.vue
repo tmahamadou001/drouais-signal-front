@@ -1,85 +1,37 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
-import { Analytics } from '@vercel/analytics/vue';
-
-async function readSwVersion(): Promise<string | null> {
-  try {
-    const res = await fetch('/sw.js', { cache: 'no-store' })
-    const text = await res.text()
-    const match = text.match(/const VERSION\s*=\s*['"]([^'"]+)['"]/)
-    return match?.[1] ?? null
-  } catch {
-    return null
-  }
-}
-
-const appVersion = ref<string | null>(null)
-import { RouterLink, RouterView, useRoute } from 'vue-router'
-import { useAuthStore } from '@/stores/auth'
+/**
+ * La coque de l'application.
+ *
+ * Elle ne contient plus d'en-tête ni de pied de page. Le web d'OnSignale est un
+ * back-office : sa navigation est la barre latérale d'`AdminLayout`, et les
+ * trois pages qui restent hors administration — la connexion, le suivi d'un
+ * signalement depuis un e-mail, les mentions légales — portent la leur.
+ *
+ * Ce qui vivait ici était l'en-tête public de la v1, commenté depuis, mais dont
+ * la balise `<header>` vide continuait à dessiner une barre collante et un
+ * liseré en haut de chaque page.
+ */
+import { watch } from 'vue'
+import { Analytics } from '@vercel/analytics/vue'
+import { RouterView, useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
-import { useApi } from '@/composables/useApi'
 import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
-import SwUpdateBanner from '@/components/SwUpdateBanner.vue'
-import AppIcon from '@/components/AppIcon.vue'
-import { useSwUpdate } from '@/composables/useSwUpdate'
 
-const auth = useAuthStore()
-const { hasUpdate, applyUpdate } = useSwUpdate()
 const tenantStore = useTenantStore()
 const route = useRoute()
 
-const isMobile = ref(false)
-
-const checkMobile = () => {
-  isMobile.value = window.innerWidth < 768
-}
-
-onMounted(async () => {
-  checkMobile()
-  window.addEventListener('resize', checkMobile)
-  appVersion.value = await readSwVersion()
-})
-
-onUnmounted(() => {
-  window.removeEventListener('resize', checkMobile)
-})
-
-const isAdminRoute = computed(() => route.path.startsWith('/admin'))
-const showHeader = computed(() => !isAdminRoute.value || (isAdminRoute.value && isMobile.value))
-const showFooter = computed(() => !isAdminRoute.value)
-
-const navLinks = computed(() => {
-  const links = [
-    { to: '/', label: 'Accueil', show: true },
-    { to: '/signaler', label: 'Signaler', show: true },
-    { to: '/mes-signalements', label: 'Mes signalements', show: !!auth.user },
-    { to: '/admin', label: 'Administration', show: auth.isAdmin },
-  ]
-  return links.filter(l => l.show)
-})
-
-const isCurrentRoute = (path: string) => {
-  return route.path === path
-}
-
-const getUSernameByEmail = (email: string) => {
-  return email.split('@')[0]
-}
-
-const mobileMenuOpen = ref(false)
-
-// Close mobile menu on route change
-watch(() => route.path, () => {
-  mobileMenuOpen.value = false
-})
-
-// Force scroll to top on route change
+// Une nouvelle page se lit depuis le haut.
 watch(() => route.path, () => {
   window.scrollTo({ top: 0, left: 0, behavior: 'instant' })
 })
 
-// Update document title + OG meta tags once tenant is loaded
-function updateMeta(cityName: string, tenantName: string) {
+/**
+ * Le titre et les métadonnées de partage, une fois la commune connue.
+ *
+ * Ils parlent au citoyen : les seules URL d'OnSignale qui se partagent sont
+ * celles d'un signalement, envoyées par e-mail et ouvertes hors de l'app.
+ */
+function updateMeta(cityName: string) {
   const title = `OnSignale — Signalement urbain à ${cityName}`
   const description = `Signalez un problème urbain à ${cityName} en quelques clics. Voirie, éclairage, déchets… les services techniques s'en occupent.`
 
@@ -93,125 +45,16 @@ function updateMeta(cityName: string, tenantName: string) {
 
 watch(
   () => tenantStore.config?.city_name ?? tenantStore.name,
-  (cityName) => {
-    if (cityName) updateMeta(cityName, tenantStore.name)
-  },
+  (cityName) => { if (cityName) updateMeta(cityName) },
   { immediate: true }
 )
 </script>
 
 <template>
-  <!-- Analytics-->
   <Analytics />
-  
-  <div class="min-h-screen flex flex-col">
-    <!-- Header -->
-    <header v-if="showHeader" class="bg-white border-b border-neutral-200 sticky top-0 z-[1000]">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="flex items-center justify-between h-16">
-          <!-- Logo -->
-          <RouterLink to="/" class="flex items-center gap-2.5 group">
-            <div class="w-8 h-8 bg-primary rounded-ds flex items-center justify-center">
-              <svg viewBox="0 0 20 20" class="w-4.5 h-4.5 text-white" fill="currentColor">
-                <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-                <circle cx="10" cy="9.5" r="2.5" fill="white" opacity="0.9"/>
-                <path d="M10 13 L10 15.5" stroke="white" stroke-width="1.8" stroke-linecap="round" opacity="0.9"/>
-              </svg>
-            </div>
-            <span class="font-display text-lg font-bold text-dark tracking-tight">
-              On<span class="text-primary">Signale</span>
-            </span>
-          </RouterLink>
 
-          <!-- Desktop nav -->
-          <nav class="hidden md:flex items-center gap-1">
-            <RouterLink
-              v-for="link in navLinks"
-              :key="link.to"
-              :to="link.to"
-              class="px-3 py-2 rounded-ds text-sm font-medium transition-colors"
-              :class="isCurrentRoute(link.to)
-                ? 'bg-primary-50 text-primary-600'
-                : 'text-neutral-600 hover:text-dark hover:bg-neutral-100'"
-            >
-              {{ link.label }}
-            </RouterLink>
-          </nav>
-
-          <!-- Auth buttons -->
-          <div class="flex items-center gap-3">
-            <template v-if="auth.user">
-              <span class="hidden sm:block text-sm text-neutral-500">
-                {{ auth.user.email ? getUSernameByEmail(auth.user.email) : '' }}
-              </span>
-              <button
-                @click="auth.signOut()"
-                class="hidden md:block text-sm border border-red-500 px-3 py-1.5 rounded-ds text-red-500 font-medium text-neutral-500 hover:text-red-600 hover:bg-red-50 transition-colors"
-              >
-                Déconnexion
-              </button>
-            </template>
-            <template v-else>
-              <RouterLink
-                to="/connexion"
-                class="text-sm font-medium px-4 py-2 rounded-ds bg-primary text-white hover:bg-primary-600 transition-colors"
-              >
-                Se connecter
-              </RouterLink>
-            </template>
-
-            <!-- Mobile menu button -->
-            <button
-              class="md:hidden p-2 rounded-ds text-neutral-500 hover:bg-neutral-100"
-              @click="mobileMenuOpen = !mobileMenuOpen"
-            >
-              <AppIcon name="Menu" :size="20" />
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Mobile nav -->
-      <div v-if="mobileMenuOpen" class="md:hidden border-t border-neutral-200 bg-white">
-        <nav class="px-4 py-3 space-y-1">
-          <RouterLink
-            v-for="link in navLinks"
-            :key="link.to"
-            :to="link.to"
-            class="block px-3 py-2 rounded-ds text-sm font-medium"
-            :class="isCurrentRoute(link.to)
-              ? 'bg-primary-50 text-primary-600'
-              : 'text-neutral-600 hover:bg-neutral-100'"
-          >
-            {{ link.label }}
-          </RouterLink>
-          
-          <!-- Mise à jour PWA disponible -->
-          <button
-            v-if="hasUpdate"
-            @click="applyUpdate"
-            class="w-full flex items-center gap-2 px-3 py-2 rounded-ds
-                   text-sm font-semibold text-primary bg-primary/8
-                   hover:bg-primary/15 transition-colors"
-          >
-            <AppIcon name="RefreshCw" :size="15" />
-            Mettre à jour l'application
-            <span class="ml-auto w-2 h-2 rounded-full bg-primary animate-pulse" />
-          </button>
-
-          <button
-            v-if="auth.user"
-            @click="auth.signOut()"
-            class="w-full text-left px-3 py-2 rounded-ds text-sm font-medium text-red-600 hover:bg-red-50 transition-colors"
-          >
-            Déconnexion
-          </button>
-        </nav>
-      </div>
-    </header>
-
-    <!-- Main content -->
-    <main class="flex-1">
+  <div class="flex min-h-screen flex-col">
+    <main class="flex flex-1 flex-col">
       <TenantNotFoundView v-if="tenantStore.error" />
       <RouterView v-else v-slot="{ Component }">
         <transition name="page" mode="out-in">
@@ -219,29 +62,5 @@ watch(
         </transition>
       </RouterView>
     </main>
-
-    <!-- Footer -->
-    <footer v-if="showFooter" class="bg-white border-t border-neutral-200 py-8 mt-auto">
-      <div class="max-w-6xl mx-auto px-4 sm:px-6">
-        <div class="flex flex-col sm:flex-row items-center justify-between gap-4">
-          <div class="flex items-center gap-2 text-sm text-neutral-500">
-            <div class="w-5 h-5 bg-primary rounded flex items-center justify-center">
-              <svg viewBox="0 0 20 20" class="w-3 h-3 text-white" fill="currentColor">
-                <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-              </svg>
-            </div>
-            OnSignale — {{ tenantStore.name }}
-          </div>
-          <div class="flex items-center gap-4 text-sm text-neutral-400">
-            <span v-if="appVersion" class="tabular-nums">v{{ appVersion }}</span>
-            <RouterLink to="/mentions-legales" class="hover:text-neutral-600 hover:underline transition-colors">
-              Mentions légales
-            </RouterLink>
-          </div>
-        </div>
-      </div>
-    </footer>
-
-    <SwUpdateBanner />
   </div>
 </template>

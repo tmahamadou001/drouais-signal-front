@@ -1,493 +1,275 @@
 <script setup lang="ts">
+/**
+ * L'écran Équipe.
+ *
+ * Il listait qui existe. C'est un annuaire, et ce n'est pas la question qu'on
+ * se pose en l'ouvrant : on veut savoir **qui a rejoint** et **qui travaille**.
+ *
+ *  - **le statut a trois états** — invité, actif, suspendu — au lieu d'un
+ *    booléen qui affichait « actif » aussi bien pour un membre de six mois que
+ *    pour quelqu'un n'ayant jamais ouvert son e-mail. Une invitation qui traîne
+ *    depuis une semaine se signale d'elle-même : personne ne pense à vérifier
+ *    qui n'a jamais répondu, et un compte qui n'existe pas est un agent qui ne
+ *    traite pas ;
+ *  - **chaque ligne dit ce que le membre fait** — ce qu'il a fait avancer sur
+ *    trente jours, quand il s'est connecté pour la dernière fois ;
+ *  - **le rôle a enfin des conséquences.** Il n'était qu'une pastille : toutes
+ *    les écritures exigeaient `admin`, et un membre invité comme agent se
+ *    faisait éjecter à la connexion.
+ *
+ * Et l'écran rejoint le gabarit des autres : mêmes compteurs de tête, même
+ * `DataTable`, mêmes `FilterSelect`, toasts au lieu des bandeaux, modale au
+ * lieu d'un accordéon qui poussait le tableau hors de l'écran.
+ */
 import { ref, computed, onMounted } from 'vue'
-import { useApi } from '@/composables/useApi'
+import { storeToRefs } from 'pinia'
 import { useAuthStore } from '@/stores/auth'
-import AppButton from '@/components/AppButton.vue'
+import { useTeam, type TeamMember } from '@/composables/useTeam'
+import { roleInfo, type TeamRole } from '@/lib/roles'
+import { memberStatusInfo, isStaleInvite, lastSeen } from '@/lib/memberStatus'
 import AppIcon from '@/components/AppIcon.vue'
+import AppModal from '@/components/AppModal.vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import FilterSelect from '@/components/admin/FilterSelect.vue'
+import DataTable, { type DataColumn } from '@/components/DataTable.vue'
+import TeamStatsCards from '@/pages/admin/team/TeamStatsCards.vue'
+import MemberIdentity from '@/pages/admin/team/MemberIdentity.vue'
+import MemberActions from '@/pages/admin/team/MemberActions.vue'
+import InviteDialog from '@/pages/admin/team/InviteDialog.vue'
 
-const { apiFetch } = useApi()
-const authStore = useAuthStore()
+const team = useTeam()
+const {
+  members, visible, loading, acting,
+  roleFilter, statusFilter, hasFilters, resetFilters,
+} = team
 
-interface TeamMember {
-  user_id: string
-  tenant_id: string
-  role: 'admin' | 'agent' | 'observer'
-  first_name: string | null
-  last_name: string | null
-  job_title: string | null
-  is_active: boolean
-  invited_at: string | null
-  email: string | null
+const { user } = storeToRefs(useAuthStore())
+
+const inviteOpen = ref(false)
+const revoking = ref<TeamMember | null>(null)
+
+/**
+ * Un seul menu de ligne ouvert à la fois.
+ *
+ * Il vivait dans chaque ligne, qui ne sait rien de ses voisines : ouvrir le
+ * menu d'un membre ne refermait pas celui du précédent, et les deux se
+ * chevauchaient. L'écran est le seul endroit qui voit toutes les lignes.
+ */
+const openMenu = ref<string | null>(null)
+
+function toggleMenu(userId: string) {
+  openMenu.value = openMenu.value === userId ? null : userId
 }
 
-const members = ref<TeamMember[]>([])
-const loading = ref(true)
-const error = ref<string | null>(null)
+onMounted(() => void team.load())
 
-// Filters
-const roleFilter = ref<string>('all')
-const statusFilter = ref<string>('all')
+/**
+ * Le dernier administrateur actif ne peut être ni rétrogradé ni révoqué.
+ *
+ * Sans lui, la commune perd le droit d'inviter qui que ce soit et de changer
+ * un réglage — il faut alors un super-administrateur pour la débloquer. Le
+ * serveur refuse (409 `last_admin`) ; l'écran le dit avant le clic.
+ */
+const activeAdmins = computed(() =>
+  members.value.filter((member) => member.role === 'admin' && member.status !== 'suspended')
+)
 
-// Invite form
-const showInviteForm = ref(false)
-const inviteLoading = ref(false)
-const inviteError = ref<string | null>(null)
-const inviteSuccess = ref(false)
-const inviteForm = ref({ email: '', role: 'agent', firstName: '', lastName: '', jobTitle: '' })
-
-// Edit modal
-const editingMember = ref<TeamMember | null>(null)
-const editForm = ref({ role: 'agent' as string, isActive: true, firstName: '', lastName: '', jobTitle: '' })
-const editLoading = ref(false)
-const editError = ref<string | null>(null)
-
-// Revoke confirm
-const confirmRevokeId = ref<string | null>(null)
-const revokeLoading = ref(false)
-
-// Resend invite
-const resendingId = ref<string | null>(null)
-const resendSuccessId = ref<string | null>(null)
-
-const roleConfig = {
-  admin:    { label: 'Admin',    color: 'bg-blue-100 text-blue-700',   icon: 'Shield' },
-  agent:    { label: 'Agent',    color: 'bg-indigo-100 text-indigo-700', icon: 'Wrench' },
-  observer: { label: 'Observer', color: 'bg-amber-100 text-amber-700',  icon: 'Eye' },
+function isLastAdmin(member: TeamMember): boolean {
+  return member.role === 'admin' && member.status !== 'suspended' && activeAdmins.value.length === 1
 }
 
-const filteredMembers = computed(() => members.value.filter(m => {
-  if (roleFilter.value !== 'all' && m.role !== roleFilter.value) return false
-  if (statusFilter.value === 'actif' && !m.is_active) return false
-  if (statusFilter.value === 'inactif' && m.is_active) return false
-  return true
-}))
+const staleInvites = computed(() => members.value.filter(isStaleInvite))
 
-const stats = computed(() => ({
-  total:    members.value.filter(m => m.is_active).length,
-  admin:    members.value.filter(m => m.role === 'admin' && m.is_active).length,
-  agent:    members.value.filter(m => m.role === 'agent' && m.is_active).length,
-  observer: members.value.filter(m => m.role === 'observer' && m.is_active).length,
-}))
+const ROLE_OPTIONS = [
+  { value: '', label: 'Tous les rôles' },
+  { value: 'admin', label: 'Administrateurs' },
+  { value: 'agent', label: 'Agents' },
+  { value: 'observer', label: 'Observateurs' },
+]
 
-function displayName(m: TeamMember): string {
-  if (m.first_name || m.last_name) return [m.first_name, m.last_name].filter(Boolean).join(' ')
-  return m.email?.split('@')[0] ?? '—'
+const STATUS_OPTIONS = [
+  { value: '', label: 'Tous les statuts' },
+  { value: 'active', label: 'Actifs' },
+  { value: 'invited', label: 'Invitations en attente' },
+  { value: 'suspended', label: 'Suspendus' },
+]
+
+const COLUMNS: DataColumn[] = [
+  { key: 'member',   label: 'MEMBRE' },
+  { key: 'role',     label: 'RÔLE',      width: '164px' },
+  { key: 'status',   label: 'STATUT',    width: '150px' },
+  { key: 'activity', label: 'ACTIVITÉ',  width: '190px' },
+  { key: 'actions',  label: '',          width: '64px', align: 'right' },
+]
+
+async function onInvite(payload: Parameters<typeof team.invite>[0]) {
+  if (await team.invite(payload)) inviteOpen.value = false
 }
 
-function initials(m: TeamMember): string {
-  if (m.first_name && m.last_name) return (m.first_name[0] + m.last_name[0]).toUpperCase()
-  if (m.first_name) return m.first_name.slice(0, 2).toUpperCase()
-  if (m.email) return m.email.slice(0, 2).toUpperCase()
-  return '??'
+async function confirmRevoke() {
+  if (!revoking.value) return
+  if (await team.revoke(revoking.value)) revoking.value = null
 }
 
-function avatarColor(m: TeamMember): string {
-  const colors = ['bg-blue-500', 'bg-indigo-500', 'bg-purple-500', 'bg-pink-500', 'bg-teal-500', 'bg-orange-500']
-  const i = (m.user_id.charCodeAt(0) + m.user_id.charCodeAt(1)) % colors.length
-  return colors[i]
-}
-
-function formatDate(d: string | null): string {
-  if (!d) return '—'
-  return new Date(d).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
-}
-
-async function fetchMembers() {
-  loading.value = true
-  error.value = null
-  try {
-    members.value = await apiFetch<TeamMember[]>('/api/tenant/users')
-  } catch (err: any) {
-    error.value = err.message
-  } finally {
-    loading.value = false
-  }
-}
-
-async function submitInvite() {
-  if (!inviteForm.value.email || !inviteForm.value.role) return
-  inviteLoading.value = true
-  inviteError.value = null
-  inviteSuccess.value = false
-  try {
-    await apiFetch('/api/tenant/users/invite', {
-      method: 'POST',
-      body: {
-        email: inviteForm.value.email,
-        role: inviteForm.value.role,
-        firstName: inviteForm.value.firstName || undefined,
-        lastName: inviteForm.value.lastName || undefined,
-        jobTitle: inviteForm.value.jobTitle || undefined,
-      },
-    })
-    inviteSuccess.value = true
-    inviteForm.value = { email: '', role: 'agent', firstName: '', lastName: '', jobTitle: '' }
-    await fetchMembers()
-    setTimeout(() => { showInviteForm.value = false; inviteSuccess.value = false }, 1500)
-  } catch (err: any) {
-    inviteError.value = err.message
-  } finally {
-    inviteLoading.value = false
-  }
-}
-
-function openEdit(m: TeamMember) {
-  editingMember.value = m
-  editForm.value = {
-    role: m.role,
-    isActive: m.is_active,
-    firstName: m.first_name ?? '',
-    lastName: m.last_name ?? '',
-    jobTitle: m.job_title ?? '',
-  }
-  editError.value = null
-}
-
-async function submitEdit() {
-  if (!editingMember.value) return
-  editLoading.value = true
-  editError.value = null
-  try {
-    await apiFetch(`/api/tenant/users/${editingMember.value.user_id}`, {
-      method: 'PATCH',
-      body: {
-        role: editForm.value.role,
-        isActive: editForm.value.isActive,
-        firstName: editForm.value.firstName || null,
-        lastName: editForm.value.lastName || null,
-        jobTitle: editForm.value.jobTitle || null,
-      },
-    })
-    await fetchMembers()
-    editingMember.value = null
-  } catch (err: any) {
-    editError.value = err.message
-  } finally {
-    editLoading.value = false
-  }
-}
-
-async function resendInvite(userId: string) {
-  resendingId.value = userId
-  try {
-    await apiFetch(`/api/tenant/users/${userId}/resend-invite`, { method: 'POST' })
-    resendSuccessId.value = userId
-    setTimeout(() => { resendSuccessId.value = null }, 3000)
-  } catch (err: any) {
-    error.value = err.message
-  } finally {
-    resendingId.value = null
-  }
-}
-
-async function confirmRevoke(userId: string) {
-  revokeLoading.value = true
-  try {
-    await apiFetch(`/api/tenant/users/${userId}`, { method: 'DELETE' })
-    await fetchMembers()
-  } catch (err: any) {
-    error.value = err.message
-  } finally {
-    revokeLoading.value = false
-    confirmRevokeId.value = null
-  }
-}
-
-onMounted(fetchMembers)
+const formatDate = (value: string | null): string =>
+  value ? new Date(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' }) : '—'
 </script>
 
 <template>
-  <div class="p-6 max-w-5xl mx-auto space-y-6">
+  <!-- Le clic hors d'un menu le referme : les menus eux-mêmes arrêtent la
+       propagation, donc tout clic qui arrive ici vient d'ailleurs. -->
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas" @click="openMenu = null">
+    <AdminPageHeader>
+      <template #actions>
+        <button
+          class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] bg-brand-700 px-3.5 transition-colors hover:bg-brand-800"
+          @click="inviteOpen = true"
+        >
+          <AppIcon name="UserPlus" :size="16" :stroke-width="2" class="text-white" />
+          <span class="text-[13px] font-semibold leading-none text-white">Inviter un membre</span>
+        </button>
+      </template>
+    </AdminPageHeader>
 
-    <!-- Header -->
-    <div class="flex items-start justify-between">
-      <div>
-        <h1 class="text-xl font-semibold text-gray-900">Équipe</h1>
-        <p class="text-sm text-gray-500 mt-0.5">Gérez les membres et leurs niveaux d'accès</p>
-      </div>
-      <AppButton @click="showInviteForm = !showInviteForm" variant="primary" class="gap-2">
-        <AppIcon name="UserPlus" :size="16" />
-        Inviter un membre
-      </AppButton>
-    </div>
+    <div class="flex min-h-0 flex-1 flex-col gap-[18px] overflow-hidden px-7 py-[22px]">
+      <TeamStatsCards :members="members" />
 
-    <!-- Stats -->
-    <div class="grid grid-cols-2 sm:grid-cols-4 gap-4">
-      <div v-for="(value, key) in { 'Membres actifs': stats.total, 'Admin': stats.admin, 'Agents': stats.agent, 'Observers': stats.observer }"
-        :key="key"
-        class="bg-white border border-neutral-200 rounded-ds-lg p-4"
+      <!-- La seule chose que cet écran peut signaler tout seul : personne ne
+           pense à vérifier qui n'a jamais répondu à son invitation. -->
+      <div
+        v-if="staleInvites.length > 0"
+        class="flex flex-none items-start gap-2.5 rounded-xl border border-[#F5D9A8] bg-status-progress-bg px-3.5 py-3"
       >
-        <p class="text-2xl font-bold text-dark">{{ value }}</p>
-        <p class="text-sm text-neutral-500">{{ key }}</p>
+        <AppIcon name="MailQuestion" :size="16" :stroke-width="1.75" class="mt-px flex-none text-status-progress-fg" />
+        <p class="text-xs leading-[1.5] text-status-progress-fg">
+          <span class="font-semibold">
+            {{ staleInvites.length }} invitation{{ staleInvites.length > 1 ? 's' : '' }}
+            sans réponse depuis plus d’une semaine.
+          </span>
+          {{ staleInvites.map((member) => member.email).filter(Boolean).join(', ') }} —
+          relancez depuis le menu de la ligne, ou révoquez.
+        </p>
       </div>
+
+      <DataTable
+        :columns="COLUMNS"
+        :rows="visible"
+        row-key="user_id"
+        :loading="loading"
+        :skeleton-rows="5"
+        :total="visible.length"
+        :visible-count="visible.length"
+        item-label="membres"
+        empty-message="Aucun membre dans cette équipe."
+      >
+        <template #toolbar>
+          <FilterSelect
+            :model-value="roleFilter"
+            :options="ROLE_OPTIONS"
+            icon="Shield"
+            @update:model-value="roleFilter = $event as TeamRole | ''"
+          />
+          <FilterSelect
+            :model-value="statusFilter"
+            :options="STATUS_OPTIONS"
+            icon="CircleCheck"
+            @update:model-value="statusFilter = $event as any"
+          />
+        </template>
+
+        <template #cell-member="{ row }">
+          <MemberIdentity :member="row" />
+        </template>
+
+        <template #cell-role="{ row }">
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <span
+              class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-[5px] text-xs font-semibold leading-none"
+              :class="roleInfo(row.role).classes"
+            >
+              <AppIcon :name="roleInfo(row.role).icon" :size="13" :stroke-width="2" />
+              {{ roleInfo(row.role).label }}
+            </span>
+            <span v-if="row.job_title" class="truncate text-[11px] leading-[1.3] text-muted">
+              {{ row.job_title }}
+            </span>
+          </div>
+        </template>
+
+        <template #cell-status="{ row }">
+          <div class="flex min-w-0 flex-col gap-0.5">
+            <span
+              class="inline-flex w-fit items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-[5px] text-xs font-semibold leading-none"
+              :class="memberStatusInfo(row.status).classes"
+            >
+              <AppIcon :name="memberStatusInfo(row.status).icon" :size="13" :stroke-width="2" />
+              {{ memberStatusInfo(row.status).label }}
+            </span>
+            <span v-if="row.status === 'invited'" class="truncate text-[11px] leading-[1.3] text-muted">
+              invité le {{ formatDate(row.invited_at) }}
+            </span>
+          </div>
+        </template>
+
+        <!-- Compté sur la trace du geste (`status_history.agent_id`), pas sur
+             une affectation : la plateforme n'assigne pas les signalements. -->
+        <template #cell-activity="{ row }">
+          <div class="flex min-w-0 flex-col gap-0.5 text-[13px] leading-[1.3]">
+            <span :class="row.handled_30d > 0 ? 'font-semibold text-ink' : 'text-faint'">
+              {{ row.handled_30d > 0 ? `${row.handled_30d} traité${row.handled_30d > 1 ? 's' : ''} · 30 j` : 'rien sur 30 j' }}
+            </span>
+            <span class="truncate text-[11px] text-muted">
+              vu {{ lastSeen(row.last_sign_in_at) }}
+            </span>
+          </div>
+        </template>
+
+        <template #cell-actions="{ row }">
+          <MemberActions
+            :open="openMenu === row.user_id"
+            :member="row"
+            :is-last-admin="isLastAdmin(row)"
+            :is-self="row.user_id === user?.id"
+            :loading="acting"
+            @toggle="toggleMenu(row.user_id)"
+            @change-role="team.changeRole(row, $event)"
+            @set-active="team.setActive(row, $event)"
+            @resend="team.resendInvite(row)"
+            @revoke="revoking = row"
+          />
+        </template>
+
+        <template v-if="hasFilters" #empty>
+          <div class="flex h-12 w-12 items-center justify-center rounded-[14px] bg-canvas">
+            <AppIcon name="Users" :size="22" class="text-faint" />
+          </div>
+          <p class="text-sm text-muted">Aucun membre ne correspond à ces filtres.</p>
+          <button class="text-[13px] font-semibold text-brand-700 hover:underline" @click="resetFilters">
+            Réinitialiser les filtres
+          </button>
+        </template>
+      </DataTable>
     </div>
 
-    <!-- Invite Form -->
-    <Transition
-      enter-active-class="transition-all duration-200"
-      enter-from-class="opacity-0 -translate-y-2"
-      leave-active-class="transition-all duration-200"
-      leave-to-class="opacity-0 -translate-y-2"
-    >
-      <div v-if="showInviteForm" class="bg-white border border-neutral-200 rounded-ds-lg p-5 space-y-4">
-        <h3 class="font-semibold text-dark">Inviter un nouveau membre</h3>
+    <InviteDialog
+      :open="inviteOpen"
+      :sending="acting"
+      :members="members"
+      @close="inviteOpen = false"
+      @submit="onInvite"
+    />
 
-        <div v-if="inviteSuccess" class="flex items-center gap-2 text-sm text-green-700 bg-green-50 px-4 py-3 rounded-ds-lg">
-          <AppIcon name="CheckCircle" :size="16" />
-          Membre ajouté avec succès.
-        </div>
-
-        <div v-if="inviteError" class="text-sm text-red-600 bg-red-50 px-4 py-3 rounded-ds-lg">{{ inviteError }}</div>
-
-        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <div class="sm:col-span-2">
-            <label class="block text-xs font-medium text-neutral-600 mb-1">Email <span class="text-red-500">*</span></label>
-            <input v-model="inviteForm.email" type="email" placeholder="agent@mairie.fr"
-              class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-neutral-600 mb-1">Rôle <span class="text-red-500">*</span></label>
-            <select v-model="inviteForm.role"
-              class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
-              <option value="admin">Admin</option>
-              <option value="agent">Agent</option>
-              <option value="observer">Observer</option>
-            </select>
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-neutral-600 mb-1">Poste</label>
-            <input v-model="inviteForm.jobTitle" type="text" placeholder="ex: Technicien terrain"
-              class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-neutral-600 mb-1">Prénom</label>
-            <input v-model="inviteForm.firstName" type="text"
-              class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-          </div>
-          <div>
-            <label class="block text-xs font-medium text-neutral-600 mb-1">Nom</label>
-            <input v-model="inviteForm.lastName" type="text"
-              class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-          </div>
-        </div>
-
-        <div class="flex items-center justify-end gap-3 pt-2">
-          <button @click="showInviteForm = false" class="text-sm text-neutral-500 hover:text-neutral-700">Annuler</button>
-          <AppButton @click="submitInvite" variant="primary" :loading="inviteLoading" :disabled="!inviteForm.email || inviteLoading">
-            Inviter
-          </AppButton>
-        </div>
-      </div>
-    </Transition>
-
-    <!-- Filters -->
-    <div class="flex flex-wrap gap-3">
-      <select v-model="roleFilter"
-        class="px-3 py-2 bg-white border border-neutral-200 rounded-ds text-sm text-neutral-700 focus:outline-none focus:border-primary cursor-pointer">
-        <option value="all">Tous les rôles</option>
-        <option value="admin">Admin</option>
-        <option value="agent">Agent</option>
-        <option value="observer">Observer</option>
-      </select>
-      <select v-model="statusFilter"
-        class="px-3 py-2 bg-white border border-neutral-200 rounded-ds text-sm text-neutral-700 focus:outline-none focus:border-primary cursor-pointer">
-        <option value="all">Tous les statuts</option>
-        <option value="actif">Actif</option>
-        <option value="inactif">Inactif</option>
-      </select>
-    </div>
-
-    <!-- Table -->
-    <div class="bg-white border border-neutral-200 rounded-ds-lg overflow-hidden">
-      <div v-if="loading" class="p-8 text-center text-neutral-400 text-sm">Chargement…</div>
-      <div v-else-if="error" class="p-4 text-sm text-red-600 bg-red-50">{{ error }}</div>
-      <div v-else-if="filteredMembers.length === 0" class="p-8 text-center text-neutral-400 text-sm">
-        Aucun membre pour ces filtres.
-      </div>
-      <table v-else class="w-full text-sm">
-        <thead class="border-b border-neutral-200 bg-neutral-50">
-          <tr>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Membre</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Rôle</th>
-            <th class="hidden sm:table-cell text-left px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Poste</th>
-            <th class="text-left px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Statut</th>
-            <th class="hidden md:table-cell text-left px-4 py-3 text-xs font-semibold text-neutral-500 uppercase tracking-wide">Invité le</th>
-            <th class="px-4 py-3 w-24"></th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-neutral-100">
-          <tr v-for="m in filteredMembers" :key="m.user_id"
-            class="hover:bg-neutral-50 transition-colors"
-            :class="{ 'opacity-60': !m.is_active }"
-          >
-            <!-- Membre -->
-            <td class="px-4 py-3">
-              <div class="flex items-center gap-3">
-                <div class="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0"
-                  :class="avatarColor(m)">
-                  {{ initials(m) }}
-                </div>
-                <div class="min-w-0">
-                  <p class="font-medium text-dark truncate">{{ displayName(m) }}</p>
-                  <p class="text-xs text-neutral-400 truncate">{{ m.email ?? '—' }}</p>
-                </div>
-              </div>
-            </td>
-
-            <!-- Rôle -->
-            <td class="px-4 py-3">
-              <span class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-medium"
-                :class="roleConfig[m.role]?.color ?? 'bg-neutral-100 text-neutral-600'">
-                {{ roleConfig[m.role]?.label ?? m.role }}
-              </span>
-            </td>
-
-            <!-- Poste -->
-            <td class="hidden sm:table-cell px-4 py-3 text-neutral-600">
-              {{ m.job_title ?? '—' }}
-            </td>
-
-            <!-- Statut -->
-            <td class="px-4 py-3">
-              <span class="inline-flex items-center gap-1.5 text-xs font-medium"
-                :class="m.is_active ? 'text-green-700' : 'text-neutral-400'">
-                <span class="w-1.5 h-1.5 rounded-full" :class="m.is_active ? 'bg-green-500' : 'bg-neutral-400'"></span>
-                {{ m.is_active ? 'Actif' : 'Inactif' }}
-              </span>
-            </td>
-
-            <!-- Date -->
-            <td class="hidden md:table-cell px-4 py-3 text-neutral-500 text-xs">
-              {{ formatDate(m.invited_at) }}
-            </td>
-
-            <!-- Actions -->
-            <td class="px-4 py-3">
-              <div class="flex items-center justify-end gap-1">
-                <!-- Ne pas permettre de modifier son propre compte -->
-                <template v-if="m.user_id !== authStore.user?.id">
-                  <button @click="resendInvite(m.user_id)"
-                    :disabled="resendingId === m.user_id"
-                    class="p-1.5 rounded transition-colors"
-                    :class="resendSuccessId === m.user_id
-                      ? 'text-green-600 bg-green-50'
-                      : 'text-neutral-400 hover:text-amber-600 hover:bg-amber-50'"
-                    :title="resendSuccessId === m.user_id ? 'Envoyé !' : 'Renvoyer l\'invitation'">
-                    <AppIcon v-if="resendSuccessId === m.user_id" name="CheckCircle" :size="15" />
-                    <AppIcon v-else-if="resendingId === m.user_id" name="Loader" :size="15" class="animate-spin" />
-                    <AppIcon v-else name="Send" :size="15" />
-                  </button>
-                  <button @click="openEdit(m)"
-                    class="p-1.5 rounded text-neutral-400 hover:text-primary hover:bg-primary-50 transition-colors"
-                    title="Modifier">
-                    <AppIcon name="Pencil" :size="15" />
-                  </button>
-                  <button v-if="m.is_active" @click="confirmRevokeId = m.user_id"
-                    class="p-1.5 rounded text-neutral-400 hover:text-red-600 hover:bg-red-50 transition-colors"
-                    title="Révoquer">
-                    <AppIcon name="UserX" :size="15" />
-                  </button>
-                </template>
-                <span v-else class="text-xs text-neutral-300 px-2">Vous</span>
-              </div>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Edit Modal -->
-    <Teleport to="body">
-      <div v-if="editingMember" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/30" @click="editingMember = null" />
-        <div class="relative bg-white rounded-ds-xl shadow-xl w-full max-w-md p-6 space-y-4">
-          <div class="flex items-center justify-between">
-            <h3 class="font-semibold text-dark">Modifier le membre</h3>
-            <button @click="editingMember = null" class="text-neutral-400 hover:text-neutral-600">
-              <AppIcon name="X" :size="18" />
-            </button>
-          </div>
-
-          <div class="flex items-center gap-3 p-3 bg-neutral-50 rounded-ds-lg">
-            <div class="w-9 h-9 rounded-full flex items-center justify-center text-white text-sm font-bold"
-              :class="avatarColor(editingMember)">
-              {{ initials(editingMember) }}
-            </div>
-            <div>
-              <p class="font-medium text-dark text-sm">{{ displayName(editingMember) }}</p>
-              <p class="text-xs text-neutral-500">{{ editingMember.email }}</p>
-            </div>
-          </div>
-
-          <div v-if="editError" class="text-sm text-red-600 bg-red-50 px-3 py-2 rounded-ds">{{ editError }}</div>
-
-          <div class="space-y-3">
-            <div>
-              <label class="block text-xs font-medium text-neutral-600 mb-1">Rôle</label>
-              <select v-model="editForm.role"
-                class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary bg-white">
-                <option value="admin">Admin</option>
-                <option value="agent">Agent</option>
-                <option value="observer">Observer</option>
-              </select>
-            </div>
-            <div class="grid grid-cols-2 gap-3">
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Prénom</label>
-                <input v-model="editForm.firstName" type="text"
-                  class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-              </div>
-              <div>
-                <label class="block text-xs font-medium text-neutral-600 mb-1">Nom</label>
-                <input v-model="editForm.lastName" type="text"
-                  class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-              </div>
-            </div>
-            <div>
-              <label class="block text-xs font-medium text-neutral-600 mb-1">Poste</label>
-              <input v-model="editForm.jobTitle" type="text" placeholder="ex: Technicien terrain"
-                class="w-full px-3 py-2 border border-neutral-300 rounded-ds text-sm focus:outline-none focus:ring-2 focus:ring-primary/30 focus:border-primary" />
-            </div>
-            <div class="flex items-center gap-3">
-              <label class="text-xs font-medium text-neutral-600">Statut</label>
-              <button
-                @click="editForm.isActive = !editForm.isActive"
-                class="relative inline-flex h-5 w-9 items-center rounded-full transition-colors"
-                :class="editForm.isActive ? 'bg-primary' : 'bg-neutral-300'"
-              >
-                <span class="inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform"
-                  :class="editForm.isActive ? 'translate-x-4' : 'translate-x-0.5'" />
-              </button>
-              <span class="text-xs text-neutral-500">{{ editForm.isActive ? 'Actif' : 'Inactif' }}</span>
-            </div>
-          </div>
-
-          <div class="flex justify-end gap-3 pt-2">
-            <button @click="editingMember = null" class="text-sm text-neutral-500 hover:text-neutral-700">Annuler</button>
-            <AppButton @click="submitEdit" variant="primary" :loading="editLoading">Enregistrer</AppButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
-
-    <!-- Revoke Confirm Modal -->
-    <Teleport to="body">
-      <div v-if="confirmRevokeId" class="fixed inset-0 z-50 flex items-center justify-center p-4">
-        <div class="absolute inset-0 bg-black/30" @click="confirmRevokeId = null" />
-        <div class="relative bg-white rounded-ds-xl shadow-xl w-full max-w-sm p-6 space-y-4">
-          <div class="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-            <AppIcon name="UserX" :size="22" class="text-red-600" />
-          </div>
-          <div class="text-center">
-            <h3 class="font-semibold text-dark">Révoquer l'accès ?</h3>
-            <p class="text-sm text-neutral-500 mt-1">Le membre ne pourra plus accéder à l'administration. Vous pourrez le réactiver plus tard.</p>
-          </div>
-          <div class="flex justify-center gap-3">
-            <button @click="confirmRevokeId = null" class="px-4 py-2 text-sm text-neutral-600 border border-neutral-300 rounded-ds hover:bg-neutral-50">Annuler</button>
-            <AppButton @click="confirmRevoke(confirmRevokeId!)" variant="danger" :loading="revokeLoading">Révoquer</AppButton>
-          </div>
-        </div>
-      </div>
-    </Teleport>
+    <AppModal
+      :open="revoking !== null"
+      title="Révoquer l’accès"
+      :description="`${revoking?.email ?? 'Ce membre'} perdra l’accès au back-office. Son historique de traitement est conservé.`"
+      confirm-text="Révoquer"
+      cancel-text="Annuler"
+      confirm-variant="danger"
+      :loading="acting"
+      @confirm="confirmRevoke"
+      @cancel="revoking = null"
+      @close="revoking = null"
+    />
   </div>
 </template>

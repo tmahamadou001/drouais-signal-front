@@ -1,114 +1,69 @@
 import { ref } from 'vue'
-import { useApi } from '@/composables/useApi'
+import { useApi } from './useApi'
+
+/**
+ * Envoi d'une photo de résolution par un agent.
+ *
+ * Le seul reste de l'ancien parcours photo côté web : les citoyens passent
+ * désormais par l'application mobile, mais un agent qui clôt un signalement
+ * depuis le back-office joint encore la preuve de son intervention.
+ *
+ * L'endpoint (`POST /api/upload/resolution-photo`) est réservé aux
+ * administrateurs du tenant et range le fichier sous
+ * `resolutions/<tenant>/<report>/`, avec une URL signée valable un an.
+ */
+
+/** Ce que `middleware/upload.ts` accepte, et ce qu'il plafonne. */
+const ACCEPTED = ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+const MAX_BYTES = 5 * 1024 * 1024
 
 export function usePhotoUpload() {
   const { apiFetch } = useApi()
+
   const uploading = ref(false)
   const error = ref<string | null>(null)
 
   /**
-   * Compresse une image avant upload
+   * Envoie la photo et rend son URL signée, ou `null` en cas d'échec.
+   *
+   * Ne lève pas : l'appelant est un gestionnaire de `<input type="file">` qui
+   * doit pouvoir réarmer son champ quoi qu'il arrive. Le message d'erreur est
+   * exposé séparément.
    */
-  async function compressImage(
-    file: File,
-    maxWidth = 1920,
-    maxHeight = 1920,
-    quality = 0.85
-  ): Promise<Blob> {
-    return new Promise((resolve, reject) => {
-      const reader = new FileReader()
-      reader.onload = (e) => {
-        const img = new Image()
-        img.onload = () => {
-          const canvas = document.createElement('canvas')
-          let { width, height } = img
-
-          // Calculer les nouvelles dimensions
-          if (width > height) {
-            if (width > maxWidth) {
-              height = (height * maxWidth) / width
-              width = maxWidth
-            }
-          } else {
-            if (height > maxHeight) {
-              width = (width * maxHeight) / height
-              height = maxHeight
-            }
-          }
-
-          canvas.width = width
-          canvas.height = height
-
-          const ctx = canvas.getContext('2d')
-          if (!ctx) {
-            reject(new Error('Canvas context error'))
-            return
-          }
-
-          ctx.drawImage(img, 0, 0, width, height)
-
-          canvas.toBlob(
-            (blob) => {
-              if (blob) {
-                resolve(blob)
-              } else {
-                reject(new Error('Compression failed'))
-              }
-            },
-            'image/jpeg',
-            quality
-          )
-        }
-        img.onerror = () => reject(new Error('Image load error'))
-        img.src = e.target?.result as string
-      }
-      reader.onerror = () => reject(new Error('File read error'))
-      reader.readAsDataURL(file)
-    })
-  }
-
-  /**
-   * Upload une photo de résolution vers le backend
-   */
-  async function uploadResolutionPhoto(
-    file: File,
-    reportId: string
-  ): Promise<string | null> {
-    uploading.value = true
+  async function uploadResolutionPhoto(file: File, reportId: string): Promise<string | null> {
     error.value = null
 
+    // Vérifié ici autant que côté serveur : un fichier de 40 Mo refusé après
+    // l'avoir téléversé fait perdre du temps et de la bande passante à l'agent.
+    if (!ACCEPTED.includes(file.type)) {
+      error.value = 'Format non supporté. Utilisez JPG, PNG, WebP ou GIF.'
+      return null
+    }
+    if (file.size > MAX_BYTES) {
+      error.value = 'Photo trop lourde (5 Mo maximum).'
+      return null
+    }
+
+    uploading.value = true
+
     try {
-      // Compression de l'image
-      const compressedBlob = await compressImage(file)
+      const form = new FormData()
+      form.append('photo', file)
+      form.append('reportId', reportId)
 
-      // Créer FormData
-      const formData = new FormData()
-      formData.append('photo', compressedBlob, 'resolution.jpg')
-      formData.append('reportId', reportId)
-
-      // Upload via apiFetch avec isFormData: true
-      const data = await apiFetch<{ url: string; filePath: string }>(
+      const response = await apiFetch<{ url: string; filePath: string }>(
         '/api/upload/resolution-photo',
-        {
-          method: 'POST',
-          body: formData,
-          isFormData: true,
-        }
+        { method: 'POST', body: form, isFormData: true }
       )
 
-      return data.url
+      return response.url
     } catch (err: any) {
-      error.value = err.message || 'Erreur lors de l\'upload'
-      console.error('Upload error:', err)
+      error.value = err?.message ?? 'Envoi impossible.'
       return null
     } finally {
       uploading.value = false
     }
   }
 
-  return {
-    uploading,
-    error,
-    uploadResolutionPhoto,
-  }
+  return { uploading, error, uploadResolutionPhoto }
 }

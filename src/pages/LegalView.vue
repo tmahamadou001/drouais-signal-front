@@ -66,46 +66,27 @@ import AppIcon from '@/components/AppIcon.vue'
       </section>
 
       <!-- 4. Données personnelles -->
-      <section>
+      <!-- L'ancre est ciblée depuis l'app mobile, dont l'écran Profil ouvre
+           directement cette section pour la ligne « Confidentialité ». -->
+      <section id="donnees-personnelles" class="scroll-mt-24">
         <h2 class="text-lg font-semibold text-dark mb-3 pb-2 border-b border-neutral-200">4. Données personnelles et RGPD</h2>
         <p>
-          OnSignale collecte et traite des données personnelles dans le cadre de la fourniture de son service de signalement citoyen. Ces traitements sont conformes au Règlement Général sur la Protection des Données (RGPD — UE 2016/679) et à la loi Informatique et Libertés modifiée.
+          Le détail des traitements — qui est responsable de quoi, ce qui est collecté, combien de
+          temps c'est conservé et comment exercer vos droits — figure dans la
+          <RouterLink to="/confidentialite" class="text-primary hover:underline">politique de confidentialité</RouterLink>.
         </p>
-
-        <h3 class="font-medium text-dark mt-4 mb-2">Données collectées</h3>
-        <ul class="list-disc list-inside space-y-1 ml-2">
-          <li>Adresse email et mot de passe (compte utilisateur)</li>
-          <li>Contenu des signalements : titre, description, catégorie, localisation (coordonnées GPS et adresse approximative), photographie éventuelle</li>
-          <li>Adresse email pour les signalements anonymes (facultatif)</li>
-          <li>Logs de connexion et d'activité (adresse IP, horodatage)</li>
-        </ul>
-
-        <h3 class="font-medium text-dark mt-4 mb-2">Finalités du traitement</h3>
-        <ul class="list-disc list-inside space-y-1 ml-2">
-          <li>Gestion des comptes utilisateurs et authentification</li>
-          <li>Transmission des signalements aux collectivités concernées</li>
-          <li>Envoi de notifications liées à l'évolution d'un signalement</li>
-          <li>Amélioration du service et analyse statistique anonymisée</li>
-        </ul>
-
-        <h3 class="font-medium text-dark mt-4 mb-2">Durée de conservation</h3>
-        <p>Les données sont conservées pendant la durée d'activité du compte utilisateur, puis supprimées dans un délai de 3 ans suivant la dernière connexion. Les signalements résolus sont conservés à des fins d'archivage historique par la collectivité.</p>
-
-        <h3 class="font-medium text-dark mt-4 mb-2">Vos droits</h3>
-        <p>Conformément au RGPD, vous disposez des droits suivants :</p>
-        <ul class="list-disc list-inside space-y-1 ml-2 mt-1">
-          <li>Droit d'accès à vos données personnelles</li>
-          <li>Droit de rectification des données inexactes</li>
-          <li>Droit à l'effacement (« droit à l'oubli »)</li>
-          <li>Droit à la limitation du traitement</li>
-          <li>Droit à la portabilité de vos données</li>
-          <li>Droit d'opposition au traitement</li>
-        </ul>
+        <!-- Le détail vivait ici, en double. Les deux textes ont divergé : celui-ci
+             annonçait une conservation de trois ans que rien n'appliquait. Un seul
+             document, au même endroit que les durées réellement appliquées. -->
         <p class="mt-2">
-          Pour exercer ces droits, contactez-nous à : <a href="mailto:dpo@onsignale.fr" class="text-primary hover:underline">dpo@onsignale.fr</a>
+          L'essentiel en deux phrases : votre commune est responsable de traitement, OnSignale est
+          son sous-traitant et n'utilise ses données pour aucune autre finalité. Les photographies
+          et les adresses e-mail sont effacées automatiquement à l'échéance de leur durée de
+          conservation.
         </p>
         <p class="mt-2">
-          En cas de réclamation non résolue, vous pouvez saisir la <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">CNIL</a> (Commission Nationale de l'Informatique et des Libertés).
+          Pour exercer vos droits : <a href="mailto:dpo@onsignale.fr" class="text-primary hover:underline">dpo@onsignale.fr</a>,
+          ou la <a href="https://www.cnil.fr" target="_blank" rel="noopener noreferrer" class="text-primary hover:underline">CNIL</a> en cas de réclamation non résolue.
         </p>
       </section>
 

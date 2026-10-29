@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, inject } from 'vue'
+import { ref, computed, onMounted, onUnmounted, inject, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import 'leaflet/dist/leaflet.css'
 import 'leaflet.markercluster/dist/MarkerCluster.css'
@@ -7,6 +7,7 @@ import 'leaflet.markercluster/dist/MarkerCluster.Default.css'
 import '@/assets/map.css'
 import { useApi } from '@/composables/useApi'
 import { useTenantCategories } from '@/composables/useTenantCategories'
+import { categoryGlyphMarkup } from '@/lib/categories'
 import { useTenantStore } from '@/stores/tenant'
 import { useReportStatuses } from '@/composables/useReportStatuses'
 
@@ -33,17 +34,27 @@ const props = withDefaults(defineProps<{
   zoom?: number
   selectedPosition?: { lat: number; lng: number; category?: string } | null
   showAllMarkers?: boolean
+  /**
+   * Hauteur minimale du cadre.
+   *
+   * Elle valait 300 px en dur, ce qui convient à une carte de page. Dans la
+   * vignette de 128 px du panneau de détail, la carte débordait donc de son
+   * cadre : son centre — et le marqueur avec — tombait sous la zone visible.
+   * Le signalement n'apparaissait pas centré ; il n'apparaissait pas du tout.
+   */
+  minHeight?: string
 }>(), {
   interactive: false,
   selectedPosition: null,
   showAllMarkers: false,
+  minHeight: '300px',
 })
 
 const tenantStore = useTenantStore()
 const mapCenter = computed<[number, number]>(() =>
-  props.center ?? [tenantStore.config?.map_lat ?? 48.7365, tenantStore.config?.map_lng ?? 1.3668]
+  props.center ?? [tenantStore.mapCenter.lat, tenantStore.mapCenter.lng]
 )
-const mapZoom = computed(() => props.zoom ?? tenantStore.config?.map_zoom ?? 13)
+const mapZoom = computed(() => props.zoom ?? tenantStore.mapCenter.zoom)
 
 const emit = defineEmits<{
   (e: 'map-click', payload: { lat: number; lng: number }): void
@@ -64,23 +75,22 @@ let selectedMarker: any = null
 let currentOpenMarker: any = null
 let isLoadingPopup = false
 
-const { getCategoryIcon, getCategoryLabel } = useTenantCategories()
+const { getCategoryLabel } = useTenantCategories()
 const { getStatusConfig } = useReportStatuses()
-  
-const getCategoryEmoji = (category: string): string => {
-  return getCategoryIcon(category)
-}
+
+// Le même glyphe que partout ailleurs, rendu en SVG : Leaflet veut une chaîne
+// HTML et ne peut pas monter de composant.
+const getCategoryMarkup = (category: string): string =>
+  categoryGlyphMarkup(category, { size: 16, label: getCategoryLabel(category) })
 
 const getMarkerIcon = (status: string, category: string): any => {
   const L = (window as any).L
   const statusConfig = getStatusConfig(status)
   const color = statusConfig.dotColor
-  const emoji = getCategoryEmoji(category)
-
   return L.divIcon({
     html: `
       <div class="custom-marker" style="background:${color}">
-        <span style="font-size:14px">${emoji}</span>
+        ${getCategoryMarkup(category)}
       </div>
     `,
     className: 'custom-marker-wrapper',
@@ -94,11 +104,10 @@ const createSelectedIcon = (category?: string): any => {
   const L = (window as any).L
   
   if (category) {
-    const emoji = getCategoryEmoji(category)
     return L.divIcon({
       html: `
         <div class="custom-marker" style="background:#1A56A0">
-          <span style="font-size:14px">${emoji}</span>
+          ${getCategoryMarkup(category)}
         </div>
       `,
       className: 'custom-marker-wrapper',
@@ -345,7 +354,7 @@ const openDetailPopup = async (reportId: string, marker: any) => {
         <div class="popup-body">
           <div class="popup-meta">
             <span class="popup-cat">
-              ${getCategoryEmoji(ReportDetail.category)}
+              ${categoryGlyphMarkup(ReportDetail.category, { size: 13, color: '#666', label: getCategoryLabel(ReportDetail.category) })}
               ${getCategoryLabel(ReportDetail.category)}
             </span>
             <span class="popup-status status-${ReportDetail.status}">
@@ -367,7 +376,7 @@ const openDetailPopup = async (reportId: string, marker: any) => {
 
           <div class="popup-footer">
             ${ReportDetail.vote_count > 0
-              ? `<span>▲ ${ReportDetail.vote_count} vote${ReportDetail.vote_count > 1 ? 's' : ''}</span>` 
+              ? `<span>${ReportDetail.vote_count} constat${ReportDetail.vote_count > 1 ? 's' : ''} sur place</span>` 
               : ''}
             <button
               data-report-id="${ReportDetail.id}"
@@ -420,13 +429,43 @@ const updateSelectedMarker = () => {
       { icon }
     ).addTo(map)
 
-    map.setView([props.selectedPosition.lat, props.selectedPosition.lng], 16)
+    recenterOnSelection()
   }
 }
 
-onMounted(initMap)
+/**
+ * Recadre sur le marqueur, une fois la taille du cadre connue.
+ *
+ * `setView` calcule le centre à partir des dimensions du conteneur. Appelé
+ * avant que la mise en page ne les ait fixées — ce qui est le cas au montage
+ * dans un panneau qui s'ouvre — il centre sur une taille périmée et le
+ * marqueur se retrouve décalé, voire hors cadre.
+ */
+function recenterOnSelection() {
+  if (!map || !props.selectedPosition) return
+  map.invalidateSize()
+  map.setView([props.selectedPosition.lat, props.selectedPosition.lng], props.zoom ?? 16)
+}
+
+let resizeObserver: ResizeObserver | null = null
+
+onMounted(async () => {
+  await initMap()
+
+  // Le cadre peut encore changer de taille après le montage : panneau qui
+  // s'ouvre en transition, fenêtre redimensionnée, colonne qui se replie.
+  if (mapContainer.value) {
+    resizeObserver = new ResizeObserver(() => recenterOnSelection())
+    resizeObserver.observe(mapContainer.value)
+  }
+})
+
+/** Suivre le signalement affiché quand le panneau passe au suivant. */
+watch(() => props.selectedPosition, updateSelectedMarker, { deep: true })
 
 onUnmounted(() => {
+  resizeObserver?.disconnect()
+  resizeObserver = null
   if (map) {
     map.remove()
     map = null
@@ -437,8 +476,8 @@ onUnmounted(() => {
 <template>
   <div
     ref="mapContainer"
-    class="w-full h-full rounded-ds-lg overflow-hidden"
-    style="min-height: 300px;"
+    class="h-full w-full overflow-hidden rounded-ds-lg"
+    :style="{ minHeight }"
   />
 </template>
 

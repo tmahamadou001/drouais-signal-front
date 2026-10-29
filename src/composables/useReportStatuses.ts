@@ -28,6 +28,26 @@ export const STATUS_CONFIG: Record<string, StatusConfig> = {
     ringColor: 'ring-neutral-300/30',
     bgColor: 'bg-neutral-400',
   },
+  /**
+   * Transmis à un service extérieur, sans réponse de sa part (migration 034).
+   *
+   * Il s'intercale entre l'attente et la prise en charge parce que l'envoi d'un
+   * e-mail n'est pas un traitement : tant que le service n'a pas répondu,
+   * personne ne s'en occupe — et le dire autrement fausse à la fois la promesse
+   * faite à l'habitant et le délai moyen affiché à la commune.
+   */
+  transmis: {
+    label: 'Transmis',
+    icon: 'Send',
+    tailwindBg: 'bg-brand-50',
+    tailwindText: 'text-brand-700',
+    dotColor: '#1A56A0',
+    iconBg: 'bg-brand-50',
+    iconColor: 'text-brand-700',
+    valueColor: 'text-brand-900',
+    ringColor: 'ring-brand-700/20',
+    bgColor: 'bg-brand-700',
+  },
   pris_en_charge: {
     label: 'Pris en charge',
     icon: 'Wrench',
@@ -82,6 +102,7 @@ export const useReportStatuses = () => {
   const getTimelineSteps = () => {
     return [
       { key: 'en_attente' as const, ...STATUS_CONFIG.en_attente },
+      { key: 'transmis' as const, ...STATUS_CONFIG.transmis },
       { key: 'pris_en_charge' as const, ...STATUS_CONFIG.pris_en_charge },
       { key: 'resolu' as const, ...STATUS_CONFIG.resolu },
     ]

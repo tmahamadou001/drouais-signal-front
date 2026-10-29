@@ -9,7 +9,6 @@ import StatusTimeline from '@/components/StatusTimeline.vue'
 import CategoryIcon from '@/components/CategoryIcon.vue'
 import MapView from '@/components/MapView.vue'
 import LoadingSpinner from '@/components/LoadingSpinner.vue'
-import VoteButton from '@/components/VoteButton.vue'
 import { useRealtimeReport } from '@/composables/useRealtimeReport'
 import ReportComments from '@/components/report/ReportComments.vue'
 import { useAuthStore } from '@/stores/auth'
@@ -24,7 +23,6 @@ const report = ref<Report | null>(null)
 const history = ref<StatusHistoryEntry[]>([])
 const loading = ref(true)
 const error = ref<string | null>(null)
-const hasVoted = ref(false)
 const reportId = ref<string>('')
 
 const { getCategoryLabel } = useTenantCategories()
@@ -50,13 +48,6 @@ onMounted(async () => {
     )
     report.value = data.report
     history.value = data.history
-
-    if (authStore.isAuthenticated) {
-      const voteData = await apiFetch<{ has_voted: boolean }>(
-        `/api/reports/${id}/my-vote`
-      )
-      hasVoted.value = voteData.has_voted
-    }
   } catch (err: any) {
     error.value = err.message
   } finally {
@@ -74,6 +65,8 @@ watch(reportId, (id) => {
           report.value.status = newStatus as any
         }
       },
+      // Le compteur bouge encore : une confirmation envoyée depuis l'app
+      // mobile doit se voir ici sans rechargement.
       onVoteChange: (newCount) => {
         invalidateCache(`/api/reports/${id}`)
         
@@ -88,14 +81,6 @@ watch(reportId, (id) => {
 
 <template>
   <div class="max-w-3xl mx-auto px-4 sm:px-6 py-6">
-    <RouterLink
-      to="/mes-signalements"
-      class="text-sm text-primary font-medium hover:underline mb-6 inline-flex items-center gap-1"
-    >
-      <AppIcon name="ChevronLeft" :size="16" />
-      Retour à mes signalements
-    </RouterLink>
-
     <LoadingSpinner v-if="loading" />
 
     <p v-else-if="error" class="text-sm text-red-600 bg-red-50 rounded-ds px-4 py-3">
@@ -137,13 +122,22 @@ watch(reportId, (id) => {
           {{ report.description }}
         </p>
 
-        <div class="mt-6 pt-6 border-t border-neutral-200">
-          <VoteButton
-            :report-id="report.id"
-            :initial-count="report.vote_count || 0"
-            :initial-has-voted="hasVoted"
-            :is-authenticated="authStore.isAuthenticated"
-          />
+        <!-- Un constat, plus un bouton.
+             Confirmer un signalement demande d'être sur place, et le serveur
+             vérifie la distance (migration 029). Un navigateur n'a pas de
+             position fiable, et le web est réservé à la consultation depuis la
+             v2 : le geste vit dans l'application mobile, à l'endroit où le
+             citoyen photographie le même problème. -->
+        <div
+          v-if="(report.vote_count || 0) > 0"
+          class="mt-6 pt-6 border-t border-neutral-200 flex items-center gap-2 text-sm text-neutral-600"
+        >
+          <AppIcon name="Users" :size="16" class="text-primary" />
+          <span>
+            {{ report.vote_count }}
+            {{ report.vote_count > 1 ? 'personnes ont' : 'personne a' }}
+            constaté ce problème sur place
+          </span>
         </div>
       </div>
 

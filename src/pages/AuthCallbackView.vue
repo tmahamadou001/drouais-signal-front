@@ -9,6 +9,15 @@ const router = useRouter()
 const authStore = useAuthStore()
 const status = ref<'loading' | 'success' | 'error'>('loading')
 
+/**
+ * Le retour d'un lien Supabase (confirmation, magic link).
+ *
+ * Le SDK a posé la session dans le stockage du navigateur ; c'est la seule
+ * chose qu'on lui demande. **L'identité vient de l'API**, comme partout
+ * ailleurs : lire `session.user` revenait à croire un JWT sur parole, et
+ * laissait le rôle à `null` — l'écran suivant renvoyait alors vers la
+ * connexion sans que rien ne l'explique.
+ */
 onMounted(async () => {
   try {
     const { data, error } = await supabase.auth.getSession()
@@ -18,13 +27,10 @@ onMounted(async () => {
       return
     }
 
-    authStore.user = data.session.user
     authStore.session = data.session
-    status.value = 'success'
+    await authStore.fetchTenantRole()
 
-    // setTimeout(() => {
-    //   router.replace(authStore.isAdmin ? '/admin' : '/')
-    // }, 2000)
+    status.value = authStore.user ? 'success' : 'error'
   } catch {
     status.value = 'error'
   }
@@ -48,13 +54,13 @@ onMounted(async () => {
           <AppIcon name="Check" :size="32" class="text-green-600" />
         </div>
         <h2 class="text-xl font-bold text-gray-900">Compte confirmé !</h2>
-        <p class="text-gray-500 text-sm">Votre compte est activé. Vous pouvez maintenant faire votre premier signalement.</p>
+        <p class="text-gray-500 text-sm">Votre compte est activé. Vous pouvez accéder à l’administration de votre commune.</p>
         <router-link
-          to="/signaler"
+          to="/admin"
           class="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 transition-colors mt-2"
         >
-          <AppIcon name="PlusCircle" :size="20" />
-          Faire mon premier signalement
+          <AppIcon name="LayoutDashboard" :size="20" />
+          Accéder à l’administration
         </router-link>
         <router-link to="/" class="block text-sm text-gray-400 hover:text-gray-600 mt-1">
           Retour à l'accueil

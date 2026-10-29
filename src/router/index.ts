@@ -1,129 +1,12 @@
 import { createRouter, createWebHistory } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { pinia } from '@/stores/pinia'
+import { routes } from './routes'
+import { resolveAccess } from './guards'
 
 const router = createRouter({
   history: createWebHistory(),
-  routes: [
-    {
-      path: '/',
-      name: 'home',
-      component: () => import('@/pages/HomeView.vue'),
-    },
-    {
-      path: '/signaler',
-      name: 'report-form',
-      component: () => import('@/pages/ReportFormView.vue'),
-    },
-    {
-      path: '/signalement/suivi/:token',
-      name: 'report-follow',
-      component: () => import('@/pages/ReportFollowView.vue'),
-    },
-    {
-      path: '/connexion',
-      name: 'auth',
-      component: () => import('@/pages/AuthView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/auth/register',
-      name: 'register',
-      component: () => import('@/pages/RegisterView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/auth/forgot-password',
-      name: 'forgot-password',
-      component: () => import('@/pages/ForgotPasswordView.vue'),
-      meta: { guestOnly: true },
-    },
-    {
-      path: '/auth/callback',
-      name: 'auth-callback',
-      component: () => import('@/pages/AuthCallbackView.vue'),
-    },
-    {
-      path: '/set-password',
-      name: 'set-password',
-      component: () => import('@/pages/SetPasswordView.vue'),
-    },
-    {
-      path: '/mes-signalements',
-      name: 'my-reports',
-      component: () => import('@/pages/MyReportsView.vue'),
-      meta: { requiresAuth: true },
-    },
-    {
-      path: '/signalements',
-      name: 'reports-list',
-      component: () => import('@/pages/ReportsListView.vue'),
-    },
-    {
-      path: '/mentions-legales',
-      name: 'legal',
-      component: () => import('@/pages/LegalView.vue'),
-    },
-    {
-      path: '/signalement/:id',
-      name: 'report-detail',
-      component: () => import('@/pages/ReportDetailView.vue'),
-    },
-    {
-      path: '/admin',
-      component: () => import('@/layouts/AdminLayout.vue'),
-      meta: { requiresAuth: true, requiresAdmin: true },
-      redirect: '/admin/signalements',
-      children: [
-        {
-          path: 'signalements',
-          name: 'AdminReports',
-          component: () => import('@/pages/admin/ReportsAdminView.vue')
-        },
-        {
-          path: 'heatmap',
-          name: 'AdminHeatmap',
-          component: () => import('@/pages/admin/HeatmapAdminView.vue')
-        },
-        {
-          path: 'performance',
-          name: 'AdminPerformance',
-          component: () => import('@/pages/admin/SlaAdminView.vue')
-        },
-        {
-          path: 'rapport',
-          name: 'AdminWeekly',
-          component: () => import('@/pages/admin/WeeklyReportAdminView.vue')
-        },
-        {
-          path: 'equipe',
-          name: 'AdminTeam',
-          component: () => import('@/pages/admin/TeamAdminView.vue')
-        },
-        {
-          path: 'parametres',
-          name: 'AdminSettings',
-          component: () => import('@/pages/admin/SettingsAdminView.vue')
-        },
-        {
-          path: 'plateforme',
-          name: 'AdminPlatform',
-          component: () => import('@/pages/admin/PlatformAdminView.vue'),
-          meta: { requiresSuperAdmin: true },
-        },
-        {
-          path: 'audit',
-          name: 'AdminAudit',
-          component: () => import('@/pages/admin/AuditLogsAdminView.vue'),
-          meta: { requiresSuperAdmin: true },
-        }
-      ]
-    },
-    {
-      path: '/:pathMatch(.*)*',
-      redirect: '/',
-    },
-  ],
+  routes,
   scrollBehavior(_to, _from, savedPosition) {
     // Si on revient en arrière avec le bouton du navigateur, restaurer la position
     if (savedPosition) {
@@ -137,33 +20,17 @@ const router = createRouter({
 router.beforeEach(async (to) => {
   const auth = useAuthStore(pinia)
 
-  // Wait for initial session check to complete
+  // Attendre la vérification initiale de session.
   if (!auth.initialized) {
     await auth.initialize()
   }
 
-  // Route requires authentication
-  if (to.meta.requiresAuth && !auth.user) {
-    return {
-      name: 'auth',
-      query: { redirect: to.fullPath },
-    }
-  }
-
-  // Route requires admin role
-  if (to.meta.requiresAdmin && !auth.isAdmin) {
-    return { name: 'home' }
-  }
-
-  // Route requires super admin role
-  if (to.meta.requiresSuperAdmin && !auth.isSuperAdmin) {
-    return { name: 'AdminReports' }
-  }
-
-  // Redirect authenticated users away from guest-only pages
-  if (to.meta.guestOnly && auth.user) {
-    return auth.isAdmin ? { name: 'AdminReports' } : { name: 'home' }
-  }
+  return resolveAccess(to, {
+    isAuthenticated: Boolean(auth.user),
+    isAdmin: auth.isAdmin,
+    role: auth.role,
+    isSuperAdmin: auth.isSuperAdmin,
+  })
 })
 
 export default router

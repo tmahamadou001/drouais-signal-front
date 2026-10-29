@@ -59,9 +59,53 @@ export default {
           900: '#171717',
         },
         dark: '#1A1A1A',
+
+        /**
+         * La palette de l'export Claude Design — identique, valeur pour valeur,
+         * à celle de l'app mobile (`mobile/tailwind.config.js`). C'est le même
+         * produit vu par deux publics ; deux palettes qui dérivent l'une de
+         * l'autre finiraient par se contredire sur la même capture d'écran.
+         *
+         * Elle s'ajoute à `primary`/`neutral` au lieu de les remplacer : les
+         * huit autres pages d'administration s'appuient encore dessus, et les
+         * refondre n'est pas le sujet de cette passe.
+         */
+        brand: {
+          50:  '#F1F6FC',
+          100: '#D6E4F5',
+          200: '#B3CCEA',
+          400: '#7C98BE',
+          500: '#9FB6D4',
+          700: '#1A56A0',
+          800: '#14406F',
+          900: '#0F2B4A',
+        },
+        canvas: '#F6F7F9',
+        line: '#E2E5EA',
+        /** Le trait entre deux lignes de table — plus clair que `line`. */
+        hairline: '#EDEFF3',
+        ink: '#111827',
+        muted: '#6B7280',
+        faint: '#9CA3AF',
+        status: {
+          'pending-bg': '#F1F1F2',
+          'pending-fg': '#525252',
+          'progress-bg': '#FEF6E7',
+          'progress-fg': '#8A5A08',
+          'progress-dot': '#EF9F27',
+          'done-bg': '#E8F7F1',
+          'done-fg': '#0F6B4E',
+          success: '#1D9E75',
+          'success-soft': '#7FD8B8',
+          danger: '#DC2626',
+          'danger-bg': '#FBEAEA',
+        },
       },
       fontFamily: {
         sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
+        // La police de l'export. Réservée aux écrans repris du design, tant que
+        // le reste de l'administration tourne sur Source Sans 3.
+        ui: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
         display: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       borderRadius: {

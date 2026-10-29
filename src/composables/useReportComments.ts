@@ -1,9 +1,16 @@
-import { ref, computed } from 'vue'
+import { ref, computed, toValue, type MaybeRefOrGetter } from 'vue'
 import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/auth'
 import type { ReportComment } from '@/types/comment'
 
-export const useReportComments = (reportId: string) => {
+/**
+ * `reportId` accepte une valeur ou une source réactive.
+ *
+ * Le panneau d'administration garde le même composant monté en passant d'un
+ * signalement à l'autre : avec un identifiant figé à l'appel, il aurait
+ * rechargé indéfiniment la conversation du premier.
+ */
+export const useReportComments = (reportId: MaybeRefOrGetter<string>) => {
   const { apiFetch } = useApi()
   const authStore = useAuthStore()
 
@@ -41,7 +48,7 @@ export const useReportComments = (reportId: string) => {
     error.value = null
     try {
       const data = await apiFetch<any[]>(
-        `/api/reports/${reportId}/comments`
+        `/api/reports/${toValue(reportId)}/comments`
       )
       comments.value = data.map(transformComment)
     } catch (err: any) {
@@ -61,7 +68,7 @@ export const useReportComments = (reportId: string) => {
     error.value = null
     try {
       const rawComment = await apiFetch<any>(
-        `/api/reports/${reportId}/comments/agent`,
+        `/api/reports/${toValue(reportId)}/comments/agent`,
         {
           method: 'POST',
           body: { content, photoUrl, isResolutionPhoto },
@@ -87,7 +94,7 @@ export const useReportComments = (reportId: string) => {
     error.value = null
     try {
       const rawReply = await apiFetch<any>(
-        `/api/reports/${reportId}/comments/citizen`,
+        `/api/reports/${toValue(reportId)}/comments/citizen`,
         {
           method: 'POST',
           body: { content, parentId },

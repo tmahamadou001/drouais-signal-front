@@ -1,0 +1,20 @@
+{
+  "applinks": {
+    "details": [
+      {
+        "appIDs": ["TEAMID.fr.onsignale.mobile"],
+        "components": [
+          {
+            "/": "/signalement/*",
+            "comment": "Un signalement, ouvert dans l'app quand elle est installée."
+          },
+          {
+            "/": "/signalement/suivi/*",
+            "exclude": true,
+            "comment": "Le suivi anonyme reste sur le web : l'app n'a pas d'écran pour un signalement suivi par jeton."
+          }
+        ]
+      }
+    ]
+  }
+}

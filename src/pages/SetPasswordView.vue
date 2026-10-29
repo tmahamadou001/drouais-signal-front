@@ -2,7 +2,6 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
-import { supabase } from '@/lib/supabase'
 import { useAuthStore } from '@/stores/auth'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -72,10 +71,18 @@ async function submit() {
       throw new Error(data.message ?? 'Une erreur est survenue.')
     }
 
-    // Révoque la session d'invitation — l'utilisateur doit se reconnecter normalement
-    await supabase.auth.signOut()
-    authStore.user = null
-    authStore.session = null
+    /**
+     * Révoque la session d'invitation — l'utilisateur doit se reconnecter.
+     *
+     * Par l'API (`POST /api/auth/logout`), comme toute déconnexion : le
+     * `signOut` du SDK appelait `/auth/v1/logout` chez Supabase depuis le
+     * navigateur, et le serveur n'en savait rien — donc pas de trace, et pas
+     * de révocation *globale* du jeton de rafraîchissement.
+     *
+     * `redirect: false` : cet écran affiche d'abord sa confirmation, puis
+     * emmène lui-même vers la connexion.
+     */
+    await authStore.signOut({ redirect: false })
 
     status.value = 'success'
     setTimeout(() => router.replace('/connexion'), 2500)

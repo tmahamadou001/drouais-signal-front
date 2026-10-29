@@ -1,149 +1,81 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+/**
+ * La coque du back-office : barre latérale sombre à gauche, page à droite.
+ *
+ * L'en-tête n'est pas ici : chaque page pose `AdminPageHeader`, qui est le même
+ * composant partout et tient son titre du `meta` de la route. Le layout ne peut
+ * pas le poser lui-même — les contrôles propres à un écran devraient alors y
+ * être téléportés, ce que Vue ne supporte pas sans casser au premier patch.
+ */
+import { computed, onMounted } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminSidebar from '@/components/admin/AdminSidebar.vue'
 import AppIcon from '@/components/AppIcon.vue'
+import ToastHost from '@/components/ui/ToastHost.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
+import { useAdminOverview } from '@/composables/useAdminOverview'
 
 const authStore = useAuthStore()
 const tenantStore = useTenantStore()
-const isCollapsed = ref(false)
+const { reportCount, avgAckHours } = useAdminOverview()
 
+/**
+ * La taxonomie complète, inactives comprises — le back-office affiche des
+ * signalements déjà déposés, dont certains dans des catégories que la commune
+ * ne traite plus. Chargée ici plutôt que dans chaque écran : elle sert à la
+ * table des signalements, à la fiche, aux filtres et aux paramètres.
+ */
+onMounted(() => void tenantStore.loadAllCategories())
+
+/** La navigation du bas, sur mobile seulement — l'export ne couvre que le bureau. */
 const navItems = computed(() => [
-  {
-    id: 'reports',
-    label: 'Signalements',
-    shortLabel: 'Signaux',
-    icon: 'ClipboardList',
-    route: '/admin/signalements',
-    visible: true,
-  },
-  {
-    id: 'heatmap',
-    label: 'Carte de chaleur',
-    shortLabel: 'Chaleur',
-    icon: 'Flame',
-    route: '/admin/heatmap',
-    visible: tenantStore.features.heatmap,
-  },
-  {
-    id: 'performance',
-    label: 'Performance',
-    shortLabel: 'Perfs',
-    icon: 'BarChart2',
-    route: '/admin/performance',
-    visible: true,
-  },
-  {
-    id: 'weekly',
-    label: 'Rapport hebdo',
-    shortLabel: 'Hebdo',
-    icon: 'Mail',
-    route: '/admin/rapport',
-    visible: tenantStore.features.weeklyReport && authStore.isAdmin,
-  },
-  {
-    id: 'settings',
-    label: 'Paramètres',
-    shortLabel: 'Réglages',
-    icon: 'Settings',
-    route: '/admin/parametres',
-    visible: authStore.isAdmin,
-  },
-  {
-    id: 'platform',
-    label: 'Plateforme',
-    shortLabel: 'Plateforme',
-    icon: 'Globe',
-    route: '/admin/plateforme',
-    visible: authStore.isSuperAdmin,
-  },
-  {
-    id: 'audit',
-    label: 'Logs d\'audit',
-    shortLabel: 'Audit',
-    icon: 'FileText',
-    route: '/admin/audit',
-    visible: authStore.isSuperAdmin,
-  },
+  { id: 'reports',     label: 'Signalements',    shortLabel: 'Signaux',    icon: 'Inbox',      route: '/admin/signalements', visible: true },
+  { id: 'heatmap',     label: 'Carte de chaleur', shortLabel: 'Chaleur',   icon: 'Flame',      route: '/admin/heatmap',      visible: tenantStore.features.heatmap },
+  { id: 'performance', label: 'Performance',     shortLabel: 'Perfs',      icon: 'TrendingUp', route: '/admin/performance',  visible: true },
+  { id: 'weekly',      label: 'Rapport hebdo',   shortLabel: 'Hebdo',      icon: 'Mail',       route: '/admin/rapport',      visible: tenantStore.features.weeklyReport && authStore.isAdmin },
+  { id: 'settings',    label: 'Paramètres',      shortLabel: 'Réglages',   icon: 'SlidersHorizontal', route: '/admin/parametres', visible: authStore.isAdmin },
 ].filter((item) => item.visible))
-
-onMounted(() => {
-  const saved = localStorage.getItem('admin-sidebar-collapsed')
-  if (saved !== null) {
-    isCollapsed.value = JSON.parse(saved)
-  }
-})
-
-const toggleSidebar = () => {
-  isCollapsed.value = !isCollapsed.value
-  localStorage.setItem(
-    'admin-sidebar-collapsed',
-    JSON.stringify(isCollapsed.value)
-  )
-}
 </script>
 
-<template>
-  <div class="flex h-screen overflow-hidden bg-gray-50 py-2 md:pt-0">
 
-    <!-- Sidebar desktop (masquée sur mobile) -->
+<template>
+  <div class="flex h-screen overflow-hidden bg-canvas">
+
     <AdminSidebar
-      :is-collapsed="isCollapsed"
-      class="hidden md:flex flex-shrink-0"
-      @toggle-collapse="toggleSidebar"
+      class="hidden md:flex"
+      :report-count="reportCount"
+      :avg-ack-hours="avgAckHours"
     />
 
-    <!-- Zone de contenu principale -->
-    <div class="flex flex-col flex-1 min-w-0 overflow-hidden">
-
-      <!-- Header mobile uniquement -->
-      <!-- <header class="md:hidden flex items-center px-4 py-3 bg-white border-b border-gray-200">
-        <div class="flex items-center gap-2">
-          <div class="w-6 h-6 bg-primary rounded flex items-center justify-center">
-            <svg viewBox="0 0 20 20" class="w-3.5 h-3.5 text-white" fill="currentColor">
-              <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-            </svg>
-          </div>
-          <span class="font-semibold text-gray-800 text-base">
-            OnSignale
-          </span>
-          <span class="ml-1 text-xs text-gray-400 font-medium">
-            Administration
-          </span>
-        </div>
-      </header> -->
-
-      <!-- Contenu scrollable -->
-      <main class="flex-1 overflow-y-auto pb-20 md:pb-0">
+    <div class="flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main class="flex min-h-0 flex-1 flex-col overflow-hidden pb-20 md:pb-0">
         <router-view />
       </main>
-
     </div>
 
-    <!-- Bottom navigation mobile (masquée sur desktop) -->
-    <nav class="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 flex items-center justify-around px-2 py-2 z-[1000] safe-area-inset-bottom">
+    <!-- Navigation du bas, mobile uniquement -->
+    <nav class="safe-area-inset-bottom fixed bottom-0 left-0 right-0 z-[1000] flex items-center justify-around border-t border-line bg-white px-2 py-2 md:hidden">
       <RouterLink
         v-for="item in navItems"
         :key="item.id"
         :to="item.route"
-        class="flex flex-col items-center gap-1 px-3 py-1 rounded-lg transition-colors"
+        class="flex flex-col items-center gap-1 rounded-lg px-3 py-1 transition-colors"
         v-slot="{ isActive }"
       >
-        <AppIcon
-          :name="item.icon"
-          :size="22"
-          :class="isActive ? 'text-blue-600' : 'text-gray-500'"
-        />
+        <AppIcon :name="item.icon" :size="22" :class="isActive ? 'text-brand-700' : 'text-muted'" />
         <span
           class="text-[10px] font-medium leading-none"
-          :class="isActive ? 'text-blue-600' : 'text-gray-500'"
+          :class="isActive ? 'text-brand-700' : 'text-muted'"
         >
           {{ item.shortLabel }}
         </span>
       </RouterLink>
     </nav>
+
+    <!-- Monté une fois pour tout le back-office : n'importe quel écran y dépose
+         un message sans avoir à le câbler. -->
+    <ToastHost />
 
   </div>
 </template>

@@ -1,645 +1,585 @@
 <script setup lang="ts">
+/**
+ * L'écran d'accueil du back-office : la table des signalements.
+ *
+ * Il ne garde que ce qui lui est propre — l'assemblage, le temps réel et
+ * l'ouverture du panneau de détail. Les données et leurs filtres vivent dans
+ * `useReportsList`, les gestes dans `useReportActions`, et les trois gros
+ * blocs d'affichage dans `reports/`.
+ *
+ * Ce que la refonte avait apporté, et qui tient toujours :
+ *
+ *  - chaque compteur porte son contexte, et porte sur la totalité ;
+ *  - la barre d'actions groupées est sous l'en-tête de colonnes, au niveau des
+ *    lignes qu'elle vise ;
+ *  - le retard se lit par catégorie, comme la commune l'a réglé.
+ */
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
-import type { Report, AdminStats, ReportStatus, ReportCategory } from '@/types'
+import type { Report, ReportStatus } from '@/types'
 import { useTenantCategories } from '@/composables/useTenantCategories'
-import { useReportStatuses } from '@/composables/useReportStatuses'
-import StatusBadge from '@/components/StatusBadge.vue'
-import CategoryIcon from '@/components/CategoryIcon.vue'
-import LoadingSpinner from '@/components/LoadingSpinner.vue'
-import { useRealtimeDashboard } from '@/composables/useRealtimeDashboard'
-import RealtimeStatusBadge from '@/components/admin/RealtimeStatusBadge.vue'
-import RealtimeToast from '@/components/admin/RealtimeToast.vue'
-import AppTable from '@/components/AppTable.vue'
-import AppModal from '@/components/AppModal.vue'
-import AppButton from '@/components/AppButton.vue'
-import type { ButtonAction } from '@/components/AppButton.vue'
-import ReportDetailSidebar from '@/components/admin/ReportDetailSidebar.vue'
+import { useAdminOverview } from '@/composables/useAdminOverview'
 import { useUnreadComments } from '@/composables/useUnreadComments'
+import { useRealtimeDashboard } from '@/composables/useRealtimeDashboard'
+import { useReportsList } from '@/composables/useReportsList'
+import { useReportActions } from '@/composables/useReportActions'
+import { useTenantStore } from '@/stores/tenant'
+import { useAuthStore } from '@/stores/auth'
+import { storeToRefs } from 'pinia'
+import { statusPill } from '@/lib/reportStatus'
+import RealtimeToast from '@/components/admin/RealtimeToast.vue'
+import ReportDetailSidebar from '@/components/admin/ReportDetailSidebar.vue'
+import NotificationBell from '@/components/admin/NotificationBell.vue'
+import TransmitDialog from '@/components/admin/TransmitDialog.vue'
+import AppModal from '@/components/AppModal.vue'
+import DataTable, { type DataColumn } from '@/components/DataTable.vue'
+import { PAGE_SIZE } from '@/composables/usePageSize'
 import AppIcon from '@/components/AppIcon.vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import CreateReportDialog from '@/components/admin/report-create/CreateReportDialog.vue'
+import ReportsStatsCards from '@/pages/admin/reports/ReportsStatsCards.vue'
+import ReportsToolbar from '@/pages/admin/reports/ReportsToolbar.vue'
+import ReportsBulkBar from '@/pages/admin/reports/ReportsBulkBar.vue'
+import ReportTitleCell from '@/pages/admin/reports/ReportTitleCell.vue'
+import ReportRowActions from '@/pages/admin/reports/ReportRowActions.vue'
 
-const { apiFetch, invalidateCachePattern, invalidateCache } = useApi()
-const { categories: tenantCategories, getCategoryLabel } = useTenantCategories()
-const { STATUS_OPTIONS } = useReportStatuses()
-const { unreadByReport } = useUnreadComments()
+const { apiFetch } = useApi()
+const { categories: tenantCategories, getCategoryLabel, getServiceEmails, isOverdue } = useTenantCategories()
+const { unreadByReport, loadUnread, noteReply, markRead } = useUnreadComments()
+const { setReportCount, setAvgAckHours } = useAdminOverview()
+const tenantStore = useTenantStore()
 
-const reports = ref<Report[]>([])
-const stats = ref<AdminStats>({ total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0 })
-const loading = ref(true)
-const filterStatus = ref<ReportStatus | ''>('')
-const filterCategory = ref<ReportCategory | ''>()
-const sortBy = ref<'recent' | 'votes' | 'oldest'>('recent')
-const currentPage = ref(1)
-const totalPages = ref(1)
-const totalReports = ref(0)
+/**
+ * Un observateur consulte et exporte ; il ne traite pas.
+ *
+ * Les cases à cocher, la barre d'actions groupées et les boutons de ligne
+ * disparaissent pour lui. L'export reste : c'est une lecture, et c'est même à
+ * peu près la seule chose qu'on attend d'un élu à qui l'on ouvre la
+ * plateforme.
+ */
+const { canAct, isAdmin } = storeToRefs(useAuthStore())
 
+const list = useReportsList()
+const {
+  reports, stats, loading, currentPage, totalPages, totalReports,
+  search, filterStatus, filterCategory, filterDays, onlyOverdue, filterSource, sortBy,
+  hasFilters, resetFilters, fetchData, loadStats, refreshAll, invalidateAll,
+} = list
+
+const actions = useReportActions({ refresh: refreshAll, invalidate: invalidateAll })
+
+/** La saisie manuelle : appel téléphonique, accueil, constat de tournée. */
+const creating = ref(false)
+const { actionLoading, deleteLoading } = actions
+
+const selectedIds = ref<string[]>([])
 const selectedReport = ref<Report | null>(null)
 const slideOverOpen = ref(false)
-const actionLoading = ref(false)
+/**
+ * Sur quelle vue du panneau atterrir.
+ *
+ * « Fiche » depuis le tableau — on clique une ligne pour voir de quoi il
+ * s'agit. « Échanges » depuis la cloche : on y clique parce qu'un habitant a
+ * répondu, et arriver ailleurs que sur sa réponse ferait d'un raccourci un
+ * détour.
+ */
+const detailView = ref<'overview' | 'messages' | 'journal'>('overview')
+const toolbar = ref<InstanceType<typeof ReportsToolbar> | null>(null)
 
-const tableRef = ref<{ clearSelection: () => void; selectedIds: string[] } | null>(null)
-const selectedReportIds = ref<string[]>([])
 const deleteModalOpen = ref(false)
-const deleteLoading = ref(false)
-const reportToDelete = ref<Report | null>(null)
 const bulkDeleteModalOpen = ref(false)
+const bulkTransmitOpen = ref(false)
+const reportToDelete = ref<Report | null>(null)
 
-const statCards = computed(() => {
-  const { getStatusConfig } = useReportStatuses()
-  
-  return [
-    {
-      label: 'Total',
-      value: stats.value.total,
-      icon: 'BarChart3',
-      iconBg: 'bg-blue-100',
-      iconColor: 'text-blue-600',
-      valueColor: 'text-blue-900',
-    },
-    {
-      ...getStatusConfig('en_attente'),
-      value: stats.value.en_attente,
-    },
-    {
-      ...getStatusConfig('pris_en_charge'),
-      value: stats.value.pris_en_charge,
-    },
-    {
-      ...getStatusConfig('resolu'),
-      value: stats.value.resolu,
-    },
-  ]
+// Une sélection change de contenu : ce qui était coché sur la page précédente
+// n'a plus de sens ici.
+list.onFilterChange.value = () => { selectedIds.value = [] }
+
+/**
+ * Le délai moyen affiché dans la barre latérale.
+ *
+ * Il vit sur `/api/admin/performance`, qui est réservé aux administrateurs :
+ * un agent verra la barre latérale sans ce bloc plutôt qu'un écran en erreur.
+ */
+async function loadPerformance() {
+  try {
+    const data = await apiFetch<{ avg_time_to_ack_hours: number | null }>(
+      '/api/admin/performance?days=90',
+      { cache: { maxAge: 300_000 } }
+    )
+    setAvgAckHours(data.avg_time_to_ack_hours)
+  } catch {
+    setAvgAckHours(null)
+  }
+}
+
+onMounted(() => {
+  void fetchData()
+  void loadStats().then(() => setReportCount(stats.value.total))
+  void loadUnread()
+  void loadPerformance()
 })
 
-const filteredReports = computed(() => {
-  let filtered = reports.value.filter(r => {
-    if (filterStatus.value && r.status !== filterStatus.value) return false
-    if (filterCategory.value && r.category !== filterCategory.value) return false
-    return true
-  })
+function goToPage(page: number) {
+  selectedIds.value = []
+  list.goToPage(page)
+}
 
-  if (sortBy.value === 'votes') {
-    filtered = [...filtered].sort((a, b) => (b.vote_count || 0) - (a.vote_count || 0))
-  } else if (sortBy.value === 'oldest') {
-    filtered = [...filtered].sort((a, b) => 
-      new Date(a.created_at).getTime() - new Date(b.created_at).getTime()
-    )
-  } else {
-    filtered = [...filtered].sort((a, b) => 
-      new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
-    )
+// ─── Gestes ──────────────────────────────────────────────────────────────────
+
+async function updateStatus(reportId: string, status: ReportStatus, comment?: string) {
+  const ok = await actions.updateStatus(reportId, status, comment)
+  if (ok && selectedReport.value?.id === reportId) {
+    selectedReport.value = reports.value.find((report) => report.id === reportId) ?? null
   }
+}
 
-  return filtered
+async function bulkTakeCharge() {
+  await actions.bulkTakeCharge(reports.value, selectedIds.value)
+  selectedIds.value = []
+}
+
+async function confirmDelete() {
+  if (!reportToDelete.value) return
+  if (await actions.deleteReport(reportToDelete.value)) {
+    deleteModalOpen.value = false
+    reportToDelete.value = null
+  }
+}
+
+async function confirmBulkDelete() {
+  if (await actions.deleteReports(selectedIds.value)) {
+    selectedIds.value = []
+    bulkDeleteModalOpen.value = false
+  }
+}
+
+/**
+ * Les destinataires proposés pour une transmission groupée.
+ *
+ * Seulement quand la sélection ne couvre qu'une catégorie : sur un mélange,
+ * proposer les adresses de l'une d'elles serait choisir à la place de l'agent.
+ * La boîte de dialogue bascule alors en saisie libre, qu'elle sait déjà faire.
+ */
+const bulkRecipients = computed(() => {
+  const selected = reports.value.filter((report) => selectedIds.value.includes(report.id))
+  const categories = new Set(selected.map((report) => report.category))
+  return categories.size === 1 ? getServiceEmails([...categories][0]) : []
 })
 
-const tableColumns = computed(() => [
-  { key: 'title', label: 'Signalement', align: 'left' as const },
-  { key: 'category', label: 'Catégorie', align: 'left' as const, hidden: 'sm' as const },
-  { key: 'status', label: 'Statut', align: 'left' as const },
-  { key: 'vote_count', label: 'Votes', align: 'center' as const, hidden: 'lg' as const },
-  { key: 'created_at', label: 'Date', align: 'left' as const, hidden: 'md' as const },
-  { key: 'actions', label: 'Actions', align: 'right' as const },
-])
+const bulkCategoryLabel = computed(() => {
+  const selected = reports.value.filter((report) => selectedIds.value.includes(report.id))
+  const categories = new Set(selected.map((report) => report.category))
+  return categories.size === 1 ? getCategoryLabel([...categories][0]) : undefined
+})
 
-const loadReports = async () => {
-  try {
-    const reportsResponse = await apiFetch<{ data: Report[]; pagination: { page: number; limit: number; total: number; totalPages: number } }>(
-        `/api/reports?page=${currentPage.value}&limit=20`,
-        {
-          cache: { maxAge: 5_000 }
-        }
-      )
-    reports.value = reportsResponse.data
-    totalPages.value = reportsResponse.pagination.totalPages
-    totalReports.value = reportsResponse.pagination.total
-  } catch (e) {
-    console.error(e)
+/**
+ * Le panneau a obtenu une version plus fraîche que celle de la liste.
+ *
+ * Il interroge `GET /api/reports/:id` à l'ouverture ; la table, elle, garde ce
+ * que la liste avait rendu. Sans cette remontée, refermer le panneau ramenait
+ * la ligne à un statut que le panneau venait de démentir.
+ */
+function onRefreshed(fresh: Report) {
+  const index = reports.value.findIndex((item) => item.id === fresh.id)
+  if (index === -1) return
+
+  const previous = reports.value[index]
+  reports.value[index] = fresh
+  if (selectedReport.value?.id === fresh.id) selectedReport.value = fresh
+
+  // Les compteurs de tête portent sur la commune entière : seul un changement
+  // de statut les déplace, et seulement celui-là vaut une requête.
+  if (previous.status !== fresh.status) void loadStats()
+}
+
+async function onTransmitted() {
+  invalidateAll()
+  await refreshAll()
+  selectedIds.value = []
+
+  // Le panneau reste ouvert : l'agent veut voir le résultat de son geste, pas
+  // chercher où le signalement est passé.
+  if (selectedReport.value) {
+    selectedReport.value =
+      reports.value.find((report) => report.id === selectedReport.value?.id) ?? selectedReport.value
   }
 }
 
-const loadStats = async () => {
-  try {
-    const statsData = await apiFetch('/api/admin/stats', {
-      cache: { maxAge: 5_000 }
-    })
-    stats.value = statsData
-  } catch (e) {
-    console.error(e)
-  }
+// ─── Navigation dans le panneau ──────────────────────────────────────────────
+
+/**
+ * La position du signalement ouvert dans la page affichée.
+ *
+ * La navigation précédent/suivant ne sort pas de la page courante : elle vient
+ * du tableau qui est à l'écran, et sauter d'une page à l'autre demanderait de
+ * charger la suivante au clic d'une flèche — surprenant, et différent de ce que
+ * l'agent voit.
+ */
+const openIndex = computed(() =>
+  selectedReport.value ? reports.value.findIndex((report) => report.id === selectedReport.value?.id) : -1
+)
+
+const hasPrevious = computed(() => openIndex.value > 0)
+const hasNext = computed(() => openIndex.value >= 0 && openIndex.value < reports.value.length - 1)
+
+function step(offset: number) {
+  const next = reports.value[openIndex.value + offset]
+  if (next) selectedReport.value = next
 }
 
-const fetchData = async () => {
-  loading.value = true
-  try {
-    await loadReports()
-    await loadStats()
-  } finally {
-    loading.value = false
-  }
-}
-
-const goToPage = (page: number) => {
-  if (page >= 1 && page <= totalPages.value) {
-    currentPage.value = page
-    fetchData()
-  }
-}
-
-const getPageNumbers = (): number[] => {
-  const pages: number[] = []
-  const maxVisible = 5
-  
-  if (totalPages.value <= maxVisible) {
-    for (let i = 1; i <= totalPages.value; i++) {
-      pages.push(i)
-    }
-  } else {
-    if (currentPage.value <= 3) {
-      for (let i = 1; i <= 5; i++) pages.push(i)
-    } else if (currentPage.value >= totalPages.value - 2) {
-      for (let i = totalPages.value - 4; i <= totalPages.value; i++) pages.push(i)
-    } else {
-      for (let i = currentPage.value - 2; i <= currentPage.value + 2; i++) pages.push(i)
-    }
-  }
-  
-  return pages
-}
-
-const openSlideOver = (report: Report) => {
+function openSlideOver(report: Report, view: 'overview' | 'messages' = 'overview') {
   selectedReport.value = report
+  detailView.value = view
+  // Le panneau charge le fil, donc le serveur va marquer ces réponses lues.
+  markRead(report.id)
   slideOverOpen.value = true
 }
 
-const closeSlideOver = () => {
+/** La pastille du rail porte sur le signalement ouvert, pas sur la table. */
+const openUnread = computed(() =>
+  selectedReport.value ? unreadByReport.value[selectedReport.value.id] ?? 0 : 0
+)
+
+function closeSlideOver() {
   slideOverOpen.value = false
   setTimeout(() => { selectedReport.value = null }, 300)
 }
 
-const updateStatus = async (reportId: string, newStatus: ReportStatus) => {
-  actionLoading.value = true
+/**
+ * Ouvre un signalement désigné par la cloche.
+ *
+ * Il n'est pas forcément dans la page affichée — une réponse peut arriver sur
+ * un signalement vieux de trois pages. On le charge alors à l'unité plutôt que
+ * de renvoyer l'agent chercher lui-même.
+ */
+async function openById(reportId: string) {
+  const loaded = reports.value.find((report) => report.id === reportId)
+  if (loaded) return openSlideOver(loaded, 'messages')
+
   try {
-    await apiFetch(`/api/reports/${reportId}/status`, {
-      method: 'PATCH',
-      body: { status: newStatus },
-    })
-
-    invalidateCache(`/api/reports/${reportId}`)
-    invalidateCachePattern(/^\/api\/map\/markers/)
-    invalidateCachePattern(/^\/api\/reports/)
-    invalidateCachePattern(/^\/api\/admin\/stats/)
-    invalidateCachePattern(/^\/api\/admin\/heatmap/)
-
-    await fetchData()
-
-    if (selectedReport.value?.id === reportId) {
-      selectedReport.value = reports.value.find(r => r.id === reportId) || null
-    }
+    const data = await apiFetch<{ report: Report }>(`/api/reports/${reportId}`)
+    openSlideOver(data.report, 'messages')
   } catch (err) {
-    console.error('Erreur mise à jour:', err)
-  } finally {
-    actionLoading.value = false
+    console.error('Signalement introuvable :', err)
   }
 }
 
-const formatDate = (dateStr: string): string => {
-  return new Date(dateStr).toLocaleDateString('fr-FR', {
-    day: 'numeric',
-    month: 'short',
-    year: 'numeric',
-  })
+// ─── Export ──────────────────────────────────────────────────────────────────
+
+/**
+ * L'export du tableau, en CSV.
+ *
+ * Côté navigateur : la page a déjà les lignes, et un endpoint d'export
+ * demanderait une deuxième pagination, une deuxième mise en forme des dates et
+ * une deuxième définition de « en retard ». Il porte donc sur ce qui est à
+ * l'écran — ce que le nom du fichier dit.
+ */
+function exportCsv() {
+  const header = ['Référence', 'Titre', 'Catégorie', 'Statut', 'Adresse', 'Constats', 'Créé le', 'En retard']
+  const rows = reports.value.map((report) => [
+    report.reference ?? '',
+    report.title,
+    getCategoryLabel(report.category),
+    report.status,
+    report.address_approx ?? '',
+    String(report.vote_count ?? 0),
+    new Date(report.created_at).toISOString(),
+    isOverdue(report) ? 'oui' : 'non',
+  ])
+
+  const escape = (value: string) => `"${value.replace(/"/g, '""')}"`
+  const csv = [header, ...rows].map((row) => row.map(escape).join(';')).join('\r\n')
+
+  // BOM : sans lui Excel lit le CSV en latin-1 et massacre les accents.
+  const blob = new Blob([`﻿${csv}`], { type: 'text/csv;charset=utf-8' })
+  const url = URL.createObjectURL(blob)
+  const link = document.createElement('a')
+
+  link.href = url
+  link.download = `signalements-${tenantStore.slug}-page-${currentPage.value}.csv`
+  link.click()
+
+  URL.revokeObjectURL(url)
 }
 
-const {
-  connectionStatus,
-  notifications,
-  newReportIds,
-  unreadCount,
-  removeNotification,
-} = useRealtimeDashboard({
+const formatDate = (value: string): string =>
+  new Date(value).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })
+
+// ─── Temps réel ──────────────────────────────────────────────────────────────
+
+const { connectionStatus, notifications, newReportIds, removeNotification } = useRealtimeDashboard({
   onNewReport: (newReport) => {
     reports.value.unshift(newReport as Report)
-    stats.value.total++
-    stats.value.en_attente++
+    stats.value = { ...stats.value, total: stats.value.total + 1, en_attente: stats.value.en_attente + 1 }
+    setReportCount(stats.value.total)
   },
 
   onStatusChange: (reportId, newStatus, oldStatus) => {
-    const report = reports.value.find((r) => r.id === reportId)
-    if (report) {
-      report.status = newStatus as ReportStatus
-    }
+    const report = reports.value.find((current) => current.id === reportId)
+    if (report) report.status = newStatus as ReportStatus
 
-    if (oldStatus === 'en_attente') stats.value.en_attente--
-    else if (oldStatus === 'pris_en_charge') stats.value.pris_en_charge--
-    else if (oldStatus === 'resolu') stats.value.resolu--
-
-    if (newStatus === 'en_attente') stats.value.en_attente++
-    else if (newStatus === 'pris_en_charge') stats.value.pris_en_charge++
-    else if (newStatus === 'resolu') stats.value.resolu++
+    const next = { ...stats.value }
+    if (oldStatus in next) (next as any)[oldStatus] -= 1
+    if (newStatus in next) (next as any)[newStatus] += 1
+    stats.value = next
   },
 
   onVoteChange: (reportId, newCount) => {
-    const report = reports.value.find((r) => r.id === reportId)
-    if (report) {
-      report.vote_count = newCount
-    }
+    const report = reports.value.find((current) => current.id === reportId)
+    if (report) report.vote_count = newCount
   },
+
+  onCitizenReply: (comment) => noteReply(comment.report_id),
 })
 
 function handleNotificationClick(reportId: string) {
-  const element = document.getElementById(`report-${reportId}`)
-  element?.scrollIntoView({
-    behavior: 'smooth',
-    block: 'center',
-  })
+  document.getElementById(`report-${reportId}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
 }
 
-const handleSelectionChange = (ids: string[]) => {
-  selectedReportIds.value = ids
-}
-
-const openDeleteModal = (report: Report) => {
-  reportToDelete.value = report
-  deleteModalOpen.value = true
-}
-
-const openBulkDeleteModal = () => {
-  if (selectedReportIds.value.length === 0) return
-  bulkDeleteModalOpen.value = true
-}
-
-const confirmDelete = async () => {
-  if (!reportToDelete.value) return
-  
-  deleteLoading.value = true
-  try {
-    await apiFetch(`/api/reports/${reportToDelete.value.id}`, {
-      method: 'DELETE',
-    })
-
-    invalidateCachePattern(/^\/api\/reports/)
-    invalidateCachePattern(/^\/api\/admin\/stats/)
-    invalidateCachePattern(/^\/api\/map\/markers/)
-    invalidateCachePattern(/^\/api\/admin\/heatmap/)
-
-    await fetchData()
-    deleteModalOpen.value = false
-    reportToDelete.value = null
-  } catch (err: any) {
-    console.error('Erreur suppression:', err)
-    alert(err.message || 'Erreur lors de la suppression')
-  } finally {
-    deleteLoading.value = false
-  }
-}
-
-const confirmBulkDelete = async () => {
-  if (selectedReportIds.value.length === 0) return
-  
-  deleteLoading.value = true
-  try {
-    await apiFetch('/api/reports', {
-      method: 'DELETE',
-      body: { ids: selectedReportIds.value },
-    })
-
-    invalidateCachePattern(/^\/api\/reports/)
-    invalidateCachePattern(/^\/api\/admin\/stats/)
-    invalidateCachePattern(/^\/api\/map\/markers/)
-    invalidateCachePattern(/^\/api\/admin\/heatmap/)
-
-    await fetchData()
-    tableRef.value?.clearSelection()
-    selectedReportIds.value = []
-    bulkDeleteModalOpen.value = false
-  } catch (err: any) {
-    console.error('Erreur suppression multiple:', err)
-    alert(err.message || 'Erreur lors de la suppression')
-  } finally {
-    deleteLoading.value = false
-  }
-}
-
-const getRowActions = (report: Report): ButtonAction[] => {
-
-  const statusActions: ButtonAction[] = [
-    {
-      label: 'Supprimer',
-      icon: 'Trash2',
-      variant: 'danger',
-      onClick: () => openDeleteModal(report),
-    },
-  ]
-
-  if (report.status === 'en_attente') {
-    statusActions.push({
-      label: 'Prendre en charge',
-      disabled: actionLoading.value,
-      icon: 'Check',
-      variant: 'warning',
-      onClick: () => updateStatus(report.id, 'pris_en_charge'),
-    })
-  }
-
-  if (report.status === 'pris_en_charge') {
-    statusActions.push({
-      label: 'Marquer résolu',
-      icon: 'Check',
-      variant: 'success',
-      disabled: actionLoading.value,
-      onClick: () => updateStatus(report.id, 'resolu'),
-    })
-  }
-
-  
-  return [
-    ...statusActions,
-  ]
-}
-
-onMounted(fetchData)
+/**
+ * Le titre prend la place restante ; tout le reste est fixe.
+ *
+ * La colonne d'actions n'existe pas pour un observateur : une colonne vide
+ * sur toute la hauteur du tableau se lit comme un défaut d'affichage.
+ */
+const COLUMNS = computed<DataColumn[]>(() => [
+  /**
+   * La référence en premier, avant le titre.
+   *
+   * C'est l'identifiant qu'un habitant dicte au téléphone et qu'une mairie
+   * colle dans un e-mail : la retrouver demandait d'ouvrir la fiche. 128 px
+   * tiennent `LAL-2026-00418` sans rupture — le format est fixe, la colonne
+   * peut donc l'être aussi.
+   */
+  { key: 'reference',  label: 'RÉFÉRENCE', width: '128px' },
+  { key: 'title',      label: 'SIGNALEMENT' },
+  // 190 px : « Arbres, végétation et animaux » est un libellé de la taxonomie
+  // nationale, pas un cas limite inventé — à 140 px il se coupait au milieu
+  // d'un mot, et une catégorie tronquée ne se devine pas.
+  { key: 'category',   label: 'CATÉGORIE', width: '190px' },
+  { key: 'status',     label: 'STATUT',    width: '150px' },
+  { key: 'votes',      label: 'CONSTATS',  width: '92px' },
+  { key: 'created_at', label: 'DATE',      width: '116px' },
+  ...(canAct.value ? [{ key: 'actions', label: 'ACTIONS', width: '84px', align: 'right' as const }] : []),
+])
 </script>
 
 <template>
-  <div class="p-4 md:p-6">
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas" @click="toolbar?.closeMenus()">
     <RealtimeToast
       :notifications="notifications"
       @dismiss="removeNotification"
       @click="handleNotificationClick"
     />
 
-    <div class="mb-6 md:mb-8 flex items-center justify-between">
-      <div>
-        <h1 class="text-xl md:text-2xl font-display font-bold text-dark">Signalements</h1>
-        <p class="text-sm text-neutral-500 mt-1">Gestion des signalements urbains</p>
-      </div>
-      <RealtimeStatusBadge :status="connectionStatus" />
-    </div>
+    <!-- L'en-tête : même composant sur les neuf écrans, titre tiré de la route.
+         La page n'y dépose que ce qui lui est propre. -->
+    <AdminPageHeader>
+      <template #search>
+        <label class="ml-5 flex h-[38px] w-full max-w-[420px] flex-1 items-center gap-2.5 rounded-[10px] border border-line bg-canvas px-3">
+          <AppIcon name="Search" :size="16" :stroke-width="1.75" class="flex-none text-muted" />
+          <input
+            v-model="search"
+            type="search"
+            placeholder="Rechercher un titre, une adresse…"
+            class="min-w-0 flex-1 bg-transparent text-[13px] text-ink outline-none placeholder:text-faint"
+          />
+        </label>
+      </template>
 
-    <LoadingSpinner v-if="loading" />
-
-    <template v-else>
-      <!-- Stats cards -->
-      <div class="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4 mb-6">
+      <template #actions>
         <div
-          v-for="stat in statCards"
-          :key="stat.label"
-          class="bg-white rounded-2xl border border-gray-200
-                 p-4 sm:p-5 hover:shadow-md
-                 transition-shadow duration-200"
+          class="flex h-8 flex-none items-center gap-[7px] rounded-[10px] px-[11px]"
+          :class="connectionStatus === 'connected' ? 'bg-status-done-bg' : 'bg-status-pending-bg'"
+          :title="connectionStatus === 'connected' ? 'Mises à jour en direct' : 'Hors ligne — actualisez pour voir les nouveautés'"
         >
-          <div class="flex items-start justify-between gap-3">
-            <!-- Icon -->
-            <div
-              class="w-10 h-10 rounded-xl flex items-center
-                     justify-center flex-shrink-0"
-              :class="stat.iconBg"
-            >
-              <AppIcon
-                :name="stat.icon"
-                :size="20"
-                :class="stat.iconColor"
-              />
-            </div>
-
-            <!-- Value -->
-            <div class="text-right min-w-0 flex-1">
-              <div
-                class="text-2xl sm:text-3xl font-bold
-                       leading-none"
-                :class="stat.valueColor"
-              >
-                {{ stat.value }}
-              </div>
-            </div>
-          </div>
-
-          <!-- Label -->
-          <p class="text-xs font-medium text-gray-500
-                    mt-3 leading-tight">
-            {{ stat.label }}
-          </p>
+          <span
+            class="h-[7px] w-[7px] rounded-full"
+            :class="connectionStatus === 'connected' ? 'bg-status-success' : 'bg-neutral-400'"
+          />
+          <span
+            class="text-xs font-semibold leading-none"
+            :class="connectionStatus === 'connected' ? 'text-status-done-fg' : 'text-status-pending-fg'"
+          >
+            {{ connectionStatus === 'connected' ? 'Flux en direct' : 'Hors ligne' }}
+          </span>
         </div>
-      </div>
 
-      <!-- Filters and Sort -->
-      <div class="flex flex-wrap items-center gap-3 mb-6">
-        <select
-          v-model="filterStatus"
-          class="px-3 py-2 rounded-ds border border-neutral-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-        >
-          <option value="">Tous les statuts</option>
-          <option v-for="s in STATUS_OPTIONS" :key="s.value" :value="s.value">
-            {{ s.label }}
-          </option>
-        </select>
-        <select
-          v-model="filterCategory"
-          class="px-3 py-2 rounded-ds border border-neutral-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-        >
-          <option value="">Toutes les catégories</option>
-          <option v-for="cat in tenantCategories" :key="cat.slug" :value="cat.slug">
-            {{ cat.icon }} {{ cat.label }}
-          </option>
-        </select>
-        
-        <div class="flex items-center gap-2 ml-auto">
-          <span class="text-xs text-neutral-500 font-medium">Tri :</span>
-          <AppButton
-            :variant="sortBy === 'recent' ? 'primary' : 'secondary'"
-            size="xs"
-            @click="sortBy = 'recent'"
-          >
-            Plus récents
-          </AppButton>
-          <AppButton
-            :variant="sortBy === 'votes' ? 'primary' : 'secondary'"
-            size="xs"
-            @click="sortBy = 'votes'"
-          >
-            Plus votés
-          </AppButton>
-          <AppButton
-            :variant="sortBy === 'oldest' ? 'primary' : 'secondary'"
-            size="xs"
-            @click="sortBy = 'oldest'"
-          >
-            En retard
-          </AppButton>
-        </div>
-        
-        <span class="text-sm text-neutral-500 w-full sm:w-auto">
-          {{ totalReports }} signalement{{ totalReports > 1 ? 's' : '' }}
-        </span>
-      </div>
+        <!-- La cloche dit ce qu'elle a l'air de dire : qui a écrit. -->
+        <NotificationBell @open="openById" />
 
-      <!-- Bulk Actions -->
-      <div v-if="selectedReportIds.length > 0" class="mb-4 flex items-center justify-between bg-blue-50 border border-blue-200 rounded-ds-lg px-4 py-3">
-        <span class="text-sm font-medium text-blue-900">
-          {{ selectedReportIds.length }} signalement{{ selectedReportIds.length > 1 ? 's sélectionnés' : ' sélectionné' }}
-        </span>
-        <AppButton
-          variant="danger"
-          size="xs"
-          icon="Trash2"
-          @click="openBulkDeleteModal"
+        <button
+          class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] border border-line bg-white px-3.5 transition-colors hover:bg-canvas"
+          @click="exportCsv"
         >
-          Supprimer la sélection
-        </AppButton>
-      </div>
+          <AppIcon name="Download" :size="16" :stroke-width="1.75" class="text-muted" />
+          <span class="text-[13px] font-semibold leading-none text-ink">Exporter</span>
+        </button>
 
-      <!-- Table with AppTable -->
-      <AppTable
-        ref="tableRef"
-        :columns="tableColumns"
-        :data="filteredReports"
+        <!-- Saisir est le geste quotidien, exporter le geste rare : c'est le
+             premier qui prend l'accent de la commune. -->
+        <button
+          class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] bg-brand-700 px-3.5 transition-colors hover:bg-brand-800"
+          @click="creating = true"
+        >
+          <AppIcon name="Plus" :size="16" :stroke-width="2" class="text-white" />
+          <span class="text-[13px] font-semibold leading-none text-white">Nouveau</span>
+        </button>
+      </template>
+    </AdminPageHeader>
+
+    <div class="flex min-h-0 flex-1 flex-col gap-[18px] overflow-hidden px-7 py-[22px]">
+      <ReportsStatsCards :stats="stats" />
+
+      <DataTable
+        v-model:selected="selectedIds"
+        :columns="COLUMNS"
+        :rows="reports"
         row-key="id"
-        :selectable="true"
-        :highlight-row="(row) => newReportIds.has(row.id)"
+        :selectable="canAct"
+        :loading="loading"
+        :skeleton-rows="PAGE_SIZE"
+        :highlight-row="(report) => newReportIds.has(report.id)"
+        :page="currentPage"
+        :page-size="PAGE_SIZE"
+        :total="totalReports"
+        :visible-count="reports.length"
+        item-label="signalements"
+        :empty-message="hasFilters
+          ? 'Aucun signalement ne correspond à ces filtres.'
+          : 'Aucun signalement pour le moment.'"
         @row-click="openSlideOver"
-        @selection-change="handleSelectionChange"
+        @page-change="goToPage"
       >
-        <template #cell-title="{ row }">
-          <div class="flex items-center gap-2.5">
-            <CategoryIcon :category="row.category" size="sm" />
-            <div class="min-w-0 flex-1">
-              <div class="flex items-center gap-2">
-                <p class="font-medium text-dark truncate max-w-[200px]">{{ row.title }}</p>
-                <span
-                  v-if="row.ai_assisted"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-purple-100 text-purple-700 text-xs font-semibold flex-shrink-0"
-                  title="Signalement créé avec l'aide de l'IA"
-                >
-                  ✨ IA
-                </span>
-                <span
-                  v-if="unreadByReport[row.id]"
-                  class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-600 text-white text-xs font-semibold flex-shrink-0"
-                  title="Nouveaux messages"
-                >
-                  <AppIcon name="MessageCircle" :size="12" />
-                  {{ unreadByReport[row.id] }}
-                </span>
-              </div>
-              <p class="text-xs text-neutral-400 truncate max-w-[200px]">{{ row.address_approx || '—' }}</p>
-            </div>
+        <template #toolbar>
+          <ReportsToolbar
+            ref="toolbar"
+            :status="filterStatus"
+            :category="filterCategory"
+            :days="filterDays"
+            :overdue-only="onlyOverdue"
+            :source="filterSource"
+            :sort="sortBy"
+            :categories="tenantCategories"
+            :overdue-count="stats.overdue"
+            :category-label="filterCategory ? getCategoryLabel(filterCategory) : 'Catégories'"
+            @update:status="filterStatus = $event"
+            @update:category="filterCategory = $event"
+            @update:days="filterDays = $event"
+            @update:overdue-only="onlyOverdue = $event"
+            @update:source="filterSource = $event"
+            @update:sort="sortBy = $event"
+          />
+        </template>
+
+        <template #head-title>
+          <div class="flex min-w-0 items-center gap-2">
+            <span class="whitespace-nowrap text-[11px] font-semibold leading-none tracking-[0.06em] text-muted">
+              SIGNALEMENT
+            </span>
+            <span class="whitespace-nowrap text-[11px] font-medium leading-none tabular-nums text-faint">
+              {{ totalReports }} au total
+            </span>
           </div>
+        </template>
+
+        <template #bulk>
+          <ReportsBulkBar
+            :can-delete="isAdmin"
+            :loading="actionLoading"
+            @take-charge="bulkTakeCharge"
+            @transmit="bulkTransmitOpen = true"
+            @remove="bulkDeleteModalOpen = true"
+          />
+        </template>
+
+        <!-- Cellules -->
+        <template #cell-title="{ row }">
+          <ReportTitleCell
+            :report="row"
+            :category-label="getCategoryLabel(row.category)"
+            :overdue="isOverdue(row)"
+            :unread="unreadByReport[row.id] ?? 0"
+          />
+        </template>
+
+        <!-- Deux lignes plutôt qu'une troncature : les libellés les plus longs
+             tiennent alors en entier, et le `title` rattrape le reste. -->
+        <!-- `tabular-nums` : des chiffres de largeur fixe, pour que les
+             références s'alignent en colonne et se comparent d'un coup d'œil. -->
+        <template #cell-reference="{ row }">
+          <span class="whitespace-nowrap text-[12px] font-semibold leading-none tabular-nums text-muted">
+            {{ row.reference || '—' }}
+          </span>
         </template>
 
         <template #cell-category="{ row }">
-          <span class="text-neutral-600">{{ getCategoryLabel(row.category) }}</span>
+          <span
+            class="line-clamp-2 text-[13px] font-medium leading-[1.3] text-ink"
+            :title="getCategoryLabel(row.category)"
+          >
+            {{ getCategoryLabel(row.category) }}
+          </span>
         </template>
 
         <template #cell-status="{ row }">
-          <StatusBadge :status="row.status" />
+          <span
+            class="inline-flex items-center gap-1.5 whitespace-nowrap rounded-lg px-2.5 py-[5px] text-xs font-semibold leading-none"
+            :class="statusPill(row.status).classes"
+          >
+            <AppIcon :name="statusPill(row.status).icon" :size="13" :stroke-width="2" />
+            {{ statusPill(row.status).label }}
+          </span>
         </template>
 
-        <template #cell-vote_count="{ row }">
-          <div class="flex items-center justify-center gap-2">
-            <div class="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
-              <span>▲</span>
-              <span>{{ row.vote_count || 0 }}</span>
-            </div>
-            <span
-              v-if="(row.vote_count || 0) >= 5"
-              class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-amber-100 text-amber-800 text-xs font-bold"
-            >
-              🔥 Populaire
-            </span>
+        <template #cell-votes="{ row }">
+          <div
+            class="flex items-center gap-1.5 text-[13px] font-semibold leading-none tabular-nums"
+            :class="(row.vote_count || 0) > 0 ? 'text-ink' : 'text-faint'"
+            :title="`${row.vote_count || 0} habitant(s) ont constaté ce problème sur place`"
+          >
+            <AppIcon
+              name="Users" :size="15" :stroke-width="1.75"
+              :class="(row.vote_count || 0) > 0 ? 'text-brand-700' : ''"
+            />
+            {{ row.vote_count || 0 }}
           </div>
         </template>
 
         <template #cell-created_at="{ row }">
-          <span class="text-neutral-500">{{ formatDate(row.created_at) }}</span>
+          <span class="whitespace-nowrap text-[13px] font-medium leading-none tabular-nums text-muted">
+            {{ formatDate(row.created_at) }}
+          </span>
         </template>
 
-        <template #cell-actions="{ row }">
-          <div class="flex items-center justify-end gap-2" data-no-row-click>
-            <!-- <AppButton
-              v-if="row.status === 'en_attente'"
-              variant="warning"
-              size="xs"
-              :disabled="actionLoading"
-              @click="updateStatus(row.id, 'pris_en_charge')"
-            >
-              Prendre en charge
-            </AppButton> -->
-            <!-- <AppButton
-              v-if="row.status === 'pris_en_charge'"
-              variant="success"
-              size="xs"
-              :disabled="actionLoading"
-              @click="updateStatus(row.id, 'resolu')"
-            >
-              Marquer résolu
-            </AppButton> -->
-            <span
-              v-if="row.status === 'resolu'"
-              class="text-xs text-neutral-400"
-            >
-              Terminé
-            </span>
-            
-            <!-- More Actions Button -->
-            <AppButton
-              variant="ghost"
-              size="xs"
-              icon="MoreVertical"
-              :actions="getRowActions(row)"
-            />
+        <template v-if="canAct" #cell-actions="{ row }">
+          <ReportRowActions
+            :can-delete="isAdmin"
+            :report="row"
+            :loading="actionLoading"
+            @advance="updateStatus(row.id, $event)"
+            @remove="reportToDelete = row; deleteModalOpen = true"
+          />
+        </template>
+
+        <!-- Vide : proposer la sortie, pas seulement constater -->
+        <template v-if="hasFilters" #empty>
+          <div class="flex h-12 w-12 items-center justify-center rounded-[14px] bg-canvas">
+            <AppIcon name="Inbox" :size="22" class="text-faint" />
           </div>
+          <p class="text-sm text-muted">Aucun signalement ne correspond à ces filtres.</p>
+          <button class="text-[13px] font-semibold text-brand-700 hover:underline" @click="resetFilters">
+            Réinitialiser les filtres
+          </button>
         </template>
+      </DataTable>
+    </div>
 
-        <template #footer>
-          <!-- Pagination -->
-          <div class="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-neutral-200">
-            <div class="text-xs sm:text-sm text-neutral-500 text-center sm:text-left">
-              Page {{ currentPage }} sur {{ totalPages }}<span class="hidden sm:inline"> —</span><br class="sm:hidden" /> {{ totalReports }} signalement{{ totalReports > 1 ? 's' : '' }} au total
-            </div>
-            <div class="flex items-center gap-1 sm:gap-2">
-              <AppButton
-                variant="secondary"
-                size="xs"
-                :disabled="currentPage === 1"
-                @click="goToPage(currentPage - 1)"
-              >
-                <span class="hidden sm:inline">Précédent</span>
-                <span class="sm:hidden">←</span>
-              </AppButton>
-              
-              <div class="flex items-center gap-1">
-                <AppButton
-                  v-for="page in getPageNumbers()"
-                  :key="page"
-                  :variant="page === currentPage ? 'primary' : 'secondary'"
-                  size="xs"
-                  @click="goToPage(page)"
-                >
-                  {{ page }}
-                </AppButton>
-              </div>
-
-              <AppButton
-                variant="secondary"
-                size="xs"
-                :disabled="currentPage === totalPages"
-                @click="goToPage(currentPage + 1)"
-              >
-                <span class="hidden sm:inline">Suivant</span>
-                <span class="sm:hidden">→</span>
-              </AppButton>
-            </div>
-          </div>
-        </template>
-      </AppTable>
-    </template>
-
-    <!-- Delete Confirmation Modal -->
     <AppModal
       :open="deleteModalOpen"
       title="Supprimer le signalement"
-      :description="`Êtes-vous sûr de vouloir supprimer le signalement '${reportToDelete?.title}' ? Cette action est irréversible.`"
+      :description="`Supprimer « ${reportToDelete?.title} » ? Cette action est irréversible.`"
       confirm-text="Supprimer"
       cancel-text="Annuler"
       confirm-variant="danger"
@@ -649,11 +589,10 @@ onMounted(fetchData)
       @close="deleteModalOpen = false"
     />
 
-    <!-- Bulk Delete Confirmation Modal -->
     <AppModal
       :open="bulkDeleteModalOpen"
       title="Supprimer les signalements"
-      :description="`Êtes-vous sûr de vouloir supprimer ${selectedReportIds.length} signalement${selectedReportIds.length > 1 ? 's' : ''} ? Cette action est irréversible.`"
+      :description="`Supprimer ${selectedIds.length} signalement${selectedIds.length > 1 ? 's' : ''} ? Cette action est irréversible.`"
       confirm-text="Supprimer tout"
       cancel-text="Annuler"
       confirm-variant="danger"
@@ -663,13 +602,35 @@ onMounted(fetchData)
       @close="bulkDeleteModalOpen = false"
     />
 
-    <!-- Report Detail Sidebar -->
+    <TransmitDialog
+      :open="bulkTransmitOpen"
+      :report-ids="selectedIds"
+      :category-label="bulkCategoryLabel"
+      :configured="bulkRecipients"
+      @close="bulkTransmitOpen = false"
+      @transmitted="onTransmitted"
+    />
+
     <ReportDetailSidebar
       :open="slideOverOpen"
       :report="selectedReport"
       :loading="actionLoading"
+      :has-previous="hasPrevious"
+      :has-next="hasNext"
+      :unread="openUnread"
+      :initial-view="detailView"
       @close="closeSlideOver"
+      @previous="step(-1)"
+      @next="step(1)"
       @update-status="updateStatus"
+      @transmitted="onTransmitted"
+      @refreshed="onRefreshed"
     />
+    <CreateReportDialog
+      :open="creating"
+      @close="creating = false"
+      @created="refreshAll"
+    />
+
   </div>
 </template>

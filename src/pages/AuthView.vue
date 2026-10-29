@@ -1,8 +1,17 @@
 <script setup lang="ts">
+/**
+ * La connexion, reprise de l'export Claude Design.
+ *
+ * L'inscription libre n'existe pas : un agent est invité par l'administrateur
+ * de sa commune, jamais auto-inscrit. C'est ce que dit l'encart du bas, qui
+ * s'adresse à l'habitant égaré plutôt qu'à l'agent.
+ */
 import { ref, computed, onMounted } from 'vue'
-import { useRouter, useRoute } from 'vue-router'
+import { useRouter, useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import AppIcon from '@/components/AppIcon.vue'
+import AuthShell from '@/components/auth/AuthShell.vue'
+import AuthField from '@/components/auth/AuthField.vue'
 
 const router = useRouter()
 const route = useRoute()
@@ -15,139 +24,145 @@ const showPassword = ref(false)
 const isLoading = computed(() => authStore.loading)
 const errorMessage = computed(() => authStore.error)
 
-const redirectTo = computed(() => (route.query.redirect as string) ?? '/')
+/**
+ * Où aller une fois connecté.
+ *
+ * `?redirect=` n'est suivi que s'il désigne l'administration : c'est le seul
+ * espace du web, et une valeur venue de l'URL ne doit pas pouvoir envoyer
+ * ailleurs.
+ */
+const redirectTo = computed(() => {
+  const target = route.query.redirect
+  return typeof target === 'string' && target.startsWith('/admin') ? target : '/admin'
+})
+
+/** Posé par le garde du routeur quand le compte n'a pas accès. */
+const accessDenied = computed(() => route.query.denied === '1')
+
+/**
+ * Le refus constaté après une connexion réussie.
+ *
+ * Il est posé explicitement, jamais déduit de `isAuthenticated && !isAdmin` :
+ * `login()` ouvre la session **avant** d'aller chercher le rôle en base, si
+ * bien que cette combinaison est vraie pendant toute la requête de rôle. Le
+ * message « ce compte n'a pas accès » s'affichait donc une fraction de seconde
+ * à chaque connexion normale, juste avant la redirection.
+ */
+const deniedAfterLogin = ref(false)
 
 onMounted(() => {
-  if (authStore.isAuthenticated) {
-    router.replace(authStore.isAdmin ? '/admin' : redirectTo.value)
-  }
+  if (authStore.isAdmin) router.replace(redirectTo.value)
 })
 
 async function handleSubmit() {
+  deniedAfterLogin.value = false
+
   if (!email.value || !password.value) return
 
-  const result = await authStore.login({
-    email: email.value,
-    password: password.value,
-  })
+  const result = await authStore.login({ email: email.value, password: password.value })
+  if (!result.success) return
 
-  if (result.success) {
-    router.replace(authStore.isAdmin ? '/admin' : redirectTo.value)
+  // Le rôle est vérifié en base, pas dans le jeton : `login` l'a déjà chargé
+  // quand il rend la main, donc le test ci-dessous porte sur une valeur sûre.
+  if (authStore.isAdmin) {
+    router.replace(redirectTo.value)
+    return
   }
+
+  deniedAfterLogin.value = true
 }
 </script>
 
 <template>
-  <div class="bg-neutral-50 flex items-center justify-center p-8">
-    <div class="w-full max-w-sm">
-      <!-- Logo -->
-      <div class="text-center mb-8">
-        <h1 class="text-2xl font-bold text-gray-900 mt-4">Connexion</h1>
-        <p class="text-gray-500 mt-1 text-sm">
-          Accédez à votre espace OnSignale
+  <AuthShell>
+    <div class="flex flex-col gap-[7px]">
+      <h1 class="text-[26px] font-bold leading-[1.2] tracking-[-0.01em] text-brand-900">Connexion</h1>
+      <p class="text-[15px] leading-[1.5] text-muted">
+        Accédez à l’espace d’administration.
+      </p>
+    </div>
+
+    <form class="flex flex-col gap-4" @submit.prevent="handleSubmit">
+      <AuthField
+        id="email"
+        v-model="email"
+        label="ADRESSE E-MAIL"
+        icon="Mail"
+        type="email"
+        autocomplete="email"
+        placeholder="vous@mairie.fr"
+      />
+
+      <AuthField
+        id="password"
+        v-model="password"
+        label="MOT DE PASSE"
+        icon="Lock"
+        :type="showPassword ? 'text' : 'password'"
+        autocomplete="current-password"
+        placeholder="••••••••"
+      >
+        <template #aside>
+          <RouterLink
+            to="/auth/forgot-password"
+            class="whitespace-nowrap text-xs font-semibold leading-none text-brand-700 hover:underline"
+          >
+            Mot de passe oublié ?
+          </RouterLink>
+        </template>
+
+        <template #trailing>
+          <button
+            type="button"
+            class="flex flex-none items-center gap-[5px] whitespace-nowrap text-xs font-semibold leading-none text-brand-700"
+            :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
+            @click="showPassword = !showPassword"
+          >
+            <AppIcon :name="showPassword ? 'EyeOff' : 'Eye'" :size="16" :stroke-width="1.75" />
+            {{ showPassword ? 'Masquer' : 'Afficher' }}
+          </button>
+        </template>
+      </AuthField>
+
+      <div
+        v-if="errorMessage || accessDenied || deniedAfterLogin"
+        class="flex items-start gap-2.5 rounded-xl border border-red-200 bg-red-50 px-4 py-3"
+      >
+        <AppIcon name="CircleX" :size="16" class="mt-px flex-none text-status-danger" />
+        <p class="text-[13px] leading-[1.4] text-red-700">
+          {{ errorMessage || 'Ce compte n’a pas accès à l’administration de cette commune.' }}
         </p>
       </div>
 
-      <!-- Card -->
-      <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-4">
-        <form @submit.prevent="handleSubmit" class="space-y-4">
-          <!-- Email -->
-          <div class="space-y-1">
-            <label for="email" class="block text-sm font-medium text-gray-700">
-              Adresse email
-            </label>
-            <input
-              id="email"
-              v-model="email"
-              type="email"
-              autocomplete="email"
-              required
-              placeholder="vous@exemple.fr"
-              class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-gray-900 placeholder-gray-400 text-base"
-            />
-          </div>
+      <button
+        type="submit"
+        :disabled="isLoading || !email || !password"
+        class="flex h-[50px] items-center justify-center gap-2 rounded-xl bg-brand-700 text-[15px] font-semibold text-white transition-colors hover:bg-brand-800 disabled:cursor-not-allowed disabled:opacity-50"
+      >
+        <span
+          v-if="isLoading"
+          class="h-5 w-5 animate-spin rounded-full border-2 border-white/40 border-t-white"
+        />
+        <template v-else>
+          Se connecter
+          <AppIcon name="ArrowRight" :size="17" :stroke-width="2" />
+        </template>
+      </button>
+    </form>
 
-          <!-- Mot de passe -->
-          <div class="space-y-1">
-            <div class="flex items-center justify-between">
-              <label for="password" class="block text-sm font-medium text-gray-700">
-                Mot de passe
-              </label>
-              <router-link
-                to="/auth/forgot-password"
-                class="text-xs text-blue-600 hover:text-blue-700 font-medium"
-              >
-                Mot de passe oublié ?
-              </router-link>
-            </div>
-            <div class="relative">
-              <input
-                id="password"
-                v-model="password"
-                :type="showPassword ? 'text' : 'password'"
-                autocomplete="current-password"
-                required
-                placeholder="••••••••"
-                class="w-full px-4 py-3 rounded-xl border border-gray-200 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 outline-none transition-all text-gray-900 placeholder-gray-400 text-base pr-12"
-              />
-              <button
-                type="button"
-                @click="showPassword = !showPassword"
-                class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 p-1 transition-colors"
-                :aria-label="showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'"
-              >
-                <AppIcon v-if="showPassword" name="EyeOff" :size="20" />
-                <AppIcon v-else name="Eye" :size="20" />
-              </button>
-            </div>
-          </div>
-
-          <!-- Erreur -->
-          <div
-            v-if="errorMessage"
-            class="flex items-center gap-2 p-3 bg-red-50 border border-red-200 rounded-xl"
-          >
-            <AppIcon name="XCircle" :size="16" class="text-red-500 flex-shrink-0" />
-            <p class="text-sm text-red-700">{{ errorMessage }}</p>
-          </div>
-
-          <!-- Bouton connexion -->
-          <button
-            type="submit"
-            :disabled="isLoading || !email || !password"
-            class="w-full py-3 bg-blue-600 text-white font-semibold rounded-xl hover:bg-blue-700 active:bg-blue-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2 text-base"
-          >
-            <span
-              v-if="isLoading"
-              class="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin"
-            />
-            <span>{{ isLoading ? 'Connexion...' : 'Se connecter' }}</span>
-          </button>
-        </form>
-
-        <!-- Séparateur -->
-        <div class="relative">
-          <div class="absolute inset-0 flex items-center">
-            <div class="w-full border-t border-gray-200" />
-          </div>
-          <div class="relative flex justify-center text-xs">
-            <span class="bg-white px-3 text-gray-400">Pas encore de compte ?</span>
-          </div>
-        </div>
-
-        <!-- Lien inscription -->
-        <router-link
-          to="/auth/register"
-          class="flex items-center justify-center w-full py-3 border border-gray-200 text-gray-700 font-medium rounded-xl hover:bg-gray-50 transition-colors text-base"
-        >
-          Créer un compte
-        </router-link>
-      </div>
-
-      <!-- Footer -->
-      <p class="text-center text-xs text-gray-400 mt-6">
-        OnSignale — Signalement urbain citoyen
+    <div class="flex items-start gap-[11px] rounded-xl border border-line bg-white px-4 py-3.5">
+      <AppIcon name="Smartphone" :size="18" :stroke-width="1.75" class="mt-px flex-none text-brand-700" />
+      <p class="text-[13px] leading-[1.5] text-muted">
+        Vous êtes habitant ? Les signalements se font depuis l’application mobile OnSignale.
       </p>
     </div>
-  </div>
+
+    <div class="flex items-center gap-3.5 whitespace-nowrap text-xs font-medium leading-none text-faint">
+      <span>OnSignale — Signalement urbain citoyen</span>
+      <span class="text-brand-100">·</span>
+      <RouterLink to="/confidentialite" class="hover:underline">Confidentialité</RouterLink>
+      <span class="text-brand-100">·</span>
+      <RouterLink to="/mentions-legales" class="hover:underline">Mentions légales</RouterLink>
+    </div>
+  </AuthShell>
 </template>

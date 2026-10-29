@@ -1,29 +1,59 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { TenantPublicData, TenantConfig } from '@/types/tenant'
+import type { TenantPublicData, TenantConfig, TenantCategory } from '@/types/tenant'
 import { detectSlug } from '@/utils/detectSlug'
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
+
+/** Repli quand une commune n'a pas de coordonnées — un prospect, typiquement. */
+const FRANCE_CENTER = { lat: 46.6, lng: 2.5 }
 
 export const useTenantStore = defineStore('tenant', () => {
   const data = ref<TenantPublicData | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
 
+  /**
+   * La taxonomie complète, inactives comprises. `null` tant que personne ne l'a
+   * demandée.
+   *
+   * `GET /api/tenant/config` ne rend que les catégories actives — c'est ce dont
+   * l'application de l'habitant a besoin, et lui envoyer des catégories qu'elle
+   * ne doit pas proposer serait une erreur. Mais le back-office, lui, affiche
+   * des signalements *déjà déposés* : un signalement classé dans une catégorie
+   * depuis désactivée gardait son slug brut à l'écran (« vegetation » au lieu
+   * d'« Espaces verts »), faute de trouver son libellé.
+   */
+  const allCategories = ref<TenantCategory[] | null>(null)
+
   // ─── Getters ──────────────────────────────────────────
   const slug = computed(() => data.value?.slug ?? '')
   const name = computed(() => data.value?.name ?? 'OnSignale')
   const config = computed(() => data.value?.config ?? null)
-  const categories = computed(() => data.value?.categories ?? [])
+  /**
+   * L'identifiant de la commune.
+   *
+   * Exposé parce que le temps réel en a besoin : un abonnement `postgres_changes`
+   * se filtre sur une colonne, donc sur `tenant_id`, pas sur un slug.
+   */
+  const tenantId = computed(() => data.value?.config?.tenant_id ?? null)
+  /** Complète si elle a été chargée, active seule sinon. */
+  const categories = computed(() => allCategories.value ?? data.value?.categories ?? [])
   const activeCategories = computed(() => categories.value.filter((c) => c.is_active))
-  const primaryColor = computed(() => config.value?.primary_color ?? '#1A56A0')
+  /**
+   * Le cadrage des cartes du back-office.
+   *
+   * Le repli était les coordonnées de la mairie de Dreux — un héritage de
+   * l'époque où la plateforme n'avait qu'une commune. Pour n'importe quelle
+   * autre, une carte centrée sur Dreux est une carte fausse, pas une carte par
+   * défaut. Le centre de la France, lui, ne prétend rien.
+   */
   const mapCenter = computed(() => ({
-    lat: config.value?.map_lat ?? 48.7322,
-    lng: config.value?.map_lng ?? 1.3664,
-    zoom: config.value?.map_zoom ?? 13,
+    lat: config.value?.map_lat ?? FRANCE_CENTER.lat,
+    lng: config.value?.map_lng ?? FRANCE_CENTER.lng,
+    zoom: config.value?.map_zoom ?? (config.value?.map_lat ? 13 : 5),
   }))
   const features = computed(() => ({
-    anonymousReports: config.value?.feature_anonymous_reports ?? true,
     votes: config.value?.feature_votes ?? true,
     aiAnalysis: config.value?.feature_ai_analysis ?? true,
     weeklyReport: config.value?.feature_weekly_report ?? true,
@@ -72,6 +102,24 @@ export const useTenantStore = defineStore('tenant', () => {
     loading.value = false
   }
 
+  /**
+   * Charge la taxonomie complète. À n'appeler que depuis le back-office.
+   *
+   * L'échec est silencieux et sans conséquence : `categories` retombe sur la
+   * liste active, qui est ce qu'on avait avant.
+   */
+  const loadAllCategories = async (): Promise<void> => {
+    try {
+      const response = await fetch(`${API_URL}/api/tenant/categories`, {
+        headers: { 'X-Tenant-Slug': detectSlug() },
+      })
+      if (!response.ok) return
+      allCategories.value = await response.json()
+    } catch {
+      // Silencieux : voir ci-dessus.
+    }
+  }
+
   // ─── Appliquer le thème CSS ────────────────────────────
   function applyTheme(color: string) {
     document.documentElement.style.setProperty('--color-primary', color)
@@ -118,10 +166,10 @@ export const useTenantStore = defineStore('tenant', () => {
 
   return {
     data, loading, error,
-    slug, name, config,
+    slug, name, config, tenantId,
     categories, activeCategories,
-    primaryColor, mapCenter, features,
-    load, updateConfig,
+    mapCenter, features,
+    load, loadAllCategories, updateConfig,
   }
 })
 

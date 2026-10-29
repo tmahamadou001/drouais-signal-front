@@ -4,7 +4,7 @@ export type ReportRealtimePayload = RealtimePostgresChangesPayload<{
   id: string
   title: string
   category: string
-  status: 'en_attente' | 'pris_en_charge' | 'resolu'
+  status: 'en_attente' | 'transmis' | 'pris_en_charge' | 'resolu'
   lat: number
   lng: number
   address_approx: string | null
@@ -26,7 +26,7 @@ export type RealtimeConnectionStatus =
 
 export interface RealtimeNotification {
   id: string
-  type: 'new_report' | 'status_change' | 'new_vote'
+  type: 'new_report' | 'status_change' | 'new_vote' | 'citizen_reply'
   message: string
   reportId: string
   reportTitle: string

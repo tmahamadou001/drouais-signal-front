@@ -3,6 +3,7 @@ import type { RealtimeChannel } from '@supabase/supabase-js'
 import { supabase } from '@/lib/supabase'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useReportStatuses } from '@/composables/useReportStatuses'
+import { useTenantStore } from '@/stores/tenant'
 import type {
   RealtimeConnectionStatus,
   RealtimeNotification,
@@ -17,9 +18,12 @@ export function useRealtimeDashboard(options: {
   onNewReport: (report: Record<string, any>) => void
   onStatusChange: (reportId: string, newStatus: string, oldStatus: string) => void
   onVoteChange: (reportId: string, newCount: number) => void
+  /** Un habitant vient de répondre à un message de la commune. */
+  onCitizenReply?: (comment: Record<string, any>) => void
 }) {
   const { getCategoryDisplay } = useTenantCategories()
   const { getStatusConfig } = useReportStatuses()
+  const tenant = useTenantStore()
   let channel: RealtimeChannel | null = null
 
   function addNotification(
@@ -73,16 +77,37 @@ export function useRealtimeDashboard(options: {
       channel = null
     }
 
+    /**
+     * Le canal est cadré sur la commune, côté serveur.
+     *
+     * Il ne l'était pas : un administrateur de La Loupe recevait les
+     * insertions de **toutes** les communes de la plateforme, et
+     * `onNewReport` les glissait dans son tableau en incrémentant ses
+     * compteurs. La règle « toujours filtrer par `tenant_id` » vaut pour le
+     * temps réel comme pour les requêtes — davantage même, puisqu'ici
+     * personne ne relit la requête.
+     *
+     * Sans tenant, on ne s'abonne pas : un filtre absent ouvre tout.
+     */
+    const tenantId = tenant.tenantId
+    if (!tenantId) {
+      connectionStatus.value = 'disconnected'
+      return
+    }
+
+    const inTenant = `tenant_id=eq.${tenantId}`
+
     connectionStatus.value = 'connecting'
 
     channel = supabase
-      .channel(`dashboard-admin-${Date.now()}`)
+      .channel(`dashboard-${tenantId}`)
       .on(
         'postgres_changes',
         {
           event: 'INSERT',
           schema: 'public',
           table: 'reports',
+          filter: inTenant,
         },
         (payload: any) => {
           const newReport = payload.new
@@ -105,6 +130,7 @@ export function useRealtimeDashboard(options: {
           event: 'UPDATE',
           schema: 'public',
           table: 'reports',
+          filter: inTenant,
         },
         (payload: any) => {
           const { id, status: newStatus, vote_count } = payload.new
@@ -126,6 +152,39 @@ export function useRealtimeDashboard(options: {
           if (vote_count !== oldVoteCount) {
             options.onVoteChange(id, vote_count)
           }
+        }
+      )
+      /**
+       * Les réponses des habitants.
+       *
+       * C'est la moitié qui manquait : un agent envoyait un message et
+       * n'apprenait jamais qu'on lui avait répondu — la pastille du tableau
+       * n'était chargée qu'au montage de la page.
+       *
+       * Le filtre ne porte que sur la commune : `postgres_changes` n'accepte
+       * qu'une condition. Le tri entre message d'agent et réponse d'habitant se
+       * fait ici, sur la ligne reçue.
+       */
+      .on(
+        'postgres_changes',
+        {
+          event: 'INSERT',
+          schema: 'public',
+          table: 'report_comments',
+          filter: inTenant,
+        },
+        (payload: any) => {
+          const comment = payload.new
+          if (comment?.author_type !== 'citizen') return
+
+          options.onCitizenReply?.(comment)
+
+          addNotification({
+            type: 'citizen_reply',
+            message: 'Un habitant a répondu à votre message',
+            reportId: comment.report_id,
+            reportTitle: '',
+          })
         }
       )
       .subscribe((status, error) => {

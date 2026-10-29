@@ -1,173 +1,42 @@
-const VERSION = '2.12.6'
-const CACHE_NAME = `onsignale-v${VERSION}`
-const STATIC_CACHE_NAME = `onsignale-static-v${VERSION}`
-const API_CACHE_NAME = `onsignale-api-v${VERSION}`
+/**
+ * Service worker « pierre tombale ».
+ *
+ * OnSignale n'est plus une PWA : le citoyen passe par l'application mobile, et
+ * le web est réservé à l'administration. Mais supprimer ce fichier ne suffisait
+ * pas — un navigateur qui a déjà installé l'ancien service worker continue de
+ * l'exécuter et de servir l'application depuis son cache, **indéfiniment**. Ses
+ * utilisateurs seraient restés bloqués sur la version citoyenne, sans jamais
+ * voir une mise à jour ni comprendre pourquoi.
+ *
+ * Ce fichier se désinscrit donc lui-même, vide tout ce que ses prédécesseurs
+ * ont mis en cache, et recharge les onglets ouverts. Il ne met rien en cache et
+ * n'intercepte aucune requête.
+ *
+ * À conserver plusieurs mois : un navigateur ne revérifie ce fichier qu'à la
+ * visite suivante, et certains utilisateurs ne reviendront pas avant longtemps.
+ * Le supprimer trop tôt laisserait ceux-là avec l'ancien worker actif.
+ */
 
-const PRECACHE_ASSETS = [
-  '/',
-  '/index.html',
-  '/offline.html',
-  '/icons/icon-192.png',
-  '/icons/apple-touch-icon.png',
-]
-
-const NEVER_CACHE_PATTERNS = [
-  /\/api\//,
-  /api\.onsignale\.fr/,
-  /supabase\.co/,
-  /\/auth\//,
-  /tile\.openstreetmap\.org/,
-  /nominatim\.openstreetmap\.org/,
-]
-
-const NETWORK_FIRST_PATTERNS = [
-  /\.js$/,
-  /\.css$/,
-  /\.html$/,
-]
-
-const API_CACHE_PATTERNS = [
-  /api-adresse\.data\.gouv\.fr/,
-]
-
-self.addEventListener('install', (event) => {
-  event.waitUntil(
-    caches.open(STATIC_CACHE_NAME).then((cache) => {
-      return cache.addAll(PRECACHE_ASSETS)
-    })
-  )
-  // Pas de skipWaiting ici — le SW attend que l'utilisateur confirme la mise à jour
-  // via le message SKIP_WAITING envoyé par SwUpdateBanner
+self.addEventListener('install', () => {
+  // Sans cela, ce worker attendrait que l'ancien libère la place — c'est-à-dire
+  // la fermeture de tous les onglets, ce qui peut ne jamais arriver.
+  self.skipWaiting()
 })
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames
-          .filter(
-            (name) =>
-              name !== CACHE_NAME &&
-              name !== STATIC_CACHE_NAME &&
-              name !== API_CACHE_NAME
-          )
-          .map((name) => caches.delete(name))
-      )
-    })
-  )
-  self.clients.claim()
-})
+    (async () => {
+      const names = await caches.keys()
+      await Promise.all(names.map((name) => caches.delete(name)))
 
-self.addEventListener('fetch', (event) => {
-  const { request } = event
-  const url = new URL(request.url)
+      await self.registration.unregister()
 
-  const shouldNeverCache = NEVER_CACHE_PATTERNS.some(
-    (pattern) => pattern.test(url.href)
-  )
-  if (shouldNeverCache) return
-
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          // Si la réponse est correcte (HTML de l'app), on la met en cache et on la retourne
-          if (response && response.ok) {
-            const clone = response.clone()
-            caches.open(STATIC_CACHE_NAME).then((cache) => cache.put('/index.html', clone))
-            return response
-          }
-          // Réponse invalide (ex: 404 serveur) → SPA fallback
-          return caches.match('/index.html')
-        })
-        .catch(() =>
-          // Hors ligne → toujours servir index.html depuis le cache (pas offline.html)
-          // pour que Vue Router puisse afficher la page
-          caches.match('/index.html')
-        )
-    )
-    return
-  }
-
-  // Network First for external APIs (with API cache)
-  const shouldCacheApi = API_CACHE_PATTERNS.some(
-    (pattern) => pattern.test(url.href)
-  )
-
-  if (shouldCacheApi) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const responseToCache = response.clone()
-            caches.open(API_CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache)
-            })
-          }
-          return response
-        })
-        .catch(() => caches.match(request))
-    )
-    return
-  }
-
-  // Network First for JS, CSS, HTML
-  const shouldNetworkFirst = NETWORK_FIRST_PATTERNS.some(
-    (pattern) => pattern.test(url.pathname)
-  )
-
-  if (shouldNetworkFirst) {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          if (response && response.status === 200) {
-            const responseToCache = response.clone()
-            caches.open(STATIC_CACHE_NAME).then((cache) => {
-              cache.put(request, responseToCache)
-            })
-          }
-          return response
-        })
-        .catch(() => caches.match(request))
-    )
-    return
-  }
-
-  // Cache First for other assets (images, fonts, etc.)
-  event.respondWith(
-    caches.match(request).then((cachedResponse) => {
-      if (cachedResponse) return cachedResponse
-      return fetch(request).then((response) => {
-        if (
-          !response ||
-          response.status !== 200 ||
-          response.type === 'opaque'
-        ) {
-          return response
-        }
-        const responseToCache = response.clone()
-        caches.open(STATIC_CACHE_NAME).then((cache) => {
-          cache.put(request, responseToCache)
-        })
-        return response
-      })
-    })
+      // Les onglets ouverts tournent encore sur les fichiers mis en cache par
+      // l'ancien worker ; un rechargement est ce qui les remet sur le réseau.
+      const clients = await self.clients.matchAll({ type: 'window' })
+      for (const client of clients) client.navigate(client.url)
+    })()
   )
 })
 
-self.addEventListener('message', (event) => {
-  if (event.data?.type === 'AUTH_REDIRECT') {
-    self.clients.matchAll().then((clients) => {
-      clients.forEach((client) => {
-        client.postMessage({
-          type: 'NAVIGATE',
-          url: event.data.url,
-        })
-      })
-    })
-  }
-
-  if (event.data?.type === 'SKIP_WAITING') {
-    self.skipWaiting()
-  }
-})
+// Aucun gestionnaire `fetch` : les requêtes passent directement au réseau.

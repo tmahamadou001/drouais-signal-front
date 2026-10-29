@@ -27,11 +27,8 @@ const contactBody = encodeURIComponent(
 
       <!-- Logo OnSignale -->
       <div class="flex items-center justify-center gap-2 mb-6">
-        <div class="w-7 h-7 bg-primary rounded-lg flex items-center justify-center">
-          <svg viewBox="0 0 20 20" class="w-4 h-4 text-white" fill="currentColor">
-            <path d="M10 2 L17 5.5 V11 C17 15.5 14 19 10 20 C6 19 3 15.5 3 11 V5.5 Z" />
-          </svg>
-        </div>
+        <img src="/icons/icon-96.png" alt="" width="28" height="28"
+             class="w-7 h-7 rounded-lg" />
         <span class="font-display text-lg font-bold text-dark tracking-tight">
           On<span class="text-primary">Signale</span>
         </span>

@@ -1,11 +1,27 @@
 <script setup lang="ts">
-import { ref, onMounted, computed, watch, nextTick } from 'vue'
+/**
+ * La carte de chaleur, reprise de l'export Claude Design
+ * (`design/admin-onsignale.screens.html`, troisième planche).
+ *
+ * Ce que la refonte change, au-delà de l'habillage : la carte occupe enfin la
+ * hauteur disponible au lieu d'un cadre de 480 px suivi de trois écrans de
+ * défilement. Les chiffres qui la commentent sont passés à sa droite, où ils
+ * se lisent *pendant* qu'on la regarde — les faire défiler séparément revenait
+ * à demander de mémoriser la carte avant de lire le total.
+ */
+import { ref, onMounted, onBeforeUnmount, computed, watch, nextTick } from 'vue'
+import { useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import AppIcon from '@/components/AppIcon.vue'
+import FilterSelect from '@/components/admin/FilterSelect.vue'
+import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import CategoryGlyph from '@/components/admin/CategoryGlyph.vue'
+import { categoryGlyphMarkup } from '@/lib/categories'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useTenantStore } from '@/stores/tenant'
 
 const { apiFetch } = useApi()
+const router = useRouter()
 
 interface HeatmapPoint {
   lat: number
@@ -31,94 +47,99 @@ interface HeatmapStats {
   by_status: Record<string, number>
 }
 
-const selectedPeriod = ref('30d')
-const selectedCategory = ref('all')
-const selectedStatus = ref('all')
+const selectedPeriod = ref<string | number>('30d')
+const selectedCategory = ref<string | number>('all')
+const selectedStatus = ref<string | number>('all')
 const viewMode = ref<'heatmap' | 'markers'>('heatmap')
 
 const points = ref<HeatmapPoint[]>([])
-const stats = ref<HeatmapStats>({
-  total_points: 0,
-  hotspots: [],
-  by_category: {},
-  by_status: {}
-})
+const stats = ref<HeatmapStats>({ total_points: 0, hotspots: [], by_category: {}, by_status: {} })
 
 const loading = ref(false)
 const mapContainer = ref<HTMLDivElement | null>(null)
 let map: any = null
 let heatLayer: any = null
 let markersLayer: any = null
+let resizeObserver: ResizeObserver | null = null
 
-const periodOptions = [
-  { value: '7d', label: '7 derniers jours' },
+const PERIODS = [
+  { value: '7d',  label: '7 derniers jours' },
   { value: '30d', label: '30 derniers jours' },
   { value: '90d', label: '90 derniers jours' },
-  { value: 'all', label: 'Toute la période' }
+  { value: 'all', label: 'Toute la période' },
 ]
 
-const { categories: tenantCategories, getCategoryLabel, getCategoryIcon } = useTenantCategories()
+const STATUSES = [
+  { value: 'all',            label: 'Tous les statuts' },
+  { value: 'en_attente',     label: 'En attente' },
+  { value: 'pris_en_charge', label: 'Pris en charge' },
+  { value: 'resolu',         label: 'Résolu' },
+]
+
+const { categories: tenantCategories, getCategoryLabel } = useTenantCategories()
 const tenantStore = useTenantStore()
 
 const categoryOptions = computed(() => [
-  { value: 'all', label: 'Toutes' },
-  ...tenantCategories.value.map((c) => ({ value: c.slug, label: `${c.icon} ${c.label}` }))
+  { value: 'all', label: 'Toutes catégories' },
+  ...tenantCategories.value.map((category) => ({ value: category.slug, label: category.label })),
 ])
 
-const statusOptions = [
-  { value: 'all', label: 'Tous' },
-  { value: 'en_attente', label: 'En attente' },
-  { value: 'pris_en_charge', label: 'Pris en charge' },
-  { value: 'resolu', label: 'Résolu' }
-]
-
-const selectedPeriodLabel = computed(() => 
-  periodOptions.find(o => o.value === selectedPeriod.value)?.label || ''
+const periodLabel = computed(() => PERIODS.find((entry) => entry.value === selectedPeriod.value)?.label ?? '')
+const categoryLabel = computed(
+  () => categoryOptions.value.find((entry) => entry.value === selectedCategory.value)?.label ?? ''
 )
 
-const selectedCategoryLabel = computed(() => 
-  categoryOptions.value.find((o: any) => o.value === selectedCategory.value)?.label || ''
-)
+const topHotspot = computed<Hotspot | null>(() => stats.value.hotspots[0] ?? null)
 
-const topHotspot = computed(() => stats.value.hotspots[0] || null)
-
-const dominantCategory = computed(() => {
-  const categories = stats.value.by_category
-  let maxCat = 'autre'
-  let maxCount = 0
-  for (const [cat, count] of Object.entries(categories)) {
-    if (count > maxCount) {
-      maxCount = count
-      maxCat = cat
-    }
-  }
-  return maxCat
+/** Les catégories présentes sur la carte, la plus signalée d'abord. */
+const categoryBreakdown = computed(() => {
+  const total = Object.values(stats.value.by_category).reduce((sum, count) => sum + count, 0)
+  return Object.entries(stats.value.by_category)
+    .map(([slug, count]) => ({
+      slug,
+      count,
+      label: getCategoryLabel(slug),
+      share: total > 0 ? Math.round((count / total) * 100) : 0,
+    }))
+    .sort((left, right) => right.count - left.count)
 })
 
-const pendingOldCount = computed(() => {
-  return stats.value.by_status['en_attente'] || 0
-})
+const dominantCategory = computed(() => categoryBreakdown.value[0] ?? null)
+
+/**
+ * L'intensité d'une zone, relative à la plus active.
+ *
+ * Un seuil absolu ne veut rien dire : neuf signalements sur un carrefour sont
+ * un point noir dans une commune de 3 000 habitants, un bruit de fond dans une
+ * préfecture. La couleur dit donc « par rapport au pire endroit d'ici ».
+ */
+function hotspotColor(count: number): string {
+  const max = topHotspot.value?.count ?? 1
+  const ratio = count / max
+  if (ratio >= 0.8) return 'bg-status-danger'
+  if (ratio >= 0.5) return 'bg-status-progress-dot'
+  if (ratio >= 0.35) return 'bg-status-success'
+  return 'bg-brand-700'
+}
 
 async function fetchHeatmapData() {
   loading.value = true
   try {
     const params = new URLSearchParams({
-      period: selectedPeriod.value,
-      category: selectedCategory.value,
-      status: selectedStatus.value
+      period: String(selectedPeriod.value),
+      category: String(selectedCategory.value),
+      status: String(selectedStatus.value),
     })
 
     const data = await apiFetch<{ points: HeatmapPoint[]; stats: HeatmapStats }>(
       `/api/admin/heatmap?${params}`,
-      {
-        cache: { maxAge: 15_000 } // Cache 5 secondes
-      }
+      { cache: { maxAge: 15_000 } }
     )
 
     points.value = data.points
     stats.value = data.stats
 
-    updateMap()
+    await updateMap()
   } catch (err) {
     console.error('Erreur chargement heatmap:', err)
   } finally {
@@ -133,20 +154,24 @@ async function initMap() {
   await import('leaflet/dist/leaflet.css')
 
   map = L.map(mapContainer.value, {
-    center: [tenantStore.config?.map_lat ?? 48.7322, tenantStore.config?.map_lng ?? 1.3664],
-    zoom: tenantStore.config?.map_zoom ?? 13,
-    zoomControl: true
+    center: [tenantStore.mapCenter.lat, tenantStore.mapCenter.lng],
+    zoom: tenantStore.mapCenter.zoom,
+    zoomControl: true,
   })
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
     attribution: '© OpenStreetMap contributors',
-    maxZoom: 19
+    maxZoom: 19,
   }).addTo(map)
 
-  // Attendre que le DOM ait calculé les dimensions du conteneur
-  // avant de charger les données (évite "source width is 0" sur le canvas)
+  // La carte vit maintenant dans un conteneur en `flex:1` : sa hauteur n'est
+  // connue qu'après la mise en page, et elle rechange à chaque redimensionnement
+  // de fenêtre. Sans cela, Leaflet dessine dans un canevas de hauteur nulle.
   await nextTick()
   map.invalidateSize()
+
+  resizeObserver = new ResizeObserver(() => map?.invalidateSize())
+  resizeObserver.observe(mapContainer.value)
 
   await fetchHeatmapData()
 }
@@ -162,11 +187,9 @@ async function updateMap() {
       markersLayer = null
     }
 
-    if (!heatLayer) {
-      await import('leaflet.heat')
-    }
+    if (!heatLayer) await import('leaflet.heat')
 
-    const heatData = points.value.map(p => [p.lat, p.lng, p.weight])
+    const heatData = points.value.map((point) => [point.lat, point.lng, point.weight])
 
     if (heatLayer) {
       heatLayer.setLatLngs(heatData)
@@ -176,67 +199,63 @@ async function updateMap() {
         blur: 35,
         maxZoom: 17,
         max: 3,
-        gradient: {
-          0.0: '#1A56A0',
-          0.3: '#1D9E75',
-          0.5: '#EF9F27',
-          0.8: '#E24B4A',
-          1.0: '#A32D2D'
-        }
+        // Le même dégradé que la légende, dans le même ordre.
+        gradient: { 0.0: '#1A56A0', 0.35: '#1D9E75', 0.6: '#EF9F27', 1.0: '#DC2626' },
       })
       heatLayer.addTo(map)
     }
-  } else {
-    if (heatLayer) {
-      map.removeLayer(heatLayer)
-      heatLayer = null
-    }
+    return
+  }
 
-    if (markersLayer) {
-      map.removeLayer(markersLayer)
-    }
+  if (heatLayer) {
+    map.removeLayer(heatLayer)
+    heatLayer = null
+  }
+  if (markersLayer) map.removeLayer(markersLayer)
 
-    markersLayer = L.layerGroup()
+  markersLayer = L.layerGroup()
 
-    points.value.forEach(p => {
-      const emoji = getCategoryIcon(p.dominant_category)
-      
-      const icon = L.divIcon({
-        html: `<div style="background:#1A56A0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 4px rgba(0,0,0,0.2)"><span style="font-size:16px">${emoji}</span></div>`,
-        className: '',
-        iconSize: [32, 32],
-        iconAnchor: [16, 16]
-      })
-
-      const marker = L.marker([p.lat, p.lng], { icon })
-      marker.bindPopup(`
-        <div class="text-sm">
-          <div class="font-semibold mb-1">${p.address_approx || 'Zone'}</div>
-          <div class="text-gray-600">${p.signal_count} signalement${p.signal_count > 1 ? 's' : ''}</div>
-          <div class="text-xs text-gray-500 mt-1">Catégorie : ${getCategoryLabel(p.dominant_category)}</div>
-        </div>
-      `)
-      markersLayer.addLayer(marker)
+  points.value.forEach((point) => {
+    const icon = L.divIcon({
+      html: `<div style="background:#1A56A0;width:32px;height:32px;border-radius:50%;display:flex;align-items:center;justify-content:center;border:2px solid white;box-shadow:0 2px 4px rgba(15,43,74,.28)">${categoryGlyphMarkup(point.dominant_category, { size: 16, label: getCategoryLabel(point.dominant_category) })}</div>`,
+      className: '',
+      iconSize: [32, 32],
+      iconAnchor: [16, 16],
     })
 
-    markersLayer.addTo(map)
-  }
+    const marker = L.marker([point.lat, point.lng], { icon })
+    marker.bindPopup(`
+      <div style="font:500 13px/1.4 'Instrument Sans',system-ui">
+        <div style="font-weight:600">${point.address_approx || 'Zone'}</div>
+        <div style="color:#6B7280">${point.signal_count} signalement${point.signal_count > 1 ? 's' : ''}</div>
+        <div style="color:#9CA3AF;font-size:12px">${getCategoryLabel(point.dominant_category)}</div>
+      </div>
+    `)
+    markersLayer.addLayer(marker)
+  })
+
+  markersLayer.addTo(map)
 }
 
 function zoomToHotspot(hotspot: Hotspot) {
   if (!map) return
   map.setView([hotspot.lat, hotspot.lng], 16)
-  
+
   const L = (window as any).L
   L.popup()
     .setLatLng([hotspot.lat, hotspot.lng])
     .setContent(`
-      <div class="text-sm">
-        <div class="font-semibold mb-1">${hotspot.address_approx || 'Zone'}</div>
-        <div class="text-gray-600">${hotspot.count} signalement${hotspot.count > 1 ? 's' : ''}</div>
+      <div style="font:500 13px/1.4 'Instrument Sans',system-ui">
+        <div style="font-weight:600">${hotspot.address_approx || 'Zone'}</div>
+        <div style="color:#6B7280">${hotspot.count} signalement${hotspot.count > 1 ? 's' : ''}</div>
       </div>
     `)
     .openOn(map)
+}
+
+/** La liste des signalements, cadrée sur ce que la carte montre. */
+function openFilteredList() {
+  void router.push('/admin/signalements')
 }
 
 async function exportPDF() {
@@ -247,251 +266,301 @@ async function exportPDF() {
     const mapEl = mapContainer.value
     if (!mapEl) return
 
-    const canvas = await html2canvas(mapEl, {
-      useCORS: true,
-      allowTaint: true
-    })
-
+    const canvas = await html2canvas(mapEl, { useCORS: true, allowTaint: true })
     const pdf = new jsPDF('landscape', 'mm', 'a4')
 
     pdf.setFontSize(16)
-    pdf.text('OnSignale — Rapport Carte de Chaleur', 14, 15)
-    
+    pdf.text(`OnSignale — Carte de chaleur — ${tenantStore.name}`, 14, 15)
+
     pdf.setFontSize(10)
     pdf.text(`Généré le ${new Date().toLocaleDateString('fr-FR')}`, 14, 22)
-    pdf.text(`Période : ${selectedPeriodLabel.value} | Catégorie : ${selectedCategoryLabel.value}`, 14, 28)
+    pdf.text(`Période : ${periodLabel.value} | Catégorie : ${categoryLabel.value}`, 14, 28)
 
-    const imgData = canvas.toDataURL('image/jpeg', 0.85)
-    pdf.addImage(imgData, 'JPEG', 14, 35, 268, 120)
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.85), 'JPEG', 14, 35, 268, 120)
 
     pdf.setFontSize(12)
     pdf.text('Statistiques', 14, 165)
-    
+
     pdf.setFontSize(10)
-    let yPos = 172
-    pdf.text(`Total de signalements : ${stats.value.total_points}`, 14, yPos)
-    
-    yPos += 10
-    pdf.text('Par catégorie :', 14, yPos)
-    yPos += 6
-    for (const [cat, count] of Object.entries(stats.value.by_category)) {
-      const label = getCategoryLabel(cat)
-      pdf.text(`  • ${label} : ${count}`, 14, yPos)
-      yPos += 5
+    let y = 172
+    pdf.text(`Signalements géolocalisés : ${stats.value.total_points}`, 14, y)
+
+    y += 10
+    pdf.text('Par catégorie :', 14, y)
+    y += 6
+    for (const entry of categoryBreakdown.value) {
+      pdf.text(`  • ${entry.label} : ${entry.count}`, 14, y)
+      y += 5
     }
 
-    yPos += 5
-    pdf.text('Top 5 zones problématiques :', 14, yPos)
-    yPos += 6
-    stats.value.hotspots.forEach((h, i) => {
-      pdf.text(`${i + 1}. ${h.address_approx || 'Zone inconnue'} — ${h.count} signalements`, 14, yPos)
-      yPos += 5
+    y += 5
+    pdf.text('Zones les plus signalées :', 14, y)
+    y += 6
+    stats.value.hotspots.forEach((hotspot, index) => {
+      pdf.text(`${index + 1}. ${hotspot.address_approx || 'Zone inconnue'} — ${hotspot.count} signalements`, 14, y)
+      y += 5
     })
 
-    const date = new Date().toISOString().split('T')[0]
-    pdf.save(`drouais-heatmap-${date}.pdf`)
+    pdf.save(`carte-chaleur-${tenantStore.slug}-${new Date().toISOString().split('T')[0]}.pdf`)
   } catch (err) {
     console.error('Erreur export PDF:', err)
   }
 }
 
-watch([selectedPeriod, selectedCategory, selectedStatus], () => {
-  fetchHeatmapData()
-})
+watch([selectedPeriod, selectedCategory, selectedStatus], () => void fetchHeatmapData())
+watch(viewMode, () => void updateMap())
 
-watch(viewMode, () => {
-  updateMap()
-})
+onMounted(() => void initMap())
 
-onMounted(() => {
-  initMap()
+onBeforeUnmount(() => {
+  resizeObserver?.disconnect()
+  map?.remove()
+  map = null
 })
 </script>
 
 <template>
-  <div class="p-6">
-    <!-- En-tête -->
-    <div class="mb-6">
-      <h1 class="text-2xl font-display font-bold text-gray-800">Carte de chaleur</h1>
-      <p class="text-sm text-gray-500 mt-1">Zones problématiques — signalements concentrés</p>
-    </div>
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas">
 
-    <!-- Filtres -->
-    <div class="flex flex-wrap items-center gap-3 mb-6">
-      <select
-        v-model="selectedPeriod"
-        class="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-      >
-        <option v-for="opt in periodOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
-
-      <select
-        v-model="selectedCategory"
-        class="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-      >
-        <option v-for="opt in categoryOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
-
-      <select
-        v-model="selectedStatus"
-        class="px-3 py-2 rounded-lg border border-gray-300 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
-      >
-        <option v-for="opt in statusOptions" :key="opt.value" :value="opt.value">
-          {{ opt.label }}
-        </option>
-      </select>
-
-      <button
-        @click="exportPDF"
-        class="ml-auto flex items-center gap-2 px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-600 transition-colors"
-      >
-        <AppIcon name="Download" :size="16" />
-        Exporter PDF
-      </button>
-    </div>
-
-    <!-- Stats cards -->
-    <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-      <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <div class="text-2xl font-bold text-gray-800">{{ stats.total_points }}</div>
-        <div class="text-xs text-gray-500 mt-1">Total signalements</div>
-      </div>
-
-      <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <div class="text-sm font-semibold text-gray-800 truncate">
-          {{ topHotspot?.address_approx || 'Aucune' }}
-        </div>
-        <div class="text-xs text-gray-500 mt-1">Zone la plus active</div>
-      </div>
-
-      <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <div class="text-sm font-semibold text-gray-800">
-          {{ getCategoryLabel(dominantCategory) }}
-        </div>
-        <div class="text-xs text-gray-500 mt-1">Catégorie dominante</div>
-      </div>
-
-      <div class="bg-white rounded-lg border border-gray-200 p-4">
-        <div class="text-2xl font-bold text-orange-600">{{ pendingOldCount }}</div>
-        <div class="text-xs text-gray-500 mt-1">En attente</div>
-      </div>
-    </div>
-
-    <!-- Toggle view mode -->
-    <div class="flex items-center justify-between mb-4">
-      <h2 class="text-lg font-semibold text-gray-800">Visualisation</h2>
-      <div class="flex gap-2 bg-white rounded-lg border border-gray-200 p-1">
-          <button
-            @click="viewMode = 'heatmap'"
-            :class="[
-              'px-3 py-1.5 rounded text-xs font-medium transition-colors',
-              viewMode === 'heatmap'
-                ? 'bg-primary text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            ]"
-          >
-            🔥 Heatmap
-          </button>
-          <button
-            @click="viewMode = 'markers'"
-            :class="[
-              'px-3 py-1.5 rounded text-xs font-medium transition-colors',
-              viewMode === 'markers'
-                ? 'bg-primary text-white'
-                : 'text-gray-600 hover:bg-gray-100'
-            ]"
-          >
-            📍 Markers
-          </button>
-      </div>
-    </div>
-
-    <!-- Carte -->
-    <div class="bg-white rounded-lg border border-gray-200 overflow-hidden mb-6">
-      <div class="relative">
-        <!-- Loading overlay -->
-        <div
-          v-if="loading"
-          class="absolute inset-0 bg-white/80 flex items-center justify-center z-20"
+    <AdminPageHeader>
+      <template #actions>
+        <FilterSelect v-model="selectedPeriod" :options="PERIODS" icon="Calendar" menu-width="180px" />
+        <FilterSelect v-model="selectedCategory" :options="categoryOptions" icon="Tag" menu-width="220px" />
+        <FilterSelect v-model="selectedStatus" :options="STATUSES" icon="Activity" menu-width="170px" />
+        <button
+          class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] bg-brand-700 px-3.5 transition-colors hover:bg-brand-800"
+          @click="exportPDF"
         >
-          <div class="text-center">
-            <div class="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-2"></div>
-            <p class="text-sm text-gray-600">Mise à jour...</p>
-          </div>
-        </div>
+          <AppIcon name="FileDown" :size="16" :stroke-width="2" class="text-white" />
+          <span class="text-[13px] font-semibold leading-none text-white">Exporter PDF</span>
+        </button>
+      </template>
+    </AdminPageHeader>
 
-        <div
-          id="heatmap-container"
-          ref="mapContainer"
-          class="w-full h-[480px]"
-        ></div>
-      </div>
+    <div class="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-7 py-[22px] xl:flex-row xl:overflow-hidden">
 
-      <!-- Légende -->
-      <div class="px-4 py-3 border-t border-gray-200 bg-gray-50">
-        <div class="flex items-center justify-center gap-4 text-xs">
-          <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded-full bg-[#1A56A0]"></span>
-            Peu actif
-          </span>
-          <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded-full bg-[#1D9E75]"></span>
-            Modéré
-          </span>
-          <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded-full bg-[#EF9F27]"></span>
-            Actif
-          </span>
-          <span class="flex items-center gap-1">
-            <span class="w-3 h-3 rounded-full bg-[#E24B4A]"></span>
-            Critique
-          </span>
-        </div>
-      </div>
-    </div>
+      <!-- ─── Colonne carte ───────────────────────────────────────────────── -->
+      <div class="flex min-w-0 flex-1 flex-col gap-3.5">
 
-    <!-- Top 5 zones -->
-    <div class="bg-white rounded-lg border border-gray-200 p-6">
-      <h2 class="text-lg font-semibold text-gray-800 mb-4">Top 5 zones problématiques</h2>
-      
-      <div v-if="stats.hotspots.length === 0" class="text-center py-8 text-gray-500">
-        Aucune zone problématique détectée
-      </div>
-
-      <div v-else class="space-y-3">
-        <div
-          v-for="(hotspot, index) in stats.hotspots"
-          :key="index"
-          class="flex items-center gap-4 p-3 rounded-lg hover:bg-gray-50 transition-colors"
-        >
-          <div class="flex-shrink-0 w-8 h-8 rounded-full bg-primary/10 text-primary font-bold text-sm flex items-center justify-center">
-            #{{ index + 1 }}
-          </div>
-          
-          <div class="flex-1 min-w-0">
-            <div class="font-medium text-gray-800 truncate">
-              {{ hotspot.address_approx || 'Zone inconnue' }}
+        <div class="flex min-h-[420px] flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-white">
+          <div class="flex h-14 flex-none items-center gap-2.5 whitespace-nowrap border-b border-line px-[18px]">
+            <div class="text-[15px] font-semibold leading-none text-brand-900">Visualisation</div>
+            <div class="ml-auto flex flex-none rounded-[10px] bg-status-pending-bg p-[3px]">
+              <button
+                class="flex h-[30px] flex-none items-center gap-[7px] rounded-lg px-3 text-xs font-semibold leading-none transition-colors"
+                :class="viewMode === 'heatmap'
+                  ? 'bg-white text-ink shadow-[0_1px_2px_rgba(15,43,74,.10)]'
+                  : 'text-muted hover:text-ink'"
+                @click="viewMode = 'heatmap'"
+              >
+                <AppIcon
+                  name="Flame" :size="14" :stroke-width="viewMode === 'heatmap' ? 2 : 1.75"
+                  :class="viewMode === 'heatmap' ? 'text-status-progress-dot' : ''"
+                />
+                Densité
+              </button>
+              <button
+                class="flex h-[30px] flex-none items-center gap-[7px] rounded-lg px-3 text-xs font-semibold leading-none transition-colors"
+                :class="viewMode === 'markers'
+                  ? 'bg-white text-ink shadow-[0_1px_2px_rgba(15,43,74,.10)]'
+                  : 'text-muted hover:text-ink'"
+                @click="viewMode = 'markers'"
+              >
+                <AppIcon name="MapPin" :size="14" :stroke-width="viewMode === 'markers' ? 2 : 1.75" />
+                Épingles
+              </button>
             </div>
-            <div class="flex items-center gap-2 mt-1">
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold">
+          </div>
+
+          <!-- `isolate` : Leaflet monte ses calques jusqu'à `z-index: 700`, qui
+               sans contexte d'empilement propre passent au-dessus des menus de
+               la barre d'en-tête et les coupent en deux. -->
+          <div class="relative isolate min-h-0 flex-1">
+            <div ref="mapContainer" class="absolute inset-0" />
+
+            <div
+              v-if="loading"
+              class="absolute inset-0 z-[500] flex items-center justify-center bg-white/70"
+            >
+              <div class="flex items-center gap-2.5 rounded-[10px] border border-line bg-white px-3.5 py-2.5 shadow-sm">
+                <span class="h-4 w-4 animate-spin rounded-full border-2 border-brand-100 border-t-brand-700" />
+                <span class="text-[13px] font-medium text-muted">Mise à jour…</span>
+              </div>
+            </div>
+
+            <!-- La légende par-dessus la carte, pas sous elle : elle sert à lire
+                 les couleurs qu'on a sous les yeux. -->
+            <div
+              class="pointer-events-none absolute bottom-3.5 left-4 z-[400] flex items-center gap-3.5 whitespace-nowrap rounded-[10px] border border-line bg-white/[0.94] px-3 py-[9px]"
+            >
+              <div class="flex items-center gap-1.5 text-xs font-semibold leading-none text-ink">
+                <span class="h-2.5 w-2.5 rounded-full bg-brand-700" />Peu actif
+              </div>
+              <div class="flex items-center gap-1.5 text-xs font-semibold leading-none text-ink">
+                <span class="h-2.5 w-2.5 rounded-full bg-status-success" />Modéré
+              </div>
+              <div class="flex items-center gap-1.5 text-xs font-semibold leading-none text-ink">
+                <span class="h-2.5 w-2.5 rounded-full bg-status-progress-dot" />Actif
+              </div>
+              <div class="flex items-center gap-1.5 text-xs font-semibold leading-none text-ink">
+                <span class="h-2.5 w-2.5 rounded-full bg-status-danger" />Critique
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Zones les plus signalées -->
+        <div class="flex flex-none flex-col overflow-hidden rounded-[14px] border border-line bg-white">
+          <div class="flex h-[52px] flex-none items-center gap-2.5 whitespace-nowrap border-b border-line px-[18px]">
+            <div class="text-[15px] font-semibold leading-none text-brand-900">Zones les plus signalées</div>
+            <button
+              class="ml-auto flex-none text-xs font-semibold leading-none text-brand-700 hover:underline"
+              @click="openFilteredList"
+            >
+              Voir toutes les zones
+            </button>
+          </div>
+
+          <div
+            v-if="stats.hotspots.length === 0"
+            class="flex h-16 items-center justify-center text-[13px] text-muted"
+          >
+            Aucune zone ne ressort sur cette période.
+          </div>
+
+          <button
+            v-for="(hotspot, index) in stats.hotspots"
+            :key="`${hotspot.lat}-${hotspot.lng}`"
+            class="flex h-16 flex-none items-center gap-3.5 border-b border-hairline px-[18px] text-left transition-colors last:border-b-0 hover:bg-canvas"
+            @click="zoomToHotspot(hotspot)"
+          >
+            <div class="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-[10px] bg-brand-50 text-[13px] font-bold leading-none tabular-nums text-brand-700">
+              {{ index + 1 }}
+            </div>
+
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-sm font-semibold leading-[1.3] text-ink">
+                {{ hotspot.address_approx || 'Zone sans adresse' }}
+              </div>
+              <div class="truncate text-xs leading-[1.3] text-muted">{{ tenantStore.name }}</div>
+            </div>
+
+            <div class="hidden flex-none items-center gap-1.5 whitespace-nowrap rounded-lg border border-line px-2.5 py-[5px] text-xs font-semibold leading-none text-ink sm:inline-flex">
+              {{ getCategoryLabel(hotspot.dominant_category) }}
+            </div>
+
+            <div class="flex w-[112px] flex-none items-center justify-end gap-[7px]">
+              <span class="h-2 w-2 rounded-full" :class="hotspotColor(hotspot.count)" />
+              <span class="whitespace-nowrap text-[13px] font-semibold leading-none tabular-nums text-ink">
                 {{ hotspot.count }} signalement{{ hotspot.count > 1 ? 's' : '' }}
               </span>
-              <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-gray-100 text-gray-700 text-xs">
-                {{ getCategoryIcon(hotspot.dominant_category) }}
-                {{ getCategoryLabel(hotspot.dominant_category) }}
+            </div>
+
+            <AppIcon name="ChevronRight" :size="18" :stroke-width="1.75" class="flex-none text-faint" />
+          </button>
+        </div>
+      </div>
+
+      <!-- ─── Colonne chiffres ────────────────────────────────────────────── -->
+      <div class="flex flex-none flex-col gap-3.5 xl:w-[316px]">
+
+        <div class="flex flex-col gap-4 rounded-[14px] bg-brand-900 p-[18px]">
+          <div class="flex items-center justify-between">
+            <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-brand-500">SUR LA PÉRIODE</span>
+            <AppIcon name="Flame" :size="16" :stroke-width="1.75" class="text-brand-500" />
+          </div>
+          <div class="flex items-baseline gap-2">
+            <span class="text-[40px] font-bold leading-none tracking-[-0.02em] tabular-nums text-white">
+              {{ stats.total_points }}
+            </span>
+            <span class="text-[13px] font-medium leading-[1.3] text-brand-100">
+              signalements<br>géolocalisés
+            </span>
+          </div>
+          <div class="h-px bg-white/[0.12]" />
+          <div class="flex flex-col gap-3">
+            <div class="flex items-center justify-between gap-3">
+              <span class="whitespace-nowrap text-[13px] font-medium leading-none text-brand-100">En attente</span>
+              <span class="text-[13px] font-semibold leading-none tabular-nums text-white">
+                {{ stats.by_status.en_attente ?? 0 }}
+              </span>
+            </div>
+            <div class="flex items-center justify-between gap-3">
+              <span class="whitespace-nowrap text-[13px] font-medium leading-none text-brand-100">Pris en charge</span>
+              <span class="text-[13px] font-semibold leading-none tabular-nums text-white">
+                {{ stats.by_status.pris_en_charge ?? 0 }}
+              </span>
+            </div>
+            <!-- La maquette affichait ici un « rayon d'analyse » : le
+                 regroupement des points se fait à la 4ᵉ décimale de degré, pas
+                 sur un rayon réglable. Un chiffre inventé vaut moins qu'un
+                 chiffre vrai. -->
+            <div class="flex items-center justify-between gap-3">
+              <span class="whitespace-nowrap text-[13px] font-medium leading-none text-brand-100">Résolus</span>
+              <span class="text-[13px] font-semibold leading-none tabular-nums text-white">
+                {{ stats.by_status.resolu ?? 0 }}
               </span>
             </div>
           </div>
+        </div>
+
+        <div class="flex flex-col gap-3.5 rounded-[14px] border border-line bg-white p-[18px]">
+          <div class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">ZONE LA PLUS ACTIVE</div>
+          <div class="flex items-start gap-3">
+            <div class="flex h-[38px] w-[38px] flex-none items-center justify-center rounded-[10px] bg-status-danger-bg">
+              <AppIcon name="MapPin" :size="19" :stroke-width="1.75" class="text-status-danger" />
+            </div>
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-[15px] font-semibold leading-[1.3] text-ink">
+                {{ topHotspot?.address_approx || 'Aucune zone' }}
+              </div>
+              <div class="truncate text-[13px] leading-[1.3] tabular-nums text-muted">
+                {{ topHotspot ? `${topHotspot.count} signalements · ${tenantStore.name}` : 'sur cette période' }}
+              </div>
+            </div>
+          </div>
+
+          <div class="h-px bg-line" />
+
+          <div class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">CATÉGORIE DOMINANTE</div>
+          <div class="flex items-start gap-3">
+            <CategoryGlyph :category="dominantCategory?.slug ?? 'autre'" :label="dominantCategory?.label" />
+            <div class="min-w-0 flex-1">
+              <div class="truncate text-[15px] font-semibold leading-[1.3] text-ink">
+                {{ dominantCategory?.label || '—' }}
+              </div>
+              <div class="truncate text-[13px] leading-[1.3] tabular-nums text-muted">
+                {{ dominantCategory ? `${dominantCategory.count} signalements · ${dominantCategory.share} %` : 'aucune donnée' }}
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="flex min-h-0 flex-1 flex-col gap-4 rounded-[14px] border border-line bg-white p-[18px]">
+          <div class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">RÉPARTITION PAR CATÉGORIE</div>
+
+          <div class="flex flex-col gap-3.5">
+            <div v-for="entry in categoryBreakdown" :key="entry.slug" class="flex flex-col gap-[7px]">
+              <div class="flex items-baseline justify-between gap-2.5">
+                <span class="truncate text-[13px] font-medium leading-none text-ink">{{ entry.label }}</span>
+                <span class="flex-none text-xs font-semibold leading-none tabular-nums text-muted">{{ entry.count }}</span>
+              </div>
+              <div class="h-1.5 overflow-hidden rounded-[3px] bg-status-pending-bg">
+                <div class="h-1.5 rounded-[3px] bg-brand-700" :style="{ width: `${entry.share}%` }" />
+              </div>
+            </div>
+
+            <p v-if="categoryBreakdown.length === 0" class="text-[13px] text-muted">
+              Aucun signalement géolocalisé sur cette période.
+            </p>
+          </div>
 
           <button
-            @click="zoomToHotspot(hotspot)"
-            class="flex-shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium text-primary hover:bg-primary/10 transition-colors"
+            class="mt-auto flex h-10 flex-none items-center justify-center gap-2 whitespace-nowrap rounded-[10px] border border-line text-[13px] font-semibold text-brand-700 transition-colors hover:bg-brand-50"
+            @click="openFilteredList"
           >
-            Voir sur la carte
+            <AppIcon name="Inbox" :size="16" :stroke-width="1.75" />
+            Ouvrir la liste filtrée
           </button>
         </div>
       </div>
