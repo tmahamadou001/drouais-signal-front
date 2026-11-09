@@ -1,4 +1,5 @@
 <script setup lang="ts">
+import BrandLogo from '@/components/BrandLogo.vue'
 import { detectSlug } from '@/utils/detectSlug'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -25,17 +26,18 @@ const contactBody = encodeURIComponent(
         </svg>
       </div>
 
-      <!-- Logo OnSignale -->
+      <!-- Logo OnSignale. Le composant plutôt qu'une image : la marque suit
+           ainsi la charte sans qu'un fichier PNG oublié quelque part ne la
+           fasse diverger — c'est exactement ce qui est arrivé au bouclier. -->
       <div class="flex items-center justify-center gap-2 mb-6">
-        <img src="/icons/icon-96.png" alt="" width="28" height="28"
-             class="w-7 h-7 rounded-lg" />
-        <span class="font-display text-lg font-bold text-dark tracking-tight">
+        <BrandLogo :size="28" tone="navy" />
+        <span class=" text-lg font-bold text-dark tracking-tight">
           On<span class="text-primary">Signale</span>
         </span>
       </div>
 
       <!-- Titre -->
-      <h1 class="text-2xl font-display font-bold text-gray-900 mb-3">
+      <h1 class="text-2xl font-bold text-gray-900 mb-3">
         Cette ville n'est pas encore configurée
       </h1>
 

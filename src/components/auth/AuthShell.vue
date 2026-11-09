@@ -13,7 +13,7 @@
  */
 import { computed } from 'vue'
 import { useTenantStore } from '@/stores/tenant'
-import BrandLogo from '@/components/BrandLogo.vue'
+import BrandLogoDraw from '@/components/BrandLogoDraw.vue'
 
 const tenant = useTenantStore()
 
@@ -40,8 +40,10 @@ const activeCategoryCount = computed(() => tenant.activeCategories.length)
          sur un écran étroit, le plafond l'empêche de devenir une affiche. -->
     <aside class="hidden w-[44%] min-w-[460px] max-w-[760px] flex-none flex-col bg-brand-900 px-12 py-14 lg:flex">
 
+      <!-- Le panneau marine est le seul endroit de l'admin où la marque
+           dispose d'assez de place et d'assez de calme pour s'écrire. -->
       <div class="flex items-center gap-3">
-        <BrandLogo :size="36" :radius="10" />
+        <BrandLogoDraw :size="52" tone="white" />
         <div class="text-[18px] font-bold leading-none tracking-[-0.01em] text-white">OnSignale</div>
       </div>
 

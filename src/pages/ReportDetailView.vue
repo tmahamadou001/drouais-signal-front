@@ -108,7 +108,7 @@ watch(reportId, (id) => {
         <div class="flex items-start gap-4">
           <CategoryIcon :category="report.category" size="lg" />
           <div class="flex-1">
-            <h1 class="text-lg font-display font-bold text-dark line-clamp-2">{{ report.title }}</h1>
+            <h1 class="text-lg font-bold text-dark line-clamp-2">{{ report.title }}</h1>
             <StatusBadge :status="report.status" class="mt-2 self-start" />
             <p class="text-sm text-neutral-500 mt-2">
               {{ report ? getCategoryLabel(report.category) : '' }}

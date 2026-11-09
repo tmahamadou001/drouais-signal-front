@@ -65,7 +65,7 @@ const PERMISSIONS = [
       Retour
     </RouterLink>
 
-    <h1 class="mb-2 text-3xl font-display font-bold text-dark">Politique de confidentialité</h1>
+    <h1 class="mb-2 text-3xl font-bold text-dark">Politique de confidentialité</h1>
     <p class="mb-10 text-sm text-neutral-400">
       Règlement (UE) 2016/679 (RGPD) et loi Informatique et Libertés modifiée.
       Dernière mise à jour : {{ UPDATED_AT }}.

@@ -10,7 +10,7 @@
     <meta property="og:site_name" content="OnSignale" />
     <meta property="og:title" content="OnSignale — Signalement urbain citoyen" />
     <meta property="og:description" content="Signalez un problème urbain en quelques clics. Voirie, éclairage, déchets… les services techniques s'en occupent." />
-    <meta property="og:image" content="/icons/icon-512.png" />
+    <meta property="og:image" content="/og-image-1200x630.png" />
     <meta name="twitter:card" content="summary" />
     <meta name="twitter:title" content="OnSignale — Signalement urbain citoyen" />
     <meta name="twitter:description" content="Signalez un problème urbain en quelques clics." />
@@ -19,20 +19,22 @@
          d'installation PWA, les tuiles Windows — visait l'app citoyenne du web,
          qui n'existe plus : le citoyen passe par l'application mobile, et
          `public/sw.js` n'est plus qu'une pierre tombale qui se désinscrit. -->
-    <meta name="theme-color" content="#1A56A0">
+    <meta name="theme-color" content="#0F2B4A">
 
-    <!-- Favicon -->
-    <link rel="icon" type="image/x-icon" href="/favicon.ico">
-    <link rel="icon" type="image/png" sizes="32x32" href="/icons/icon-32.png">
-    <link rel="icon" type="image/png" sizes="16x16" href="/icons/icon-16.png">
+    <!-- Favicon. Le SVG d'abord : c'est le dessin « petite taille » de la
+         charte, pensé pour rester lisible dans un onglet. Les PNG suivent pour
+         les navigateurs qui ne le prennent pas. Le `.ico` a disparu avec le
+         bouclier — il n'en existe pas dans le kit, et plus rien n'y renvoie. -->
+    <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16.png">
 
-    <!-- Apple Touch Icons -->
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
-    <link rel="apple-touch-icon" sizes="192x192" href="/icons/icon-192.png">
+    <link rel="apple-touch-icon" href="/apple-touch-icon-180.png">
+    <link rel="manifest" href="/site.webmanifest">
 
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;500;600;700&family=Playfair+Display:wght@700;800&family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
     <title>OnSignale — Signalement urbain citoyen</title>
   </head>
   <body class="bg-neutral-50 text-dark antialiased">

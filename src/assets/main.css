@@ -10,31 +10,31 @@
   }
 
   body {
-    font-family: 'Source Sans 3', system-ui, sans-serif;
+    font-family: 'Instrument Sans', system-ui, sans-serif;
     color: #1A1A1A;
     background-color: #FAFAFA;
   }
 
   /*
-   * Aucune règle de titre ici.
+   * Aucune règle de titre ici, et plus aucun serif.
    *
-   * `h1, h2, h3 { Playfair Display }` était un reste de la v1 : il repassait en
-   * serif les titres des écrans repris du design, qui sont en Instrument Sans.
-   * Les trois pages qui veulent encore le serif portent `font-display`.
+   * `h1, h2, h3 { Playfair Display }` était un reste de la v1. La charte ne
+   * retient qu'une police pour le web — Instrument Sans — et c'est désormais
+   * celle de `font-sans`, donc celle de tout le document.
    */
 }
 
 @layer components {
   /* Leaflet overrides to match our design system */
   .leaflet-container {
-    font-family: 'Source Sans 3', system-ui, sans-serif !important;
+    font-family: 'Instrument Sans', system-ui, sans-serif !important;
     border-radius: 12px;
   }
 
   .leaflet-popup-content-wrapper {
     border-radius: 8px !important;
     box-shadow: 0 4px 6px -1px rgba(26, 26, 26, 0.08) !important;
-    font-family: 'Source Sans 3', system-ui, sans-serif !important;
+    font-family: 'Instrument Sans', system-ui, sans-serif !important;
   }
 
   .leaflet-popup-content {

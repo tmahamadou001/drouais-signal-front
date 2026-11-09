@@ -120,7 +120,7 @@ const ackRatio = computed(() =>
 
     <!-- Identité -->
     <RouterLink to="/admin/signalements" class="flex items-center gap-2.5 px-3 pb-6 pt-1">
-      <BrandLogo :size="30" />
+      <BrandLogo :size="30" tone="white" />
       <div class="flex min-w-0 flex-col gap-0.5">
         <div class="text-[15px] font-bold leading-none tracking-[-0.01em] text-white">OnSignale</div>
         <div class="truncate text-[11px] font-medium leading-none text-brand-400">{{ cityLabel }}</div>

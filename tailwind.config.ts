@@ -102,11 +102,14 @@ export default {
         },
       },
       fontFamily: {
-        sans: ['"Source Sans 3"', 'system-ui', 'sans-serif'],
-        // La police de l'export. Réservée aux écrans repris du design, tant que
-        // le reste de l'administration tourne sur Source Sans 3.
+        // Charte §4 : l'admin web est en Instrument Sans, 400 à 700. La
+        // transition est finie — Source Sans 3 tenait le reste de
+        // l'administration en attendant, et Playfair Display était un reste de
+        // la v1 que la charte ne mentionne plus.
+        sans: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
+        // Conservé comme alias : vingt-deux fichiers portent `font-ui`, et le
+        // faire disparaître d'un coup ne dirait rien de plus que `sans`.
         ui: ['"Instrument Sans"', 'system-ui', 'sans-serif'],
-        display: ['"Playfair Display"', 'Georgia', 'serif'],
       },
       borderRadius: {
         'ds': '8px',

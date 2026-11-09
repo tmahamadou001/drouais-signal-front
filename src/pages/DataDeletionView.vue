@@ -50,7 +50,7 @@ const KEPT = [
       Politique de confidentialité
     </RouterLink>
 
-    <h1 class="mb-2 text-3xl font-display font-bold text-dark">Supprimer mes données</h1>
+    <h1 class="mb-2 text-3xl font-bold text-dark">Supprimer mes données</h1>
     <p class="mb-10 text-sm text-neutral-400">
       Application OnSignale — <span class="font-mono">fr.onsignale.mobile</span>
     </p>
