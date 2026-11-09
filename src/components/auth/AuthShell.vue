@@ -42,10 +42,7 @@ const activeCategoryCount = computed(() => tenant.activeCategories.length)
 
       <!-- Le panneau marine est le seul endroit de l'admin où la marque
            dispose d'assez de place et d'assez de calme pour s'écrire. -->
-      <div class="flex items-center gap-3">
-        <BrandLogoDraw :size="52" tone="white" />
-        <div class="text-[18px] font-bold leading-none tracking-[-0.01em] text-white">OnSignale</div>
-      </div>
+      <BrandLogoDraw :height="28" tone="white" />
 
       <div class="mt-auto flex flex-col gap-[18px]">
         <h2 class="text-[34px] font-bold leading-[1.2] tracking-[-0.02em] text-white xl:text-[40px]">

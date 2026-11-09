@@ -18,7 +18,7 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import AppIcon from '@/components/AppIcon.vue'
-import BrandLogo from '@/components/BrandLogo.vue'
+import BrandWordmark from '@/components/BrandWordmark.vue'
 import AppSkeleton from '@/components/ui/AppSkeleton.vue'
 import MapView from '@/components/MapView.vue'
 import { categoryGlyph } from '@/lib/categories'
@@ -146,10 +146,9 @@ const mapsUrl = computed(() =>
   <div class="font-ui flex min-h-[100dvh] flex-col bg-canvas">
 
     <header class="flex flex-none items-center gap-2.5 border-b border-line bg-white px-5 py-4">
-      <BrandLogo :size="28" tone="navy" />
-      <div class="min-w-0">
-        <div class="text-[15px] font-bold leading-none tracking-[-0.01em] text-brand-900">OnSignale</div>
-        <div v-if="commune" class="truncate text-[11px] font-medium leading-none text-muted">{{ commune }}</div>
+      <div class="min-w-0 flex flex-col gap-1">
+        <BrandWordmark :height="18" tone="navy" />
+        <div v-if="commune" class="truncate pl-0.5 text-[11px] font-medium leading-none text-muted">{{ commune }}</div>
       </div>
     </header>
 

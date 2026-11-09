@@ -18,7 +18,7 @@ import { useRoute, RouterLink } from 'vue-router'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import AppIcon from '@/components/AppIcon.vue'
-import BrandLogo from '@/components/BrandLogo.vue'
+import BrandWordmark from '@/components/BrandWordmark.vue'
 // L'objectif interne. Au-delà, la barre passe à l'ambre.
 import { ACK_TARGET_DAYS } from '@/composables/useServiceTargets'
 
@@ -120,10 +120,12 @@ const ackRatio = computed(() =>
 
     <!-- Identité -->
     <RouterLink to="/admin/signalements" class="flex items-center gap-2.5 px-3 pb-6 pt-1">
-      <BrandLogo :size="30" tone="white" />
-      <div class="flex min-w-0 flex-col gap-0.5">
-        <div class="text-[15px] font-bold leading-none tracking-[-0.01em] text-white">OnSignale</div>
-        <div class="truncate text-[11px] font-medium leading-none text-brand-400">{{ cityLabel }}</div>
+      <!-- Version longue : l'anneau *est* le « O » du nom. Le poser à côté
+           d'un « OnSignale » composé donnait deux O côte à côte, l'un dessiné,
+           l'autre typographique — ce que la charte interdit. -->
+      <div class="flex min-w-0 flex-col gap-1">
+        <BrandWordmark :height="18" tone="white" />
+        <div class="truncate pl-0.5 text-[11px] font-medium leading-none text-brand-400">{{ cityLabel }}</div>
       </div>
     </RouterLink>
 

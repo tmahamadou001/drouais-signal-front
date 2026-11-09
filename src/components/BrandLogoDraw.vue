@@ -2,111 +2,113 @@
 /**
  * La marque qui s'écrit, au chargement de la page de connexion.
  *
- * La boucle se trace comme si on la traçait soi-même, puis le point ambre
- * apparaît : l'animation montre le geste que le service nomme. Elle se joue
- * **une fois** — la version en boucle du kit est réservée aux présentations,
- * et une marque qui se redessine en permanence derrière un formulaire se
- * regarde au lieu de se remplir.
+ * L'anneau se trace depuis le bord droit de l'ouverture, le point ambre vient
+ * s'y poser, puis le nom apparaît en glissant à sa place. L'animation montre
+ * l'idée du logo plutôt qu'elle ne l'orne : la vie ordinaire se déroule, le
+ * problème apparaît, et on le nomme.
  *
- * Le trait n'est pas un `stroke` mais une surface d'épaisseur variable : il
- * s'appuie au départ et s'affine à la levée, ce qu'aucune épaisseur constante
- * ne rend. On ne peut donc pas le dévoiler par `stroke-dashoffset` directement.
- * D'où le masque : une ligne médiane épaisse, elle vraiment en `stroke`,
- * balayée par son offset, qui découvre la surface en dessous. Le dessin reste
- * exact, seule sa révélation est animée.
+ * Elle se joue **une fois**. Le kit fournit une version en boucle, réservée aux
+ * présentations : une marque qui se redessine sans fin derrière un formulaire
+ * se regarde au lieu de se remplir.
  *
- * Le point grandit par `transform: scale` plutôt que par son rayon : `r` n'est
- * animable en CSS que sur les navigateurs récents, une échelle l'est partout.
+ * Le trait est un vrai `stroke`, donc le tracé s'anime directement par
+ * `stroke-dashoffset` — sans le masque qu'exigeait le logo précédent, dont
+ * l'épaisseur variait.
  */
-import { MARK_MAIN, MARK_TONES, type MarkTone } from '@/lib/markGeometry'
+import { DOT, MARK_TONES, MARK_TOP_EM, RING, VIEW_BOX, WORDMARK, type MarkTone } from '@/lib/markGeometry'
 
-withDefaults(defineProps<{ size?: number; tone?: MarkTone }>(), {
-  size: 120,
+const props = withDefaults(defineProps<{ height?: number; tone?: MarkTone }>(), {
+  height: 34,
   tone: 'white',
 })
-
-const mark = MARK_MAIN
-const tones = MARK_TONES
 </script>
 
 <template>
-  <svg
-    viewBox="-20 -20 140 140"
-    class="brand-draw block flex-none"
-    :style="{ width: `${size}px`, height: `${size}px` }"
-    role="img"
-    aria-label="OnSignale"
-  >
-    <defs>
-      <mask id="brand-draw-mask" maskUnits="userSpaceOnUse" x="-20" y="-20" width="140" height="140">
-        <path
-          class="brand-draw__reveal"
-          :d="mark.center"
-          fill="none"
-          stroke="#FFFFFF"
-          :stroke-width="mark.maskStroke"
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          :style="{
-            strokeDasharray: mark.centerLength,
-            '--mark-length': mark.centerLength,
-          }"
-        />
-      </mask>
-    </defs>
-
-    <g mask="url(#brand-draw-mask)">
-      <path :d="mark.fill" :fill="tones[tone].stroke" />
-      <circle
-        v-for="cap in mark.caps"
-        :key="`${cap[0]}-${cap[1]}`"
-        :cx="cap[0]"
-        :cy="cap[1]"
-        :r="cap[2]"
-        :fill="tones[tone].stroke"
+  <span class="brand-draw inline-flex w-fit items-start" role="img" aria-label="OnSignale">
+    <svg
+      :viewBox="VIEW_BOX"
+      class="block flex-none"
+      :style="{
+        width: `${props.height * WORDMARK.markSizeEm}px`,
+        height: `${props.height * WORDMARK.markSizeEm}px`,
+        marginRight: `${props.height * WORDMARK.gapEm}px`,
+        marginTop: `${props.height * MARK_TOP_EM}px`,
+      }"
+    >
+      <path
+        class="brand-draw__ring"
+        :d="RING.d"
+        fill="none"
+        :stroke="MARK_TONES[props.tone].fg"
+        :stroke-width="RING.strokeWidth"
+        stroke-linecap="round"
+        :style="{ strokeDasharray: RING.length, '--ring-length': RING.length }"
       />
-    </g>
+      <circle
+        class="brand-draw__dot"
+        :cx="DOT.cx"
+        :cy="DOT.cy"
+        :r="DOT.r"
+        :fill="MARK_TONES[props.tone].dot"
+      />
+    </svg>
 
-    <circle
-      class="brand-draw__dot"
-      :cx="mark.dot[0]"
-      :cy="mark.dot[1]"
-      :r="mark.dot[2]"
-      :fill="tones[tone].dot"
-    />
-  </svg>
+    <span
+      class="brand-draw__name font-sans font-bold"
+      :style="{
+        fontSize: `${props.height}px`,
+        lineHeight: 1,
+        letterSpacing: `${WORDMARK.letterSpacingEm}em`,
+        color: MARK_TONES[props.tone].fg,
+        '--name-shift': `${-props.height * 0.14}px`,
+      }"
+    >{{ WORDMARK.text }}</span>
+  </span>
 </template>
 
 <style scoped>
-/* Les durées et les courbes viennent de la charte, §2. */
-.brand-draw__reveal {
-  stroke-dashoffset: var(--mark-length);
-  animation: brand-draw-loop 1.3s cubic-bezier(0.45, 0, 0.25, 1) 0.15s forwards;
+/* Durées et courbes de la charte, §2. */
+.brand-draw__ring {
+  stroke-dashoffset: var(--ring-length);
+  animation: brand-ring 1.2s cubic-bezier(0.45, 0, 0.25, 1) 0.15s forwards;
 }
 
 .brand-draw__dot {
   transform-box: fill-box;
   transform-origin: center;
   transform: scale(0);
-  animation: brand-draw-dot 0.4s ease-out 1.45s forwards;
+  animation: brand-dot 0.4s ease-out 1.35s forwards;
 }
 
-@keyframes brand-draw-loop {
+.brand-draw__name {
+  opacity: 0;
+  transform: translateX(var(--name-shift));
+  animation: brand-name 0.45s cubic-bezier(0.2, 0.7, 0.3, 1) 1.65s forwards;
+}
+
+@keyframes brand-ring {
   to {
     stroke-dashoffset: 0;
   }
 }
 
 /* 0 → surimpression → rayon de la charte : le point se pose, il n'atterrit pas. */
-@keyframes brand-draw-dot {
+@keyframes brand-dot {
   0% {
     transform: scale(0);
   }
   55% {
-    transform: scale(1.22);
+    transform: scale(1.28);
   }
   100% {
     transform: scale(1);
+  }
+}
+
+@keyframes brand-name {
+  to {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 
@@ -115,14 +117,23 @@ const tones = MARK_TONES
  * demande, et c'est le seul réglage système que ce composant peut lire.
  */
 @media (prefers-reduced-motion: reduce) {
-  .brand-draw__reveal {
+  .brand-draw__ring,
+  .brand-draw__dot,
+  .brand-draw__name {
     animation: none;
+  }
+
+  .brand-draw__ring {
     stroke-dashoffset: 0;
   }
 
   .brand-draw__dot {
-    animation: none;
     transform: scale(1);
+  }
+
+  .brand-draw__name {
+    opacity: 1;
+    transform: translateX(0);
   }
 }
 </style>

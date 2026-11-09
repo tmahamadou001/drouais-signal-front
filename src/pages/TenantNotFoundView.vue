@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import BrandLogo from '@/components/BrandLogo.vue'
+import BrandWordmark from '@/components/BrandWordmark.vue'
 import { detectSlug } from '@/utils/detectSlug'
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -30,10 +30,7 @@ const contactBody = encodeURIComponent(
            ainsi la charte sans qu'un fichier PNG oublié quelque part ne la
            fasse diverger — c'est exactement ce qui est arrivé au bouclier. -->
       <div class="flex items-center justify-center gap-2 mb-6">
-        <BrandLogo :size="28" tone="navy" />
-        <span class=" text-lg font-bold text-dark tracking-tight">
-          On<span class="text-primary">Signale</span>
-        </span>
+        <BrandWordmark :height="20" tone="navy" />
       </div>
 
       <!-- Titre -->

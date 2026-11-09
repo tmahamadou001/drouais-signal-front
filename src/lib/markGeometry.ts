@@ -1,60 +1,85 @@
 /**
- * La géométrie de la marque « Le coup de feutre », livrée par le kit de marque
- * (`logo/logo-geometry.json`, viewBox 0 0 100 100).
+ * La marque OnSignale — « le O qui signale ».
  *
- * Même fichier de référence que `mobile/src/ui/brand/mark-geometry.ts`, et
- * c'est voulu : les deux applications doivent montrer exactement la même
- * marque. La charte interdit de la redessiner à la main — le trait s'appuie au
- * départ puis s'affine à la levée, ce qu'aucune épaisseur constante ne rend.
- * Ce sont donc des **surfaces**, pas des traits.
+ * Un anneau, la vie ordinaire de la commune, interrompu par un point ambre :
+ * le problème qu'on remarque. Le point prend la place du morceau manquant.
+ * Posé dans le nom, cet anneau devient le « O » de OnSignale — le logo et le
+ * nom ne font qu'un.
  *
- *  - `fill` : le contour plein du trait ;
- *  - `caps` : ses extrémités arrondies ;
- *  - `dot` : le point ambre, le problème signalé ;
- *  - `center` / `centerLength` / `strokeWidth` : la ligne médiane, qui sert de
- *    masque pour animer l'écriture de la boucle.
+ * Valeurs recopiées de `logo/logo-geometry.json`, jamais redessinées : refermer
+ * l'anneau ou rétrécir l'ouverture en ferait un « O » banal ou un « Q ».
+ *
+ * `LENGTH` est la longueur de l'arc. Elle ne sert pas à dessiner mais à
+ * animer : c'est le `stroke-dashoffset` de départ, celui qui fait que l'anneau
+ * s'écrit depuis le bord droit de l'ouverture.
  */
 
-export interface MarkGeometry {
-  fill: string
-  caps: [number, number, number][]
-  dot: [number, number, number]
-  center: string
-  centerLength: number
-  strokeWidth: number
-  /**
-   * L'épaisseur du trait qui **masque**, et non celle du trait dessiné.
-   *
-   * Plus large que `strokeWidth` à dessein : la surface s'épaissit à l'appui du
-   * départ bien au-delà de l'épaisseur nominale, et un masque à la bonne mesure
-   * la rogne presque entièrement — on ne voit alors qu'un filet, ou rien du
-   * tout. Le kit anime avec 22 pour un trait de 12 ; on garde ce rapport.
-   */
-  maskStroke: number
-}
+export const VIEW_BOX = '12.5 12.5 75 75'
 
-export const MARK_MAIN: MarkGeometry = {
-  fill: "M43 31.2 L43.8 31 L44.6 30.9 L45.4 30.9 L46.1 30.9 L46.9 30.9 L47.7 31 L48.4 31.1 L49.2 31.3 L49.9 31.4 L50.7 31.6 L51.4 31.8 L52.1 32 L52.8 32.2 L53.5 32.4 L54.2 32.6 L54.9 32.7 L55.6 32.9 L56.3 33.1 L57 33.3 L57.7 33.5 L58.3 33.8 L59 34 L59.6 34.3 L60.3 34.6 L60.9 34.9 L61.5 35.2 L62.2 35.6 L62.8 35.9 L63.4 36.3 L63.9 36.7 L64.5 37 L65.1 37.4 L65.6 37.9 L66.2 38.3 L66.7 38.7 L67.2 39.1 L67.7 39.6 L68.2 40.1 L68.7 40.5 L69.1 41 L69.6 41.5 L70 42 L70.4 42.5 L70.8 43 L71.2 43.5 L71.6 44.1 L71.9 44.6 L72.3 45.1 L72.6 45.7 L72.9 46.2 L73.1 46.8 L73.4 47.4 L73.6 47.9 L73.8 48.5 L74 49.1 L74.2 49.6 L74.3 50.2 L74.4 50.8 L74.5 51.4 L74.6 52 L74.7 52.5 L74.7 53.1 L74.7 53.7 L74.7 54.3 L74.6 54.9 L74.6 55.5 L74.5 56 L74.4 56.6 L74.2 57.2 L74.1 57.8 L73.9 58.4 L73.7 58.9 L73.5 59.5 L73.2 60.1 L72.9 60.6 L72.6 61.2 L72.3 61.7 L71.9 62.3 L71.6 62.8 L71.2 63.3 L70.8 63.8 L70.3 64.3 L69.9 64.8 L69.4 65.3 L68.9 65.8 L68.4 66.3 L67.8 66.7 L67.3 67.2 L66.7 67.6 L66.1 68 L65.5 68.4 L64.9 68.8 L64.3 69.2 L63.7 69.5 L63 69.9 L62.3 70.2 L61.7 70.6 L61 70.9 L60.3 71.2 L59.6 71.4 L58.9 71.7 L58.2 72 L57.5 72.2 L56.7 72.4 L56 72.6 L55.3 72.8 L54.5 73 L53.8 73.2 L53 73.3 L52.3 73.4 L51.5 73.6 L50.7 73.7 L50 73.7 L49.2 73.8 L48.5 73.8 L47.7 73.9 L46.9 73.9 L46.2 73.9 L45.4 73.8 L44.7 73.8 L43.9 73.7 L43.2 73.6 L42.4 73.5 L41.7 73.4 L41 73.2 L40.3 73.1 L39.6 72.9 L38.9 72.7 L38.2 72.4 L37.5 72.2 L36.8 71.9 L36.2 71.6 L35.6 71.3 L34.9 71 L34.3 70.6 L33.8 70.3 L33.2 69.9 L32.7 69.5 L32.1 69.1 L31.6 68.7 L31.1 68.2 L30.7 67.7 L30.2 67.3 L29.8 66.8 L29.4 66.3 L29 65.8 L28.7 65.3 L28.3 64.7 L28 64.2 L27.7 63.6 L27.4 63.1 L27.2 62.5 L27 61.9 L26.7 61.3 L26.5 60.8 L26.4 60.2 L26.2 59.5 L26.1 58.9 L26 58.3 L25.9 57.7 L25.8 57.1 L25.8 56.4 L25.7 55.8 L25.7 55.2 L25.7 54.5 L25.7 53.9 L25.8 53.2 L25.8 52.6 L25.9 51.9 L26 51.3 L26.1 50.7 L26.2 50 L26.4 49.4 L26.5 48.7 L26.7 48.1 L26.9 47.4 L27.1 46.8 L27.3 46.2 L27.6 45.6 L27.8 44.9 L28.1 44.3 L28.4 43.7 L28.7 43.1 L29.1 42.5 L29.4 41.9 L29.8 41.3 L30.1 40.8 L30.6 40.2 L31 39.6 L31.4 39.1 L31.9 38.6 L32.3 38 L32.8 37.5 L33.3 37 L33.9 36.5 L34.4 36.1 L35 35.6 L35.5 35.2 L36.1 34.8 L36.7 34.4 L37.4 34 L38 33.6 L38.7 33.3 L39.3 32.9 L40 32.6 L40.7 32.3 L41.4 32.1 L42.1 31.8 L42.8 31.6 L43.6 31.4 L44.3 31.3 L45.1 31.1 L45.8 31 L46.6 30.9 L47.4 30.8 L48.1 30.8 L48.9 30.7 L49.7 30.7 L50.4 30.7 L51.2 30.7 L52.1 30.7 L53.8 30.7 L55.5 30.4 L56.5 30.1 L57.4 29.9 L58.3 29.6 L59.2 29.3 L60.1 29 L61 28.7 L61.9 28.4 L62.7 28.1 L63.6 27.8 L64.4 27.5 L65.3 27.2 L66.1 26.8 L67 26.5 L67.8 26.2 L68.6 25.9 L69.5 25.6 L70.3 25.2 L71.1 24.9 L71.9 24.6 L72.6 24.2 L73.4 23.9 L74.2 23.5 L74.9 23.2 L75.6 22.8 L76.4 22.4 L77.1 22 L77.8 21.6 L78.4 21.2 L79.1 20.8 L79.7 20.4 L80.3 19.9 L80.9 19.5 L81.5 19 L82.1 18.5 L82.6 18 L83.1 17.4 L83.6 16.9 L80.9 14.5 L80.5 14.9 L80.1 15.3 L79.7 15.6 L79.2 15.9 L78.7 16.2 L78.2 16.5 L77.7 16.7 L77.1 16.9 L76.5 17.1 L75.9 17.3 L75.2 17.5 L74.6 17.6 L73.9 17.7 L73.2 17.8 L72.5 17.9 L71.8 18 L71 18.1 L70.2 18.1 L69.5 18.2 L68.7 18.2 L67.8 18.3 L67 18.3 L66.2 18.3 L65.3 18.4 L64.4 18.4 L63.5 18.4 L62.6 18.5 L61.7 18.5 L60.8 18.6 L59.9 18.6 L59 18.7 L58 18.8 L57.1 18.8 L56.1 18.9 L55.2 19 L54.3 19.1 L53.4 19.2 L53.2 19.2 L53.1 19.1 L52 18.9 L50.9 18.8 L49.8 18.8 L48.7 18.7 L47.5 18.8 L46.4 18.9 L45.2 19 L44.1 19.1 L43 19.3 L41.8 19.5 L40.7 19.8 L39.6 20.1 L38.5 20.4 L37.4 20.8 L36.3 21.2 L35.3 21.6 L34.2 22.1 L33.2 22.6 L32.2 23.1 L31.2 23.7 L30.3 24.2 L29.3 24.9 L28.4 25.5 L27.5 26.2 L26.7 26.9 L25.9 27.6 L25.1 28.3 L24.3 29.1 L23.5 29.9 L22.8 30.6 L22.1 31.5 L21.5 32.3 L20.9 33.1 L20.3 34 L19.7 34.8 L19.1 35.7 L18.6 36.6 L18.1 37.4 L17.7 38.3 L17.2 39.2 L16.8 40.1 L16.5 41 L16.1 42 L15.8 42.9 L15.5 43.8 L15.2 44.7 L14.9 45.7 L14.7 46.6 L14.5 47.6 L14.3 48.5 L14.1 49.5 L14 50.4 L13.9 51.4 L13.8 52.4 L13.7 53.3 L13.7 54.3 L13.7 55.3 L13.7 56.3 L13.8 57.3 L13.9 58.3 L14 59.3 L14.1 60.3 L14.3 61.3 L14.5 62.3 L14.8 63.3 L15.1 64.3 L15.4 65.3 L15.8 66.2 L16.1 67.2 L16.6 68.2 L17 69.1 L17.6 70.1 L18.1 71 L18.7 71.9 L19.3 72.8 L19.9 73.7 L20.6 74.5 L21.3 75.3 L22.1 76.1 L22.9 76.9 L23.7 77.6 L24.5 78.4 L25.4 79.1 L26.3 79.7 L27.2 80.3 L28.1 80.9 L29.1 81.5 L30.1 82 L31.1 82.5 L32.1 82.9 L33.1 83.4 L34.2 83.7 L35.2 84.1 L36.3 84.4 L37.3 84.7 L38.4 85 L39.4 85.2 L40.5 85.4 L41.6 85.5 L42.7 85.6 L43.7 85.7 L44.8 85.8 L45.9 85.9 L46.9 85.9 L48 85.9 L49 85.8 L50.1 85.8 L51.1 85.7 L52.1 85.6 L53.2 85.4 L54.2 85.3 L55.2 85.1 L56.2 84.9 L57.2 84.7 L58.2 84.5 L59.2 84.2 L60.1 83.9 L61.1 83.6 L62.1 83.3 L63 83 L64 82.6 L64.9 82.2 L65.8 81.8 L66.8 81.4 L67.7 81 L68.6 80.5 L69.5 80 L70.4 79.5 L71.3 79 L72.1 78.4 L73 77.9 L73.8 77.3 L74.7 76.6 L75.5 76 L76.3 75.3 L77.1 74.6 L77.8 73.9 L78.6 73.1 L79.3 72.3 L80 71.5 L80.6 70.7 L81.3 69.8 L81.9 69 L82.5 68.1 L83 67.1 L83.6 66.2 L84 65.2 L84.5 64.2 L84.9 63.2 L85.3 62.2 L85.6 61.2 L85.9 60.2 L86.1 59.1 L86.3 58.1 L86.5 57 L86.6 55.9 L86.7 54.9 L86.7 53.8 L86.7 52.7 L86.6 51.7 L86.5 50.6 L86.4 49.6 L86.2 48.6 L86 47.5 L85.8 46.5 L85.5 45.5 L85.2 44.6 L84.8 43.6 L84.4 42.7 L84 41.7 L83.6 40.8 L83.1 39.9 L82.6 39.1 L82.1 38.2 L81.6 37.4 L81 36.6 L80.4 35.8 L79.8 35 L79.2 34.3 L78.6 33.5 L77.9 32.8 L77.2 32.1 L76.6 31.4 L75.9 30.8 L75.1 30.1 L74.4 29.5 L73.7 28.9 L72.9 28.3 L72.1 27.7 L71.3 27.2 L70.5 26.6 L69.7 26.1 L68.9 25.6 L68 25.1 L67.2 24.6 L66.3 24.2 L65.4 23.7 L64.5 23.3 L63.5 22.9 L62.6 22.6 L61.6 22.2 L60.7 21.9 L59.7 21.6 L58.7 21.3 L57.6 21 L56.6 20.8 L55.6 20.7 L54.5 20.6 L53.4 20.5 L52.4 20.5 L51.3 20.6 L50.2 20.7 L49.1 20.9 L48.1 21.1 L47 21.3 L46 21.5 L44.9 21.8 L43.9 22 L42.9 22.3 L41.9 22.6 L40.9 22.8 Z",
-  caps: [[42, 27, 4.3], [82.3, 15.7, 1.8]],
-  dot: [50, 54, 9],
-  center: "M42 27 L45.5 26.3 L49.2 26.1 L52.8 26.3 L56.3 26.9 L59.6 27.9 L62.8 29.2 L65.8 30.8 L68.6 32.6 L71.2 34.6 L73.5 36.9 L75.6 39.4 L77.4 42.1 L78.9 45 L80 48.1 L80.6 51.3 L80.7 54.6 L80.2 57.9 L79.3 61.1 L77.8 64.1 L75.9 67 L73.6 69.6 L71 71.9 L68.1 73.9 L65 75.6 L61.8 77 L58.4 78.2 L55 79 L51.4 79.6 L47.8 79.9 L44.2 79.8 L40.6 79.3 L37 78.4 L33.6 77.1 L30.5 75.3 L27.7 73.2 L25.2 70.6 L23.2 67.9 L21.7 64.9 L20.6 61.7 L19.9 58.5 L19.7 55.2 L19.9 52 L20.3 48.8 L21.2 45.6 L22.3 42.5 L23.8 39.5 L25.7 36.6 L27.9 33.9 L30.5 31.5 L33.5 29.3 L36.8 27.5 L40.3 26.1 L44 25.2 L47.8 24.8 L51.6 24.8 L55.4 24.6 L59.1 23.9 L62.7 23.1 L66.1 22.4 L69.5 21.7 L72.6 20.9 L75.5 20 L78.1 18.9 L80.4 17.5 L82.3 15.7",
-  centerLength: 223.6,
-  strokeWidth: 12,
-  maskStroke: 22,
-}
+export const RING = {
+  d: "M80.7 45.7 A31 31 0 1 1 54.3 19.3",
+  strokeWidth: 13,
+  /** Longueur de l'arc, pour le tracé animé. */
+  length: 156.9,
+} as const
 
-export const MARK_SMALL: MarkGeometry = {
-  fill: "M44.9 37.9 L45.5 37.8 L46 37.7 L46.5 37.7 L47 37.7 L47.5 37.7 L48 37.7 L48.5 37.8 L49 37.8 L49.5 37.9 L50 38 L50.4 38.1 L50.9 38.2 L51.4 38.3 L51.9 38.4 L52.4 38.5 L52.8 38.7 L53.3 38.8 L53.8 39 L54.2 39.1 L54.7 39.3 L55.1 39.5 L55.6 39.7 L56 39.9 L56.4 40.2 L56.9 40.4 L57.3 40.7 L57.7 41 L58.1 41.2 L58.5 41.5 L58.9 41.8 L59.2 42.2 L59.6 42.5 L60 42.8 L60.3 43.2 L60.6 43.5 L61 43.9 L61.3 44.3 L61.6 44.7 L61.9 45 L62.2 45.4 L62.4 45.9 L62.7 46.3 L62.9 46.7 L63.2 47.1 L63.4 47.6 L63.6 48 L63.8 48.5 L64 48.9 L64.2 49.4 L64.3 49.9 L64.5 50.3 L64.6 50.8 L64.7 51.3 L64.8 51.8 L64.9 52.2 L65 52.7 L65 53.2 L65.1 53.7 L65.1 54.2 L65.1 54.7 L65.1 55.2 L65.1 55.7 L65.1 56.2 L65.1 56.7 L65 57.2 L64.9 57.6 L64.9 58.1 L64.8 58.6 L64.7 59.1 L64.5 59.6 L64.4 60.1 L64.3 60.5 L64.1 61 L63.9 61.4 L63.7 61.9 L63.5 62.4 L63.3 62.8 L63.1 63.2 L62.8 63.7 L62.6 64.1 L62.3 64.5 L62 64.9 L61.7 65.3 L61.4 65.7 L61.1 66.1 L60.8 66.5 L60.5 66.8 L60.1 67.2 L59.8 67.5 L59.4 67.9 L59 68.2 L58.7 68.5 L58.3 68.8 L57.9 69.1 L57.5 69.4 L57 69.7 L56.6 69.9 L56.2 70.2 L55.7 70.4 L55.3 70.6 L54.9 70.8 L54.4 71 L53.9 71.2 L53.5 71.3 L53 71.5 L52.5 71.6 L52 71.8 L51.6 71.9 L51.1 72 L50.6 72.1 L50.1 72.1 L49.6 72.2 L49.1 72.2 L48.6 72.3 L48.1 72.3 L47.6 72.3 L47.1 72.2 L46.6 72.2 L46.1 72.2 L45.6 72.1 L45.1 72 L44.6 72 L44.2 71.9 L43.7 71.7 L43.2 71.6 L42.7 71.5 L42.2 71.3 L41.8 71.1 L41.3 71 L40.9 70.8 L40.4 70.5 L40 70.3 L39.5 70.1 L39.1 69.8 L38.7 69.6 L38.3 69.3 L37.8 69 L37.4 68.7 L37.1 68.4 L36.7 68.1 L36.3 67.8 L35.9 67.4 L35.6 67.1 L35.2 66.7 L34.9 66.3 L34.6 66 L34.3 65.6 L34 65.2 L33.7 64.8 L33.4 64.4 L33.1 63.9 L32.9 63.5 L32.6 63.1 L32.4 62.6 L32.2 62.2 L32 61.7 L31.8 61.3 L31.6 60.8 L31.5 60.3 L31.3 59.8 L31.2 59.4 L31.1 58.9 L31 58.4 L30.9 57.9 L30.8 57.4 L30.7 56.9 L30.7 56.4 L30.6 55.9 L30.6 55.4 L30.6 54.9 L30.6 54.4 L30.6 53.9 L30.7 53.4 L30.7 52.9 L30.8 52.4 L30.9 51.9 L31 51.4 L31.1 50.9 L31.2 50.5 L31.3 50 L31.5 49.5 L31.6 49 L31.8 48.6 L32 48.1 L32.2 47.6 L32.4 47.2 L32.7 46.7 L32.9 46.3 L33.2 45.9 L33.4 45.4 L33.7 45 L34 44.6 L34.3 44.2 L34.6 43.8 L34.9 43.4 L35.3 43.1 L35.6 42.7 L36 42.3 L36.3 42 L36.7 41.7 L37.1 41.4 L37.5 41 L37.9 40.7 L38.3 40.5 L38.7 40.2 L39.2 39.9 L39.6 39.7 L40 39.4 L40.5 39.2 L41 39 L41.4 38.8 L41.9 38.6 L42.4 38.4 L42.8 38.3 L43.3 38.1 L43.8 38 L44.3 37.9 L45.2 37.7 L46.7 37.2 L47.9 36.7 L48.7 36.3 L49.4 36 L50 35.6 L50.7 35.3 L51.3 35 L51.9 34.7 L52.5 34.4 L53.1 34 L53.7 33.7 L54.3 33.4 L54.9 33.1 L55.5 32.8 L56.1 32.5 L56.7 32.2 L57.3 31.9 L57.9 31.6 L58.5 31.3 L59.1 31 L59.7 30.6 L60.3 30.3 L60.9 30 L61.5 29.6 L62.1 29.3 L62.7 28.9 L63.3 28.5 L63.9 28.1 L64.5 27.7 L65.1 27.3 L65.7 26.8 L66.3 26.4 L66.8 25.9 L67.4 25.3 L68 24.8 L68.5 24.2 L69 23.6 L69.5 22.9 L70 22.2 L70.5 21.5 L70.9 20.8 L71.2 20.2 L59 14.2 L58.8 14.4 L58.8 14.5 L58.7 14.6 L58.6 14.7 L58.5 14.8 L58.4 14.9 L58.3 15 L58.1 15.2 L57.9 15.3 L57.7 15.5 L57.4 15.6 L57.2 15.8 L56.9 15.9 L56.5 16.1 L56.2 16.3 L55.8 16.5 L55.4 16.6 L54.9 16.8 L54.5 17 L54 17.2 L53.5 17.4 L53 17.6 L52.4 17.8 L51.9 18 L51.3 18.3 L50.7 18.5 L50.1 18.7 L49.4 19 L48.8 19.2 L48.1 19.4 L47.5 19.7 L46.8 20 L46.1 20.2 L45.4 20.5 L44.7 20.8 L44 21.1 L43.4 21.4 L42.7 21.7 L42 21.9 L41.5 22.2 L41.3 22.3 L41.4 22.2 L40.8 22.3 L39.9 22.5 L39 22.8 L38 23 L37.1 23.3 L36.2 23.7 L35.3 24 L34.4 24.4 L33.6 24.8 L32.7 25.2 L31.9 25.7 L31 26.2 L30.2 26.7 L29.4 27.2 L28.6 27.7 L27.8 28.3 L27.1 28.9 L26.3 29.5 L25.6 30.1 L24.9 30.8 L24.2 31.5 L23.6 32.2 L22.9 32.9 L22.3 33.6 L21.7 34.4 L21.1 35.1 L20.5 35.9 L20 36.7 L19.5 37.5 L19 38.4 L18.5 39.2 L18.1 40.1 L17.7 40.9 L17.3 41.8 L16.9 42.7 L16.6 43.6 L16.3 44.5 L16 45.4 L15.7 46.3 L15.5 47.3 L15.3 48.2 L15.1 49.2 L15 50.1 L14.8 51.1 L14.7 52 L14.7 53 L14.6 53.9 L14.6 54.9 L14.6 55.9 L14.7 56.8 L14.7 57.8 L14.8 58.7 L15 59.7 L15.1 60.6 L15.3 61.6 L15.5 62.5 L15.7 63.4 L16 64.4 L16.3 65.3 L16.6 66.2 L16.9 67.1 L17.3 68 L17.7 68.9 L18.1 69.7 L18.5 70.6 L19 71.4 L19.5 72.2 L20 73.1 L20.5 73.9 L21.1 74.6 L21.6 75.4 L22.2 76.2 L22.9 76.9 L23.5 77.6 L24.2 78.3 L24.8 79 L25.5 79.6 L26.3 80.3 L27 80.9 L27.8 81.5 L28.5 82 L29.3 82.6 L30.1 83.1 L30.9 83.6 L31.8 84.1 L32.6 84.5 L33.5 85 L34.3 85.4 L35.2 85.7 L36.1 86.1 L37 86.4 L37.9 86.7 L38.8 87 L39.7 87.2 L40.7 87.5 L41.6 87.7 L42.6 87.8 L43.5 88 L44.5 88.1 L45.4 88.2 L46.4 88.2 L47.3 88.3 L48.3 88.3 L49.2 88.2 L50.2 88.2 L51.1 88.1 L52.1 88 L53 87.9 L54 87.7 L54.9 87.5 L55.9 87.3 L56.8 87.1 L57.7 86.8 L58.6 86.5 L59.5 86.2 L60.4 85.8 L61.3 85.5 L62.2 85.1 L63 84.6 L63.9 84.2 L64.7 83.7 L65.5 83.2 L66.3 82.7 L67.1 82.2 L67.9 81.6 L68.6 81 L69.4 80.4 L70.1 79.8 L70.8 79.1 L71.5 78.5 L72.1 77.8 L72.8 77.1 L73.4 76.4 L74 75.6 L74.6 74.9 L75.1 74.1 L75.7 73.3 L76.2 72.5 L76.7 71.7 L77.2 70.8 L77.6 70 L78 69.1 L78.4 68.3 L78.8 67.4 L79.1 66.5 L79.4 65.6 L79.7 64.7 L80 63.8 L80.2 62.8 L80.4 61.9 L80.6 61 L80.8 60 L80.9 59.1 L81 58.1 L81.1 57.2 L81.1 56.2 L81.1 55.3 L81.1 54.3 L81.1 53.4 L81 52.4 L80.9 51.5 L80.8 50.5 L80.7 49.6 L80.5 48.7 L80.3 47.7 L80.1 46.8 L79.8 45.9 L79.6 45 L79.3 44.1 L78.9 43.2 L78.6 42.3 L78.2 41.4 L77.8 40.6 L77.4 39.7 L76.9 38.9 L76.4 38 L75.9 37.2 L75.4 36.4 L74.9 35.7 L74.3 34.9 L73.7 34.2 L73.1 33.4 L72.4 32.7 L71.8 32 L71.1 31.3 L70.4 30.7 L69.7 30.1 L69 29.4 L68.2 28.9 L67.5 28.3 L66.7 27.7 L65.9 27.2 L65.1 26.7 L64.3 26.2 L63.5 25.8 L62.6 25.4 L61.7 24.9 L60.9 24.6 L60 24.2 L59.1 23.9 L58.2 23.6 L57.3 23.3 L56.4 23 L55.4 22.8 L54.5 22.6 L53.6 22.5 L52.6 22.4 L51.7 22.3 L50.7 22.2 L49.8 22.2 L48.9 22.2 L47.9 22.3 L47 22.3 L46 22.4 L45.1 22.5 L44.2 22.6 L43.2 22.7 L42.4 22.9 Z",
-  caps: [[43.7, 30.4, 7.6], [65.1, 17.2, 6.8]],
-  dot: [48, 56, 13],
-  center: "M43.7 30.4 L46.5 30 L49.4 30 L52.3 30.3 L55.1 31 L57.8 31.9 L60.4 33.2 L62.8 34.8 L65 36.6 L67 38.7 L68.8 40.9 L70.3 43.4 L71.5 46.1 L72.3 48.8 L72.9 51.6 L73.1 54.5 L73 57.4 L72.6 60.3 L71.8 63.1 L70.8 65.7 L69.4 68.3 L67.7 70.7 L65.8 72.8 L63.6 74.8 L61.3 76.4 L58.7 77.8 L56 78.9 L53.2 79.7 L50.4 80.1 L47.5 80.3 L44.6 80 L41.7 79.5 L38.9 78.6 L36.3 77.4 L33.8 75.9 L31.5 74.2 L29.4 72.2 L27.5 69.9 L25.9 67.5 L24.6 64.8 L23.6 62.1 L23 59.3 L22.7 56.4 L22.7 53.4 L23 50.5 L23.7 47.7 L24.7 44.9 L26 42.3 L27.5 39.9 L29.4 37.6 L31.5 35.6 L33.9 33.8 L36.4 32.3 L39.1 31.1 L41.9 30.3 L44.7 29.4 L47.3 28.2 L50 27 L52.5 25.9 L54.9 24.8 L57.2 23.8 L59.3 22.7 L61.1 21.5 L62.8 20.3 L64.1 18.8 L65.1 17.2",
-  centerLength: 184,
-  strokeWidth: 16,
-  maskStroke: 29,
-}
+export const DOT = { cx: 71.9, cy: 28.1, r: 9 } as const
 
-/** En dessous, le dessin principal se referme et se lit comme un « 6 ». */
-export const SMALL_MARK_THRESHOLD_PX = 28
+/**
+ * La version longue : l'anneau **remplace** le O, et le texte reprend à « n ».
+ *
+ * Les proportions sont en em de la taille du nom, donc indépendantes de la
+ * taille d'affichage. `baselineOffsetEm` corrige l'optique : un disque posé sur
+ * la ligne de base paraît flotter si on l'y aligne géométriquement.
+ *
+ * La charte l'exige en Instrument Sans Bold et interdit toute autre police :
+ * recomposer le nom ailleurs casserait l'alignement de l'anneau sur le « n ».
+ */
+export const WORDMARK = {
+  text: "nSignale",
+  fontFamily: 'InstrumentSans-Bold',
+  letterSpacingEm: -0.02,
+  markSizeEm: 0.74,
+  gapEm: 0.035,
+  baselineOffsetEm: 0.014,
+} as const
+
+/**
+ * Métriques d'Instrument Sans Bold, lues dans la police elle-même
+ * (`unitsPerEm` 1000, `hhea` : ascendante 970, descendante −250).
+ *
+ * Elles servent à retrouver **la ligne de base**, qui est la seule référence
+ * correcte pour poser l'anneau — et la seule que les boîtes de mise en page ne
+ * donnent pas directement.
+ */
+const FONT_ASCENDER_EM = 0.97
+const FONT_DESCENDER_EM = 0.25
+
+/**
+ * Où tombe la ligne de base dans une boîte de texte dont l'interligne vaut
+ * exactement la taille de police.
+ *
+ * Le dessin de la police mesure 1,22 em de haut pour 1 em d'interligne : il
+ * déborde donc, et le moteur le centre — d'où le `/2`. La ligne de base est
+ * ensuite à une ascendante du haut de ce dessin.
+ */
+const BASELINE_FROM_TOP_EM = (1 - (FONT_ASCENDER_EM + FONT_DESCENDER_EM)) / 2 + FONT_ASCENDER_EM
+
+/**
+ * Décalage du haut de l'anneau par rapport au haut de la boîte de texte, en em.
+ *
+ * React Native n'aligne pas sur la ligne de base — `flex-end` aligne sur le bas
+ * de la boîte, **descendante comprise**. L'anneau se retrouvait donc un quart
+ * de cadratin trop bas, et ne s'alignait plus sur le « S ». On le pose ici par
+ * le haut, à une position calculée depuis la ligne de base.
+ *
+ * Vérifiable sur `logo/svg/wordmark-navy.svg`, où la ligne de base est à
+ * `y = 0` : le groupe de la marque y est posé à `translate(0 -72.6)` pour une
+ * taille de police de 100, soit un haut à 0,726 em au-dessus de la ligne de
+ * base et un bas à 0,014 em en dessous — le débord optique d'une lettre ronde.
+ */
+export const MARK_TOP_EM =
+  BASELINE_FROM_TOP_EM - (WORDMARK.markSizeEm - WORDMARK.baselineOffsetEm)
 
 export type MarkTone = 'navy' | 'white' | 'mono-black' | 'mono-white'
 
@@ -63,9 +88,14 @@ export type MarkTone = 'navy' | 'white' | 'mono-black' | 'mono-white'
  * `brand-700` sur ses boutons et ses en-têtes ; la marque reste marine ou
  * blanche, avec son point ambre. D'où un jeu fermé plutôt qu'une couleur libre.
  */
-export const MARK_TONES: Record<MarkTone, { stroke: string; dot: string }> = {
-  navy: { stroke: '#0F2B4A', dot: '#EF9F27' },
-  white: { stroke: '#FFFFFF', dot: '#EF9F27' },
-  'mono-black': { stroke: '#111827', dot: '#111827' },
-  'mono-white': { stroke: '#FFFFFF', dot: '#FFFFFF' },
+export const MARK_TONES: Record<MarkTone, { fg: string; dot: string }> = {
+  navy: { fg: '#0F2B4A', dot: '#EF9F27' },
+  white: { fg: '#FFFFFF', dot: '#EF9F27' },
+  /** Impression noir et blanc, tampon, fax. */
+  'mono-black': { fg: '#111827', dot: '#111827' },
+  /** Icône monochrome Android, fond photo, fond coloré tiers. */
+  'mono-white': { fg: '#FFFFFF', dot: '#FFFFFF' },
 }
+
+/** Charte §1 : en dessous, l'ouverture n'est plus lisible. */
+export const MIN_MARK_PX = 16
