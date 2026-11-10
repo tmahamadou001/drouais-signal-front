@@ -77,6 +77,21 @@ export const useTenantStore = defineStore('tenant', () => {
     error.value = null
 
     const tenantSlug = detectSlug()
+
+    /**
+     * Aucune commune dans l'adresse : il n'y a rien à charger, et surtout rien
+     * à signaler comme erreur.
+     *
+     * C'est le cas de `onsignale.fr`, qui sert les pages publiques — mentions
+     * légales, signalement, liens de suivi et de service. Lancer la requête
+     * sans en-tête faisait répondre 404 au serveur, ce que le store traduisait
+     * en « commune introuvable » et `App.vue` en page d'erreur plein écran.
+     */
+    if (!tenantSlug) {
+      loading.value = false
+      return
+    }
+
     const MAX_ATTEMPTS = 3
     const RETRY_DELAY_MS = 800
 

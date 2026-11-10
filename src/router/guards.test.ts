@@ -99,8 +99,11 @@ describe('resolveAccess', () => {
     expect(resolveAccess(target({ guestOnly: true }, '/connexion'), CITIZEN)).toBeUndefined()
   })
 
+  // Une page publique de l'application : celle d'un signalement, que n'importe
+  // qui ouvre depuis le lien reçu par e-mail. Les pages légales ne sont plus
+  // des routes — ce sont des documents de `site/`.
   it('leaves a public page alone', () => {
-    expect(resolveAccess(target({}, '/mentions-legales'), ANONYMOUS)).toBeUndefined()
+    expect(resolveAccess(target({}, '/signalement/abc'), ANONYMOUS)).toBeUndefined()
   })
 })
 

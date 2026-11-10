@@ -7,6 +7,19 @@ import type { RouteRecordRaw } from 'vue-router'
  * vérifier que chaque nom vers lequel ils renvoient existe vraiment, et bâtir
  * le routeur pour cela importerait Supabase et toutes les pages.
  */
+/**
+ * `meta.tenantless` : cette page n'appartient à aucune commune.
+ *
+ * La page d'un signalement, le suivi d'un dépôt sans compte et le lien remis à
+ * un service extérieur sont servis sur `onsignale.fr`, où il n'y a pas de
+ * sous-domaine à lire. Sans ce drapeau, `App.vue` remplaçait la page entière
+ * par « Cette ville n'est pas encore configurée ».
+ *
+ * Les pages légales ne sont plus ici : ce sont des fichiers statiques de
+ * `site/`, servis directement par Cloudflare. Elles n'ont jamais eu besoin de
+ * l'application, et la faire intervenir pour du texte qui ne change pas
+ * ajoutait une dépendance et un mode de panne.
+ */
 export const routes: RouteRecordRaw[] = [
 
   {
@@ -23,6 +36,7 @@ export const routes: RouteRecordRaw[] = [
   {
     path: '/signalement/suivi/:token',
     name: 'report-follow',
+    meta: { tenantless: true },
     component: () => import('@/pages/ReportFollowView.vue'),
   },
   {
@@ -57,32 +71,13 @@ export const routes: RouteRecordRaw[] = [
      */
     path: '/service/:token',
     name: 'service-handoff',
+    meta: { tenantless: true },
     component: () => import('@/pages/ServiceHandoffView.vue'),
-  },
-  {
-    path: '/confidentialite',
-    name: 'privacy',
-    component: () => import('@/pages/PrivacyView.vue'),
-  },
-  {
-    /**
-     * L'URL de suppression des données exigée par Google Play et l'App Store.
-     *
-     * Publique et hors de l'application par construction : elle doit servir à
-     * quelqu'un qui a désinstallé, ou qui ne peut plus se connecter.
-     */
-    path: '/supprimer-mes-donnees',
-    name: 'data-deletion',
-    component: () => import('@/pages/DataDeletionView.vue'),
-  },
-  {
-    path: '/mentions-legales',
-    name: 'legal',
-    component: () => import('@/pages/LegalView.vue'),
   },
   {
     path: '/signalement/:id',
     name: 'report-detail',
+    meta: { tenantless: true },
     component: () => import('@/pages/ReportDetailView.vue'),
   },
   {

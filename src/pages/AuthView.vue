@@ -160,9 +160,13 @@ async function handleSubmit() {
     <div class="flex items-center gap-3.5 whitespace-nowrap text-xs font-medium leading-none text-faint">
       <span>OnSignale — Signalement urbain citoyen</span>
       <span class="text-brand-100">·</span>
-      <RouterLink to="/confidentialite" class="hover:underline">Confidentialité</RouterLink>
+      <!-- Des liens absolus : ces pages ne sont plus des routes de
+           l'application, mais des documents du site, servis sur l'apex. Un
+           `RouterLink` tomberait sur la page 404 du sous-domaine de la
+           commune. -->
+      <a href="https://onsignale.fr/confidentialite" class="hover:underline">Confidentialité</a>
       <span class="text-brand-100">·</span>
-      <RouterLink to="/mentions-legales" class="hover:underline">Mentions légales</RouterLink>
+      <a href="https://onsignale.fr/mentions-legales" class="hover:underline">Mentions légales</a>
     </div>
   </AuthShell>
 </template>

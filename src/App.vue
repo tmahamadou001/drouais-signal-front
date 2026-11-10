@@ -55,7 +55,10 @@ watch(
 
   <div class="flex min-h-screen flex-col">
     <main class="flex flex-1 flex-col">
-      <TenantNotFoundView v-if="tenantStore.error" />
+      <!-- Une commune introuvable n'a rien à dire d'une page qui n'en
+           dépend pas : mentions légales, signalement public, lien de suivi,
+           lien de service. Voir `meta.tenantless` dans `router/routes.ts`. -->
+      <TenantNotFoundView v-if="tenantStore.error && !route.meta.tenantless" />
       <RouterView v-else v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
