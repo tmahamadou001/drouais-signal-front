@@ -54,6 +54,10 @@ export const AUDIT_ACTIONS: Record<string, AuditActionInfo> = {
 
   'tenant.created':            { label: 'Commune créée',          icon: 'Building2',  classes: TONE.created },
   'tenant.status_changed':     { label: 'Statut commune',         icon: 'RefreshCw',  classes: TONE.changed },
+  /* La bascule d'une prospect vers active, et ce qu'elle a produit : on la
+     distingue du simple changement de statut, parce qu'elle publie un
+     historique et prévient des habitants. */
+  'tenant.launched':           { label: 'Commune lancée',         icon: 'Rocket',     classes: TONE.created },
   'tenant_config.updated':     { label: 'Config modifiée',        icon: 'Sliders',    classes: TONE.changed },
   'tenant_categories.updated': { label: 'Catégories modifiées',   icon: 'Tag',        classes: TONE.people },
 }

@@ -49,6 +49,10 @@ const LABELS: Record<string, string> = {
   rollback:            'Retour en arrière',
   service_name:        'Service',
   service_emails:      'Destinataires',
+  // Lancement d'une commune : ce que la bascule a réellement produit.
+  published_reports:   'Signalements publiés',
+  waitlist_notified:   'Habitants prévenus',
+  waitlist_failed:     'Envois en échec',
 }
 
 /** Ce qui se lit d'un coup d'œil dans la colonne, sans déplier. */
@@ -56,6 +60,8 @@ const PRIMARY = new Set([
   'old_status', 'new_status', 'report_title', 'category', 'count',
   'new_role', 'revoked_user_role', 'created_user_email', 'tenant_name', 'reason',
   'rollback',
+  // Les deux chiffres qu'on vient vérifier après un lancement.
+  'published_reports', 'waitlist_notified',
 ])
 
 const STATUS_LABELS: Record<string, string> = {

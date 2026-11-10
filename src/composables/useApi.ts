@@ -33,9 +33,13 @@ export function useApi() {
       }
     }
 
-    const headers: Record<string, string> = {
-      'X-Tenant-Slug': detectSlug(),
-    }
+    const slug = detectSlug()
+    const headers: Record<string, string> = {}
+
+    // Omis plutôt qu'inventé : les pages publiques — un signalement, les
+    // mentions légales — n'appartiennent à aucune commune, et le serveur
+    // ignore cet en-tête en écriture de toute façon.
+    if (slug) headers['X-Tenant-Slug'] = slug
 
     if (auth.accessToken) {
       headers['Authorization'] = `Bearer ${auth.accessToken}`

@@ -27,6 +27,7 @@ const SERVER_ACTIONS = [
   'report.bulk_deleted',
   'tenant.created',
   'tenant.status_changed',
+  'tenant.launched',
   'tenant_config.updated',
   'tenant_categories.updated',
 ]

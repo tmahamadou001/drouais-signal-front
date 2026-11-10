@@ -3,6 +3,17 @@ import { ref, computed } from 'vue'
 import type { TenantPublicData, TenantConfig, TenantCategory } from '@/types/tenant'
 import { detectSlug } from '@/utils/detectSlug'
 
+/**
+ * L'en-tête de commune, ou rien.
+ *
+ * Omis plutôt qu'inventé quand l'adresse n'en désigne aucune : les pages
+ * publiques n'appartiennent à aucune commune.
+ */
+function tenantHeader(): Record<string, string> {
+  const slug = detectSlug()
+  return slug ? { 'X-Tenant-Slug': slug } : {}
+}
+
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3001'
 
 /** Repli quand une commune n'a pas de coordonnées — un prospect, typiquement. */
@@ -72,7 +83,7 @@ export const useTenantStore = defineStore('tenant', () => {
     for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
       try {
         const response = await fetch(`${API_URL}/api/tenant/config`, {
-          headers: { 'X-Tenant-Slug': tenantSlug },
+          headers: tenantSlug ? { 'X-Tenant-Slug': tenantSlug } : {},
         })
 
         if (response.status === 404) {
@@ -111,7 +122,7 @@ export const useTenantStore = defineStore('tenant', () => {
   const loadAllCategories = async (): Promise<void> => {
     try {
       const response = await fetch(`${API_URL}/api/tenant/categories`, {
-        headers: { 'X-Tenant-Slug': detectSlug() },
+        headers: tenantHeader(),
       })
       if (!response.ok) return
       allCategories.value = await response.json()
