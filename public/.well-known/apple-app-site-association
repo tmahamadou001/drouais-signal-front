@@ -2,7 +2,7 @@
   "applinks": {
     "details": [
       {
-        "appIDs": ["TEAMID.fr.onsignale.mobile"],
+        "appIDs": ["X4Y2U9839R.fr.onsignale.mobile"],
         "components": [
           {
             "/": "/signalement/*",
