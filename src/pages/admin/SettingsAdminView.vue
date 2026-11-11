@@ -313,8 +313,24 @@ watch(activeTab, () => { openSlug.value = null })
 
     <div class="flex min-h-0 flex-1 flex-col gap-[18px] overflow-y-auto px-7 py-[22px] xl:flex-row xl:overflow-hidden">
 
-      <!-- ─── Colonne principale ──────────────────────────────────────────── -->
-      <div class="flex min-w-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-line bg-white">
+      <!--
+        ─── Colonne principale ────────────────────────────────────────────
+
+        `flex-1` **seulement à partir de `xl`**, et c'est tout le sujet.
+
+        À deux colonnes, la carte occupe la hauteur et sa liste défile à
+        l'intérieur : c'est le dessin voulu. En dessous de `xl`, les blocs
+        s'empilent et c'est la page qui défile — mais la carte restait un
+        enfant flexible dans un conteneur borné, donc elle se faisait
+        comprimer. Sur une fenêtre de 1130 px, la liste recevait 153 px pour
+        693 px de contenu : deux catégories et demie sur onze, et un tableau
+        qui semblait vide.
+
+        `flex-none` ci-dessous : un enfant de flexbox rétrécit par défaut
+        (`flex-shrink: 1`), et c'est exactement le piège déjà rencontré sur
+        les lignes de `DataTable`.
+      -->
+      <div class="flex min-w-0 flex-none flex-col overflow-hidden rounded-[14px] border border-line bg-white xl:flex-1">
 
         <div
           v-if="error"
@@ -369,7 +385,10 @@ watch(activeTab, () => { openSlug.value = null })
             <div />
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto">
+          <!-- Le défilement interne n'a de sens que quand la carte a une
+               hauteur à remplir, c'est-à-dire à partir de `xl`. En dessous,
+               la liste se déploie et la page défile. -->
+          <div class="min-h-0 xl:flex-1 xl:overflow-y-auto">
 
             <!-- Lignes fantômes : la forme de la liste, à la bonne hauteur,
                  pour que rien ne saute quand les vraies arrivent. -->
@@ -644,7 +663,10 @@ watch(activeTab, () => { openSlug.value = null })
             </div>
           </div>
 
-          <div class="min-h-0 flex-1 overflow-y-auto">
+          <!-- Le défilement interne n'a de sens que quand la carte a une
+               hauteur à remplir, c'est-à-dire à partir de `xl`. En dessous,
+               la liste se déploie et la page défile. -->
+          <div class="min-h-0 xl:flex-1 xl:overflow-y-auto">
             <label
               v-for="feature in FEATURES"
               :key="feature.key"
