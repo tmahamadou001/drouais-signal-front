@@ -43,12 +43,19 @@ export const useReportComments = (reportId: MaybeRefOrGetter<string>) => {
     }
   }
 
+  /**
+   * `mark_read=1` : l'agent qui ouvre l'onglet Échanges lit effectivement.
+   *
+   * Le serveur ne marque plus lu de lui-même — la lecture du fil sert aussi
+   * ailleurs à autre chose (l'app mobile y cherche les photos de résolution),
+   * et marquer en passant effaçait du non-lu que personne n'avait vu.
+   */
   const load = async (): Promise<void> => {
     loading.value = true
     error.value = null
     try {
       const data = await apiFetch<any[]>(
-        `/api/reports/${toValue(reportId)}/comments`
+        `/api/reports/${toValue(reportId)}/comments?mark_read=1`
       )
       comments.value = data.map(transformComment)
     } catch (err: any) {
