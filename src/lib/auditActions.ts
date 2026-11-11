@@ -63,6 +63,13 @@ export const AUDIT_ACTIONS: Record<string, AuditActionInfo> = {
      qu'une commune avait reçu en silence, ou le retire. */
   'commune.opened':            { label: 'Commune ouverte au public', icon: 'Eye',     classes: TONE.external },
   'commune.closed':            { label: 'Commune refermée',       icon: 'EyeOff',     classes: TONE.removed },
+
+  /* La modération d'une commune sans mairie : c'est nous qui répondons de ce
+     qui y est publié, faute d'agents sur place. Chaque geste porte son motif,
+     lisible dans le détail de la ligne. */
+  'report.retracted':          { label: 'Signalement dépublié',   icon: 'EyeOff',     classes: TONE.removed },
+  'report.restored':           { label: 'Signalement republié',   icon: 'Eye',        classes: TONE.created },
+  'report.photo_removed':      { label: 'Photo retirée',          icon: 'ImageOff',   classes: TONE.removed },
   'tenant_config.updated':     { label: 'Config modifiée',        icon: 'Sliders',    classes: TONE.changed },
   'tenant_categories.updated': { label: 'Catégories modifiées',   icon: 'Tag',        classes: TONE.people },
 }

@@ -80,6 +80,7 @@ const treatmentItems = computed<NavItem[]>(() => [
 const collectivityItems = computed<NavItem[]>(() => [
   { id: 'team',      label: 'Équipe',       icon: 'Users',             route: '/admin/equipe',     visible: auth.isAdmin },
   { id: 'prospects', label: 'Prospects',    icon: 'Handshake',         route: '/admin/prospects',  visible: auth.isSuperAdmin },
+  { id: 'moderation', label: 'Modération',  icon: 'ShieldAlert',       route: '/admin/moderation', visible: auth.isSuperAdmin },
   { id: 'platform',  label: 'Plateforme',   icon: 'Globe',             route: '/admin/plateforme', visible: auth.isSuperAdmin },
   { id: 'settings',  label: 'Paramètres',   icon: 'SlidersHorizontal', route: '/admin/parametres', visible: auth.isAdmin },
   { id: 'audit',     label: 'Logs d’audit', icon: 'ScrollText',        route: '/admin/audit',      visible: auth.isSuperAdmin },

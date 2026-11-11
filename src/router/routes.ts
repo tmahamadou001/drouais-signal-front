@@ -134,7 +134,18 @@ export const routes: RouteRecordRaw[] = [
         path: 'prospects',
         name: 'AdminProspects',
         component: () => import('@/pages/admin/ProspectsAdminView.vue'),
-        meta: { requiresSuperAdmin: true, title: 'Communes prospects', subtitle: 'Communes non clientes et liste d’attente' },
+        meta: { requiresSuperAdmin: true, title: 'Communes sans mairie', subtitle: 'Silencieuses, ouvertes au public, et liste d’attente' },
+      },
+      /**
+       * La modération ne concerne que les communes ouvertes au public sans
+       * mairie : ailleurs, ce sont les agents de la commune qui modèrent, depuis
+       * leur propre écran de signalements.
+       */
+      {
+        path: 'moderation',
+        name: 'AdminModeration',
+        component: () => import('@/pages/admin/ModerationAdminView.vue'),
+        meta: { requiresSuperAdmin: true, title: 'Modération', subtitle: 'Ce qui est publié dans les communes sans mairie' },
       },
       {
         path: 'plateforme',
