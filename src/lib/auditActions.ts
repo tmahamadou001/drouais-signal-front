@@ -58,6 +58,11 @@ export const AUDIT_ACTIONS: Record<string, AuditActionInfo> = {
      distingue du simple changement de statut, parce qu'elle publie un
      historique et prévient des habitants. */
   'tenant.launched':           { label: 'Commune lancée',         icon: 'Rocket',     classes: TONE.created },
+  /* L'ouverture et la fermeture au public d'une commune sans mairie. Le geste
+     le plus lourd de conséquences du back-office : il rend visible de tous ce
+     qu'une commune avait reçu en silence, ou le retire. */
+  'commune.opened':            { label: 'Commune ouverte au public', icon: 'Eye',     classes: TONE.external },
+  'commune.closed':            { label: 'Commune refermée',       icon: 'EyeOff',     classes: TONE.removed },
   'tenant_config.updated':     { label: 'Config modifiée',        icon: 'Sliders',    classes: TONE.changed },
   'tenant_categories.updated': { label: 'Catégories modifiées',   icon: 'Tag',        classes: TONE.people },
 }

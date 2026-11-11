@@ -35,10 +35,88 @@
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Instrument+Sans:wght@400;500;600;700&display=swap" rel="stylesheet" />
+    <style>
+      /* Durées et courbes de la charte, §2 — identiques au composant Vue. */
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #FAFAFA;
+        opacity: 1;
+        transition: opacity 0.2s ease-out;
+      }
+
+      #boot.is-done { opacity: 0; }
+
+      #boot-ring {
+        stroke-dashoffset: 156.9;
+        animation: boot-ring 1.2s cubic-bezier(0.45, 0, 0.25, 1) 0.15s forwards;
+      }
+
+      #boot-dot {
+        transform-box: fill-box;
+        transform-origin: center;
+        transform: scale(0);
+        animation: boot-dot 0.4s ease-out 1.35s forwards;
+      }
+
+      @keyframes boot-ring { to { stroke-dashoffset: 0; } }
+
+      /* 0 → surimpression → rayon de la charte : le point se pose. */
+      @keyframes boot-dot {
+        0% { transform: scale(0); }
+        55% { transform: scale(1.28); }
+        100% { transform: scale(1); }
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        #boot-ring, #boot-dot { animation: none; }
+        #boot-ring { stroke-dashoffset: 0; }
+        #boot-dot { transform: scale(1); }
+      }
+    </style>
+
     <title>OnSignale — Signalement urbain citoyen</title>
   </head>
   <body class="bg-neutral-50 text-dark antialiased">
     <div id="app"></div>
+
+    <!--
+      L'écran d'attente du démarrage, en HTML statique.
+
+      `main.ts` attend la configuration de la commune **avant** de monter
+      l'application : pendant ce temps — chargement du bundle, puis
+      `GET /api/tenant/config` — `#app` est vide, et la page n'était qu'un
+      rectangle clair. Un Vue ne peut rien y montrer, puisqu'il n'est pas encore
+      là : d'où cette marque posée directement dans le document, qui s'affiche
+      dès le premier octet reçu.
+
+      C'est la même animation que sur l'écran de lancement de l'application
+      mobile : l'anneau se trace, le point ambre vient s'y poser. La marque
+      seule, sans le nom. La géométrie est recopiée de `src/lib/markGeometry.ts`
+      — comme pour les e-mails, le document n'a pas accès aux modules — et ne
+      doit jamais être redessinée à la main : refermer l'anneau en ferait un
+      « O » banal.
+
+      `main.ts` le retire une fois l'application montée.
+    -->
+    <div id="boot" aria-hidden="true">
+      <svg viewBox="12.5 12.5 75 75" width="64" height="64">
+        <path
+          id="boot-ring"
+          d="M80.7 45.7 A31 31 0 1 1 54.3 19.3"
+          fill="none"
+          stroke="#0F2B4A"
+          stroke-width="13"
+          stroke-linecap="round"
+          stroke-dasharray="156.9"
+        />
+        <circle id="boot-dot" cx="71.9" cy="28.1" r="9" fill="#EF9F27" />
+      </svg>
+    </div>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

@@ -28,6 +28,8 @@ const SERVER_ACTIONS = [
   'tenant.created',
   'tenant.status_changed',
   'tenant.launched',
+  'commune.opened',
+  'commune.closed',
   'tenant_config.updated',
   'tenant_categories.updated',
 ]

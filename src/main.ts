@@ -13,9 +13,31 @@ const bootstrap = async () => {
   app.use(router)
 
   const tenantStore = useTenantStore()
-  await tenantStore.load()
+  // Le store rattrape ses propres erreurs réseau et les expose dans `error` ;
+  // un imprévu ne doit pas pour autant laisser la page sur l'écran d'attente,
+  // qui resterait affiché pour toujours faute de montage.
+  try {
+    await tenantStore.load()
+  } catch (error) {
+    console.error('Tenant bootstrap failed:', error)
+  }
 
   app.mount('#app')
+  dismissBoot()
+}
+
+/**
+ * Retire l'écran d'attente posé dans `index.html`.
+ *
+ * Il se fond en 200 ms plutôt que de disparaître d'un coup : l'application
+ * monte parfois en quelques dizaines de millisecondes, et une marque qui
+ * clignote se remarque plus qu'un fondu.
+ */
+function dismissBoot() {
+  const boot = document.getElementById('boot')
+  if (!boot) return
+  boot.classList.add('is-done')
+  setTimeout(() => boot.remove(), 200)
 }
 
 bootstrap()

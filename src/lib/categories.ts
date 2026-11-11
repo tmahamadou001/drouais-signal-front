@@ -34,6 +34,37 @@ const BY_SLUG: Record<string, string> = {
 }
 
 /**
+ * Slug → libellé national, en version courte.
+ *
+ * Les libellés par défaut de la taxonomie (migration 026) sont des phrases —
+ * « Objets abandonnés et encombrants » — faites pour un habitant qui choisit
+ * une catégorie. Ici on les met dans une pastille à côté d'un nombre, pour dire
+ * de quoi parlent les habitants d'une commune : c'est la version courte qui
+ * convient.
+ *
+ * Ce repli ne sert que là où aucune commune ne décide — l'écran des communes
+ * sans mairie. Partout ailleurs, c'est le libellé choisi par la mairie qui fait
+ * foi, et il vient du serveur.
+ */
+const LABELS: Record<string, string> = {
+  encombrants:   'Encombrants',
+  graffitis:     'Graffitis',
+  proprete:      'Propreté',
+  stationnement: 'Stationnement',
+  mobilier:      'Mobilier et éclairage',
+  voirie:        'Voirie',
+  commerce:      'Commerces',
+  vegetation:    'Végétation',
+  eau:           'Eau',
+  local:         'Spécificité locale',
+  autre:         'Autre',
+}
+
+export function categoryLabel(slug: string): string {
+  return LABELS[slug] ?? slug
+}
+
+/**
  * Mot-clé → glyphe, essayé dans l'ordre sur un slug ou un libellé inconnu.
  *
  * Deux cas le rendent nécessaire : les communes installées avant la migration
