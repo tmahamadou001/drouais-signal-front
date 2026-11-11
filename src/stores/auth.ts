@@ -6,6 +6,7 @@ import type { LoginCredentials } from '@/types/auth'
 import { authApi, AuthApiError, type AuthUser } from '@/lib/authApi'
 import { useTenantStore } from '@/stores/tenant'
 import { pinia } from '@/stores/pinia'
+import { hasAtLeast } from '@/lib/roles'
 
 export const useAuthStore = defineStore('auth', () => {
   // ─── State ────────────────────────────────────────────
@@ -41,6 +42,21 @@ export const useAuthStore = defineStore('auth', () => {
   const isAgent = computed(
     () => isAdmin.value || tenantRole.value === 'agent'
   )
+
+  /**
+   * Appartient-il à l'équipe de cette commune ?
+   *
+   * C'est **la** question de l'écran de connexion, et ce n'était pas celle
+   * qu'il posait : il exigeait `isAdmin`. Un agent recevait son invitation,
+   * choisissait son mot de passe, se connectait — et lisait « ce compte n'a
+   * pas accès à l'administration de cette commune ». Les gardes du routeur
+   * avaient été corrigés écran par écran (`minRole`), la porte d'entrée ne
+   * l'avait pas été.
+   *
+   * Observateur compris : il voit le back-office et n'y écrit rien, ce qui est
+   * un accès.
+   */
+  const isTeamMember = computed(() => hasAtLeast(tenantRole.value, 'observer'))
 
   /**
    * A-t-il le droit d'agir, ou seulement de regarder ?
@@ -235,6 +251,7 @@ export const useAuthStore = defineStore('auth', () => {
     isAuthenticated,
     isSuperAdmin,
     isAdmin,
+    isTeamMember,
     isAgent,
     canAct,
     /**

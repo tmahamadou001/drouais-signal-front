@@ -21,6 +21,9 @@ vi.mock('@/stores/auth', () => ({
     get error() { return state.error.value },
     get isAuthenticated() { return state.user.value !== null },
     get isAdmin() { return state.tenantRole.value === 'admin' || state.tenantRole.value === 'super_admin' },
+    get isTeamMember() {
+      return ['observer', 'agent', 'admin', 'super_admin'].includes(state.tenantRole.value ?? '')
+    },
   }),
 }))
 
@@ -83,6 +86,32 @@ describe('signing in', () => {
     expect(replace).toHaveBeenCalledWith('/admin')
   })
 
+  /**
+   * Le défaut qui a renvoyé un agent à la porte.
+   *
+   * La connexion exigeait `isAdmin` alors que le serveur venait de répondre
+   * `role: "agent"`. Les gardes des écrans acceptaient agents et
+   * observateurs ; l'entrée, elle, ne les laissait pas passer — et elle
+   * annulait tout le reste.
+   */
+  for (const role of ['agent', 'observer', 'admin', 'super_admin']) {
+    it(`lets a ${role} in`, async () => {
+      login.mockImplementation(async () => {
+        state.user.value = { id: 'u1' }
+        state.tenantRole.value = role
+        return { success: true }
+      })
+
+      const wrapper = view()
+      await fillAndSubmit(wrapper)
+      await flushPromises()
+
+      expect(wrapper.text()).not.toContain(DENIED)
+      expect(replace).toHaveBeenCalledWith('/admin')
+    })
+  }
+
+  /** Un habitant n'a rien à faire dans le back-office : la règle tient. */
   it('says so when the account really has no access', async () => {
     login.mockImplementation(async () => {
       state.user.value = { id: 'u1' }

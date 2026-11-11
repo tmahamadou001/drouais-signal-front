@@ -51,7 +51,7 @@ const accessDenied = computed(() => route.query.denied === '1')
 const deniedAfterLogin = ref(false)
 
 onMounted(() => {
-  if (authStore.isAdmin) router.replace(redirectTo.value)
+  if (authStore.isTeamMember) router.replace(redirectTo.value)
 })
 
 async function handleSubmit() {
@@ -62,9 +62,25 @@ async function handleSubmit() {
   const result = await authStore.login({ email: email.value, password: password.value })
   if (!result.success) return
 
-  // Le rôle est vérifié en base, pas dans le jeton : `login` l'a déjà chargé
-  // quand il rend la main, donc le test ci-dessous porte sur une valeur sûre.
-  if (authStore.isAdmin) {
+  /**
+   * Le back-office s'ouvre à **tout membre de l'équipe**, pas aux seuls
+   * administrateurs.
+   *
+   * La porte exigeait `isAdmin`. Un agent recevait son invitation, choisissait
+   * son mot de passe, se connectait — et lisait « ce compte n'a pas accès à
+   * l'administration de cette commune », alors que le serveur venait de lui
+   * répondre `role: "agent"`. Les gardes des écrans avaient été corrigés un à
+   * un ; celui de l'entrée était resté sur l'ancienne règle, et il annulait
+   * tous les autres.
+   *
+   * Ce que chaque écran demande ensuite lui est propre : `minRole` renvoie un
+   * agent qui vise les Paramètres vers sa liste de signalements, sans le
+   * déconnecter.
+   *
+   * Le rôle est vérifié en base, pas dans le jeton : `login` l'a déjà chargé
+   * quand il rend la main, donc le test porte sur une valeur sûre.
+   */
+  if (authStore.isTeamMember) {
     router.replace(redirectTo.value)
     return
   }
