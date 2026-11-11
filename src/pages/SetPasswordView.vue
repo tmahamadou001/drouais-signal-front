@@ -21,24 +21,65 @@ const showPassword = ref(false)
 const submitting = ref(false)
 const formError = ref<string | null>(null)
 
-onMounted(async () => {
-  // Supabase redirige vers /set-password#access_token=xxx&type=invite
-  const hash = window.location.hash.slice(1)
-  const params = new URLSearchParams(hash)
-  const token = params.get('access_token')
-  const type = params.get('type')
+const INVALID_LINK =
+  'Lien invalide ou expiré. Contactez votre administrateur pour recevoir un nouvel email d\'invitation.'
 
-  // Nettoie le hash immédiatement pour ne pas le laisser dans l'URL
+/**
+ * Deux formes de lien, et c'est volontaire.
+ *
+ * **La nôtre** — `/set-password?token=…&type=invite` — est celle que nos
+ * e-mails portent désormais : l'adresse est sur le sous-domaine de la commune,
+ * le nom de notre fournisseur d'authentification n'y apparaît pas, et c'est
+ * l'API qui échange le jeton contre une session.
+ *
+ * **Celle de Supabase** — `#access_token=…&type=invite` — est ce que produisait
+ * sa redirection. Elle est conservée parce que des liens émis avant ce
+ * changement sont encore valables dans des boîtes mail, et qu'un agent qui
+ * clique sur l'e-mail d'hier ne doit pas tomber sur une erreur. À retirer
+ * lorsque le dernier aura expiré.
+ */
+onMounted(async () => {
+  const query = new URLSearchParams(window.location.search)
+  const hash = new URLSearchParams(window.location.hash.slice(1))
+
+  const linkToken = query.get('token')
+  const linkType = query.get('type')
+  const legacyToken = hash.get('access_token')
+  const legacyType = hash.get('type')
+
+  // L'URL est nettoyée tout de suite : ni le jeton ni sa nature n'ont à rester
+  // dans la barre d'adresse, dans l'historique du navigateur, ou dans le
+  // `Referer` de la première requête que fera la page.
   history.replaceState(null, '', window.location.pathname)
 
-  if (!token || !['invite', 'recovery'].includes(type ?? '')) {
-    errorMessage.value = 'Lien invalide ou expiré. Contactez votre administrateur pour recevoir un nouvel email d\'invitation.'
-    status.value = 'error'
+  if (linkToken && ['invite', 'recovery'].includes(linkType ?? '')) {
+    try {
+      const response = await fetch(`${API_URL}/api/auth/verify-link`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: linkToken, type: linkType }),
+      })
+
+      if (!response.ok) throw new Error()
+
+      const data = await response.json()
+      accessToken.value = data.access_token
+      status.value = 'form'
+    } catch {
+      errorMessage.value = INVALID_LINK
+      status.value = 'error'
+    }
     return
   }
 
-  accessToken.value = token
-  status.value = 'form'
+  if (legacyToken && ['invite', 'recovery'].includes(legacyType ?? '')) {
+    accessToken.value = legacyToken
+    status.value = 'form'
+    return
+  }
+
+  errorMessage.value = INVALID_LINK
+  status.value = 'error'
 })
 
 async function submit() {
