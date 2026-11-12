@@ -35,6 +35,9 @@ export const AUDIT_ACTIONS: Record<string, AuditActionInfo> = {
   'user.invited':              { label: 'Utilisateur invité',     icon: 'Mail',       classes: TONE.people },
   'user.role_changed':         { label: 'Rôle modifié',           icon: 'UserCog',    classes: TONE.people },
   'user.revoked':              { label: 'Accès révoqué',          icon: 'UserMinus',  classes: TONE.removed },
+  /* La personne a supprimé son compte depuis l'application : les signalements
+     restent, dépersonnalisés, et c'est la seule trace qui subsiste du geste. */
+  'user.deleted':              { label: 'Compte supprimé',        icon: 'UserX',      classes: TONE.removed },
 
   'report.created':            { label: 'Signalement créé',       icon: 'Plus',       classes: TONE.created },
   'report.status_changed':     { label: 'Statut modifié',         icon: 'RefreshCw',  classes: TONE.changed },
