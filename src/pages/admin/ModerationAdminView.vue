@@ -8,9 +8,10 @@
  * ailleurs, ce sont les agents de la commune qui modèrent, depuis leur propre
  * écran de signalements.
  *
- * L'écran est une grille de photos, par ordre d'arrivée. La modération se fait
- * à l'arrivée : ce qu'on veut voir en l'ouvrant, c'est ce qui vient de devenir
- * public — et ce qui pose problème est presque toujours dans l'image.
+ * L'écran est une liste de cartes compactes, par ordre d'arrivée. La modération
+ * se fait à l'arrivée : ce qu'on veut voir en l'ouvrant, c'est ce qui vient de
+ * devenir public — et ce qui pose problème est presque toujours dans l'image,
+ * qu'un clic sur la vignette agrandit.
  */
 import { ref, onMounted, computed } from 'vue'
 import { useApi } from '@/composables/useApi'
@@ -38,6 +39,9 @@ const error = ref<string | null>(null)
 const pending = ref<{ item: ModerationItem; action: ModerationAction } | null>(null)
 const reason = ref('')
 const submitting = ref(false)
+
+/** La photo agrandie, le temps d'un coup d'œil. */
+const zoomed = ref<ModerationItem | null>(null)
 
 const copy = computed(() => (pending.value ? MODERATION_COPY[pending.value.action] : null))
 const ready = computed(() => reasonAccepted(reason.value))
@@ -103,8 +107,8 @@ onMounted(load)
         {{ error }}
       </div>
 
-      <div v-if="loading" class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
-        <AppSkeleton v-for="i in 8" :key="i" class="h-64 rounded-[14px]" />
+      <div v-if="loading" class="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
+        <AppSkeleton v-for="i in 8" :key="i" class="h-[110px] rounded-[12px]" />
       </div>
 
       <div
@@ -119,7 +123,7 @@ onMounted(load)
         </p>
       </div>
 
-      <div v-else class="grid grid-cols-1 gap-3.5 sm:grid-cols-2 lg:grid-cols-4">
+      <div v-else class="grid grid-cols-1 gap-2.5 xl:grid-cols-2">
         <ModerationCard
           v-for="item in items"
           :key="item.id"
@@ -128,8 +132,30 @@ onMounted(load)
           @remove-photo="ask(item, 'photo')"
           @retract="ask(item, 'retract')"
           @restore="ask(item, 'restore')"
+          @open="zoomed = item"
         />
       </div>
+    </div>
+
+    <!-- La photo agrandie : un clic n'importe où, ou Échap, la referme. -->
+    <div
+      v-if="zoomed?.photo_url"
+      class="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-6"
+      role="dialog"
+      aria-modal="true"
+      :aria-label="zoomed.title"
+      tabindex="-1"
+      @click="zoomed = null"
+      @keydown.esc="zoomed = null"
+    >
+      <figure class="flex max-h-full max-w-3xl flex-col items-center gap-3">
+        <img
+          :src="zoomed.photo_url"
+          :alt="zoomed.title"
+          class="max-h-[80vh] max-w-full rounded-[10px] object-contain"
+        />
+        <figcaption class="text-center text-[13px] text-white/90">{{ zoomed.title }}</figcaption>
+      </figure>
     </div>
 
     <AppModal

@@ -2,15 +2,17 @@
 /**
  * Un signalement publié dans une commune sans mairie, tel qu'on le modère.
  *
- * La photo est grande, et c'est le point : neuf fois sur dix, ce qui pose
- * problème est dedans — une plaque d'immatriculation, une devanture, un
- * visage. Une vignette obligerait à ouvrir chaque fiche pour voir ce qu'on
- * publie, et personne ne le ferait.
+ * Une carte **compacte**, en rangée : vignette à gauche, texte et gestes à
+ * droite. La grille de grandes photos qu'elle remplace était lisible à quatre
+ * cartes et ingérable à soixante — et sa photo débordait : un `<img h-full>`
+ * dans une boîte à ratio laisse l'image imposer sa hauteur naturelle, si bien
+ * que les photos portrait occupaient tout l'écran. La vignette est désormais
+ * posée en absolu dans une boîte carrée, qui ne peut plus grandir.
  *
- * Les trois gestes sont rangés du plus léger au plus lourd, et le plus léger
- * est le plus à portée : retirer la photo garde le signalement, son texte et
- * le suivi de son auteur. Supprimer tout un signalement pour une plaque
- * visible détruirait une information publique utile pour un détail réparable.
+ * La photo reste ce qu'on vient chercher — une plaque, une devanture, un
+ * visage — d'où la vignette cliquable : un clic l'agrandit, sans ouvrir de
+ * fiche. Les trois gestes restent rangés du plus léger au plus lourd : retirer
+ * la photo garde le signalement, son texte et le suivi de son auteur.
  */
 import AppIcon from '@/components/AppIcon.vue'
 import { categoryLabel } from '@/lib/categories'
@@ -36,57 +38,58 @@ const formatDate = (iso: string) =>
 
 <template>
   <article
-    class="flex flex-col overflow-hidden rounded-[14px] border bg-white"
+    class="flex gap-3 rounded-[12px] border bg-white p-2.5"
     :class="item.is_published ? 'border-line' : 'border-dashed border-neutral-300'"
   >
-    <div class="relative aspect-[4/3] bg-neutral-100">
+    <button
+      type="button"
+      class="relative h-[88px] w-[88px] flex-none overflow-hidden rounded-[8px] bg-neutral-100"
+      :disabled="!item.photo_url"
+      :aria-label="item.photo_url ? `Agrandir la photo : ${item.title}` : 'Aucune photo'"
+      @click="emit('open')"
+    >
       <img
         v-if="item.photo_url"
         :src="item.photo_url"
         :alt="item.title"
-        class="h-full w-full object-cover"
+        class="absolute inset-0 h-full w-full object-cover"
         :class="{ 'opacity-45': !item.is_published }"
         loading="lazy"
       />
-      <div v-else class="flex h-full items-center justify-center">
-        <AppIcon name="ImageOff" :size="22" :stroke-width="1.6" class="text-neutral-400" />
-      </div>
-
-      <!-- Retiré : dit à l'écran ce que la base dit, plutôt que de faire
-           disparaître la carte et de laisser croire à une suppression. -->
-      <span
-        v-if="!item.is_published"
-        class="absolute left-2.5 top-2.5 rounded-full bg-white/95 px-2.5 py-1 text-[11px] font-semibold text-status-danger"
-      >
-        Retiré du public
+      <span v-else class="flex h-full items-center justify-center">
+        <AppIcon name="ImageOff" :size="18" :stroke-width="1.6" class="text-neutral-400" />
       </span>
-    </div>
+    </button>
 
-    <div class="flex flex-1 flex-col gap-2 p-3.5">
-      <div class="flex items-start justify-between gap-2">
-        <button
-          type="button"
-          class="min-w-0 flex-1 text-left"
-          @click="emit('open')"
+    <div class="flex min-w-0 flex-1 flex-col gap-1">
+      <div class="flex items-start gap-2">
+        <span class="line-clamp-1 flex-1 text-[13px] font-semibold leading-[1.35] text-ink">
+          {{ item.title }}
+        </span>
+        <!-- Retiré : dit à l'écran ce que la base dit, plutôt que de faire
+             disparaître la carte et de laisser croire à une suppression. -->
+        <span
+          v-if="!item.is_published"
+          class="flex-none rounded-full bg-status-danger-bg px-2 py-0.5 text-[10px] font-semibold text-status-danger"
         >
-          <span class="line-clamp-2 text-sm font-semibold leading-[1.35] text-ink">{{ item.title }}</span>
-        </button>
+          Retiré du public
+        </span>
       </div>
 
-      <p class="text-xs leading-[1.4] text-muted">
+      <p class="truncate text-[11px] leading-[1.4] text-muted">
         {{ item.tenant.name }} · {{ categoryLabel(item.category) }} · {{ formatDate(item.created_at) }}
       </p>
 
-      <p v-if="item.description" class="line-clamp-2 text-xs leading-[1.5] text-muted">
+      <p v-if="item.description" class="line-clamp-1 text-[11px] leading-[1.4] text-muted">
         {{ item.description }}
       </p>
 
-      <div class="mt-auto flex flex-wrap items-center gap-1.5 pt-1.5">
+      <div class="mt-auto flex flex-wrap items-center gap-1.5 pt-1">
         <button
           v-if="item.photo_url"
           type="button"
           :disabled="busy"
-          class="rounded-ds border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-neutral-100 disabled:opacity-50"
+          class="rounded-ds border border-line px-2 py-1 text-[11px] font-semibold text-ink transition-colors hover:bg-neutral-100 disabled:opacity-50"
           @click="emit('removePhoto')"
         >
           Retirer la photo
@@ -96,7 +99,7 @@ const formatDate = (iso: string) =>
           v-if="item.is_published"
           type="button"
           :disabled="busy"
-          class="rounded-ds border border-[#F3C9C9] bg-status-danger-bg px-2.5 py-1.5 text-xs font-semibold text-status-danger transition-colors hover:bg-[#F8DADA] disabled:opacity-50"
+          class="rounded-ds border border-[#F3C9C9] bg-status-danger-bg px-2 py-1 text-[11px] font-semibold text-status-danger transition-colors hover:bg-[#F8DADA] disabled:opacity-50"
           @click="emit('retract')"
         >
           Dépublier
@@ -106,7 +109,7 @@ const formatDate = (iso: string) =>
           v-else
           type="button"
           :disabled="busy"
-          class="rounded-ds border border-line px-2.5 py-1.5 text-xs font-semibold text-ink transition-colors hover:bg-neutral-100 disabled:opacity-50"
+          class="rounded-ds border border-line px-2 py-1 text-[11px] font-semibold text-ink transition-colors hover:bg-neutral-100 disabled:opacity-50"
           @click="emit('restore')"
         >
           Republier
