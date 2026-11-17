@@ -130,7 +130,10 @@ describe('opening a commune', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/api/tenant/tenant-1/status',
-      expect.objectContaining({ method: 'PATCH', body: JSON.stringify({ status: 'community' }) })
+      // Un objet : `apiFetch` sérialise lui-même. Ce test attendait une chaîne,
+      // c'est-à-dire le double encodage qui faisait échouer la bascule en 500
+      // (ONSIGNALE-API-3) — il validait le défaut au lieu de le prévenir.
+      expect.objectContaining({ method: 'PATCH', body: { status: 'community' } })
     )
   })
 
@@ -147,7 +150,7 @@ describe('opening a commune', () => {
 
     expect(apiFetch).toHaveBeenCalledWith(
       '/api/tenant/tenant-1/status',
-      expect.objectContaining({ body: JSON.stringify({ status: 'prospect' }) })
+      expect.objectContaining({ body: { status: 'prospect' } })
     )
   })
 

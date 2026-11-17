@@ -82,7 +82,7 @@ const applyPublication = async () => {
   try {
     await apiFetch(`/api/tenant/${commune.id}/status`, {
       method: 'PATCH',
-      body: JSON.stringify({ status: opening ? 'community' : 'prospect' }),
+      body: { status: opening ? 'community' : 'prospect' },
     })
 
     toast.success(

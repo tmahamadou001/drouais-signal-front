@@ -9,7 +9,19 @@ export { ApiError } from '@/utils/apiError'
 
 interface ApiOptions {
   method?: string
-  body?: any
+  /**
+   * Un objet, **jamais une chaîne** : `apiFetch` sérialise lui-même.
+   *
+   * Le type était `any`, et deux écrans passaient `JSON.stringify(...)` — le
+   * corps partait donc encodé deux fois (`"{\"status\":…}"`), `express.json()`
+   * le refusait, et le serveur répondait 500. C'est ainsi que la bascule d'une
+   * commune silencieuse en commune citoyenne échouait en production
+   * (ONSIGNALE-API-3), et que les trois gestes de modération échouaient de la
+   * même façon sans que personne ne l'ait encore vu. `object` exclut les
+   * chaînes à la compilation ; la garde plus bas les exclut à l'exécution, pour
+   * ce qui arriverait encore typé `any`.
+   */
+  body?: object
   isFormData?: boolean
   signal?: AbortSignal
   cache?: {
@@ -45,6 +57,14 @@ export function useApi() {
       headers['Authorization'] = `Bearer ${auth.accessToken}`
     }
 
+    if (typeof (body as unknown) === 'string') {
+      // Une erreur de programmation, pas de réseau : la dire tout de suite
+      // plutôt que d'envoyer un corps que le serveur rejettera en 500.
+      throw new TypeError(
+        `apiFetch(${path}) : passez un objet comme corps, pas une chaîne — la sérialisation est faite ici.`,
+      )
+    }
+
     if (!isFormData && body) {
       headers['Content-Type'] = 'application/json'
     }
@@ -52,7 +72,7 @@ export function useApi() {
     const response = await fetch(`${API_URL}${path}`, {
       method,
       headers,
-      body: isFormData ? body : body ? JSON.stringify(body) : undefined,
+      body: isFormData ? (body as FormData) : body ? JSON.stringify(body) : undefined,
       signal,
     })
 

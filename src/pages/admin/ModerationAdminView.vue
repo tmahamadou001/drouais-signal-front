@@ -69,7 +69,7 @@ const apply = async () => {
   try {
     await apiFetch(`/api/moderation/reports/${item.id}/${MODERATION_COPY[action].path}`, {
       method: 'POST',
-      body: JSON.stringify({ reason: reason.value.trim() }),
+      body: { reason: reason.value.trim() },
     })
 
     toast.success(MODERATION_COPY[action].done)

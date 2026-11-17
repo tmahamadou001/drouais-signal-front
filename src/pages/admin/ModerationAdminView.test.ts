@@ -115,7 +115,8 @@ describe('each gesture', () => {
         `/api/moderation/reports/report-1/${one.path}`,
         expect.objectContaining({
           method: 'POST',
-          body: JSON.stringify({ reason: 'Plaque lisible' }),
+          // Un objet, pas une chaîne : voir `useApi.ts`.
+          body: { reason: 'Plaque lisible' },
         })
       )
     })
