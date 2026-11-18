@@ -70,6 +70,7 @@ function place(lat: number, lng: number) {
     marker.on('dragend', () => {
       const { lat: dragLat, lng: dragLng } = marker!.getLatLng()
       emit('update:position', { lat: dragLat, lng: dragLng })
+      resolve(dragLat, dragLng)
     })
   }
 
