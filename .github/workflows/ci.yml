@@ -36,8 +36,6 @@ jobs:
       - name: Types
         run: pnpm exec vue-tsc --noEmit
 
-      # Valeurs factices : `lib/supabase.ts` refuse de démarrer sans elles, et
-      # aucun test n'appelle réellement Supabase.
       - name: Tests
         run: pnpm test
         env:
