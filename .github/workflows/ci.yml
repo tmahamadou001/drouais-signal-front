@@ -1,0 +1,45 @@
+# Vérifie chaque poussée sur `main` et chaque pull request : types, tests, build.
+#
+# Ce que ce fichier ne fait pas : empêcher un déploiement. Vercel construit dès
+# qu'on pousse ; ce workflow dit seulement, à côté, si la poussée était saine.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+
+      # La version de pnpm vient du champ `packageManager` de package.json.
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - name: Types
+        run: pnpm exec vue-tsc --noEmit
+
+      - name: Tests
+        run: pnpm test
+
+      - name: Build
+        run: pnpm exec vite build
+        env:
+          VITE_API_URL: https://api.onsignale.fr
