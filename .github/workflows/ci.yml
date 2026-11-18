@@ -36,10 +36,17 @@ jobs:
       - name: Types
         run: pnpm exec vue-tsc --noEmit
 
+      # Valeurs factices : `lib/supabase.ts` refuse de démarrer sans elles, et
+      # aucun test n'appelle réellement Supabase.
       - name: Tests
         run: pnpm test
+        env:
+          VITE_SUPABASE_URL: https://ci.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-dummy-anon-key
 
       - name: Build
         run: pnpm exec vite build
         env:
           VITE_API_URL: https://api.onsignale.fr
+          VITE_SUPABASE_URL: https://ci.supabase.co
+          VITE_SUPABASE_ANON_KEY: ci-dummy-anon-key
