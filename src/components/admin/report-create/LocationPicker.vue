@@ -50,6 +50,15 @@ let map: L.Map | null = null
 let marker: L.Marker | null = null
 let debounce: ReturnType<typeof setTimeout> | null = null
 
+let silent = false
+function setQuery(value: string) {
+  if (query.value === value) return
+  silent = true
+  query.value = value
+}
+
+let followPin = false
+
 const pin = L.divIcon({
   className: '',
   html: `<div style="width:28px;height:28px;border-radius:50% 50% 50% 0;background:#1A56A0;
@@ -68,6 +77,7 @@ function place(lat: number, lng: number) {
     // Déplaçable : corriger de trois mètres ne doit pas demander de viser à
     // nouveau au clic.
     marker.on('dragend', () => {
+      followPin = true
       const { lat: dragLat, lng: dragLng } = marker!.getLatLng()
       emit('update:position', { lat: dragLat, lng: dragLng })
       resolve(dragLat, dragLng)
@@ -89,7 +99,10 @@ onMounted(() => {
   )
 
   L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { maxZoom: 19 }).addTo(map)
-  map.on('click', (event: L.LeafletMouseEvent) => place(event.latlng.lat, event.latlng.lng))
+  map.on('click', (event: L.LeafletMouseEvent) => {
+    followPin = true
+    place(event.latlng.lat, event.latlng.lng)
+  })
 
   if (props.position) place(props.position.lat, props.position.lng)
 })
@@ -101,6 +114,11 @@ onUnmounted(() => {
 })
 
 watch(query, (value) => {
+  if (silent) {
+    silent = false
+    return
+  }
+
   if (debounce) clearTimeout(debounce)
 
   if (value.trim().length < 3) {
@@ -119,8 +137,17 @@ watch(query, (value) => {
 
 watch(outsideCommune, (value) => emit('update:outside', value))
 
+watch(address, (value) => {
+  if (!followPin || !value?.addressLabel) return
+  followPin = false
+  suggestions.value = []
+  setQuery(value.addressLabel)
+})
+
 function choose(suggestion: AddressSuggestion) {
-  query.value = suggestion.label
+  followPin = false
+  if (debounce) clearTimeout(debounce)
+  setQuery(suggestion.label)
   suggestions.value = []
   map?.setView([suggestion.lat, suggestion.lng], 18)
   place(suggestion.lat, suggestion.lng)
