@@ -5,6 +5,30 @@ import router from './router'
 import './assets/main.css'
 import './assets/admin.css'
 import { useTenantStore } from './stores/tenant'
+import { isStaleChunkError, reloadOnceForStaleChunk } from './lib/staleChunkReload'
+
+/**
+ * Onglet périmé après un déploiement : voir `lib/staleChunkReload.ts`.
+ * Vite émet `vite:preloadError` quand un chunk ne se charge pas ; le routeur
+ * rapporte, lui, l'échec d'un import dynamique de page.
+ */
+const reload = () => {
+  let storage: Storage | null = null
+  try {
+    storage = window.sessionStorage
+  } catch {
+    storage = null
+  }
+  reloadOnceForStaleChunk(storage, () => window.location.reload())
+}
+
+window.addEventListener('vite:preloadError', (event) => {
+  event.preventDefault()
+  reload()
+})
+router.onError((error) => {
+  if (isStaleChunkError(error)) reload()
+})
 
 const bootstrap = async () => {
   const app = createApp(App)
