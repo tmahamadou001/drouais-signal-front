@@ -18,6 +18,7 @@ import { photoRate, daysSinceLastReport, type Commune } from '@/lib/communePipel
 import { categoryLabel } from '@/lib/categories'
 
 const props = defineProps<{ commune: Commune }>()
+const emit = defineEmits<{ rename: [commune: Commune] }>()
 
 const silence = computed(() => daysSinceLastReport(props.commune))
 const photos = computed(() => photoRate(props.commune))
@@ -76,6 +77,18 @@ const figures = computed(() => [
       >
         {{ categoryLabel(entry.category) }} · {{ entry.count }}
       </span>
+    </div>
+
+    <div class="flex flex-wrap items-center gap-2 text-xs text-muted">
+      <AppIcon name="Link" :size="14" :stroke-width="1.8" />
+      <span>Adresse : <strong class="text-ink">{{ commune.slug }}.onsignale.fr</strong></span>
+      <button
+        type="button"
+        class="rounded-ds border border-line bg-white px-2 py-1 text-xs font-semibold text-ink hover:bg-neutral-100"
+        @click.stop="emit('rename', commune)"
+      >
+        Changer
+      </button>
     </div>
 
     <p v-if="commune.published_at" class="flex items-center gap-1.5 text-xs text-muted">

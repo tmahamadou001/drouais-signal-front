@@ -21,6 +21,8 @@ import DataTable, { type DataColumn } from '@/components/DataTable.vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import CommuneDetail from '@/components/admin/prospects/CommuneDetail.vue'
 import PublicationDialog from '@/components/admin/prospects/PublicationDialog.vue'
+import RenameSlugDialog from '@/components/admin/RenameSlugDialog.vue'
+import { useRenameSlug } from '@/composables/useRenameSlug'
 import { isOpen, totals, type Commune } from '@/lib/communePipeline'
 
 const { apiFetch } = useApi()
@@ -45,6 +47,8 @@ const pending = ref<Commune | null>(null)
 const submitting = ref(false)
 
 const sums = computed(() => totals(communes.value))
+
+const rename = useRenameSlug(() => load(true))
 
 const load = async (fresh = false) => {
   loading.value = true
@@ -235,10 +239,18 @@ onMounted(load)
         </template>
 
         <template #row-detail="{ row }">
-          <CommuneDetail :commune="row" />
+          <CommuneDetail :commune="row" @rename="rename.open($event)" />
         </template>
       </DataTable>
     </div>
+
+    <RenameSlugDialog
+      :tenant="rename.target.value"
+      :submitting="rename.submitting.value"
+      :error="rename.error.value"
+      @close="rename.close()"
+      @submit="rename.submit($event)"
+    />
 
     <PublicationDialog
       :commune="pending"

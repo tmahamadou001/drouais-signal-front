@@ -6,10 +6,9 @@
  * du tableau et repoussait vers le bas la liste dans laquelle on vérifie que la
  * commune n'existe pas déjà.
  *
- * Le slug est la seule valeur qu'on ne peut plus reprendre : il devient le
- * sous-domaine, il est écrit dans les liens envoyés par e-mail, et il sert de
- * clé à la résolution de commune. L'écran le dit au lieu de le laisser
- * découvrir.
+ * Le slug devient le sous-domaine, il est écrit dans les liens envoyés par
+ * e-mail, et il sert de clé à la résolution de commune. Il peut être changé
+ * ensuite (l'ancien reste un alias), mais mieux vaut le choisir juste.
  */
 import { ref, computed, watch } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -117,8 +116,8 @@ function submit() {
                   Minuscules, chiffres et tirets uniquement.
                 </template>
                 <template v-else>
-                  Devient <strong>{{ cleanSlug || 'la-loupe' }}.onsignale.fr</strong> — définitif,
-                  il est écrit dans les liens envoyés par e-mail.
+                  Devient <strong>{{ cleanSlug || 'la-loupe' }}.onsignale.fr</strong>. Il est écrit
+                  dans les liens envoyés par e-mail ; il se change ensuite, l’ancien restant valable.
                 </template>
               </p>
             </div>

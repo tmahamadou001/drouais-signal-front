@@ -25,6 +25,8 @@ import DataTable, { type DataColumn } from '@/components/DataTable.vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import PlatformStatsCards from '@/pages/admin/platform/PlatformStatsCards.vue'
 import CreateTenantDialog, { type NewTenant } from '@/pages/admin/platform/CreateTenantDialog.vue'
+import RenameSlugDialog from '@/components/admin/RenameSlugDialog.vue'
+import { useRenameSlug } from '@/composables/useRenameSlug'
 import { tenantStatusInfo, planLabel, ASSIGNABLE_TENANT_STATUSES } from '@/lib/tenantStatus'
 
 interface PlatformTenant {
@@ -87,6 +89,8 @@ function refresh() {
   invalidateCachePattern(/^\/api\/tenant\/all/)
   return load()
 }
+
+const rename = useRenameSlug(refresh)
 
 async function setStatus(tenant: PlatformTenant, status: string) {
   if (status === tenant.status) return
@@ -195,6 +199,16 @@ onMounted(load)
         </template>
 
         <template #cell-actions="{ row }">
+          <div class="flex items-center justify-end gap-2">
+          <button
+            type="button"
+            class="flex h-[30px] w-[30px] flex-none items-center justify-center rounded-lg border border-line bg-white text-muted transition-colors hover:text-ink"
+            aria-label="Changer l’adresse"
+            title="Changer l’adresse"
+            @click.stop="rename.open(row)"
+          >
+            <AppIcon name="Link" :size="14" :stroke-width="1.8" />
+          </button>
           <select
             :value="row.status"
             class="h-[30px] rounded-lg border border-line bg-white px-2 text-xs font-medium text-ink outline-none focus:border-brand-700"
@@ -205,9 +219,18 @@ onMounted(load)
               {{ tenantStatusInfo(status).label }}
             </option>
           </select>
+          </div>
         </template>
       </DataTable>
     </div>
+
+    <RenameSlugDialog
+      :tenant="rename.target.value"
+      :submitting="rename.submitting.value"
+      :error="rename.error.value"
+      @close="rename.close()"
+      @submit="rename.submit($event)"
+    />
 
     <CreateTenantDialog
       :open="createOpen"
