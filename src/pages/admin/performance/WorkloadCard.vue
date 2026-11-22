@@ -10,6 +10,7 @@
  * La ligne « À assigner » compte ceux qui n'ont encore personne : c'est la
  * première chose qu'on veut voir avant de se demander qui est surchargé.
  */
+import InfoTip from '@/components/InfoTip.vue'
 import { computed, onMounted } from 'vue'
 import { useWorkload } from '@/composables/useWorkload'
 import AppIcon from '@/components/AppIcon.vue'
@@ -26,7 +27,9 @@ const width = (count: number) => `${Math.round((count / maximum.value) * 100)}%`
 <template>
   <section class="flex flex-none flex-col gap-3.5 rounded-[14px] border border-line bg-white p-5" data-testid="workload-card">
     <header class="flex items-center gap-2.5">
-      <h2 class="text-[15px] font-bold text-brand-900">Charge par agent</h2>
+      <h2 class="flex items-center gap-1.5 text-[15px] font-bold text-brand-900">Charge par agent
+        <InfoTip title="Charge par agent" text="Combien de signalements ouverts chaque membre de l’équipe a en main en ce moment. « À assigner » : ceux que personne n’a. Sert à repérer une file trop lourde avant qu’elle ne prenne du retard." />
+      </h2>
       <span class="inline-flex items-center gap-1 rounded-md bg-status-pending-bg px-2 py-1 text-[11px] font-semibold leading-none text-status-pending-fg">
         <AppIcon name="Lock" :size="11" /> Admin — visible par les administrateurs seulement
       </span>

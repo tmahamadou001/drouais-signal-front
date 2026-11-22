@@ -23,6 +23,7 @@ import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
 import DataTable, { type DataColumn } from '@/components/DataTable.vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
+import InfoTip from '@/components/InfoTip.vue'
 import ScopeNote from '@/pages/admin/performance/ScopeNote.vue'
 import TreatmentIndicators from '@/pages/admin/performance/TreatmentIndicators.vue'
 import ServiceBreakdown from '@/pages/admin/performance/ServiceBreakdown.vue'
@@ -326,7 +327,10 @@ function exportCsv() {
 
           <div class="flex flex-col gap-3.5 rounded-[14px] bg-brand-900 px-[18px] py-4">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-brand-500">TAUX DE RÉSOLUTION</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-brand-500">TAUX DE RÉSOLUTION</span>
+                <InfoTip title="Taux de résolution" :text="`Part des signalements de la période qui ont été résolus : résolus ÷ signalements reçus. Ici, 5 / 10 veut dire cinq résolus sur dix reçus sur la période choisie en haut de page.`" tone="light" align="left" />
+              </div>
               <AppIcon name="CircleCheck" :size="16" :stroke-width="1.75" class="text-brand-500" />
             </div>
             <div class="flex items-end justify-between gap-2.5">
@@ -347,7 +351,10 @@ function exportCsv() {
 
           <div class="flex flex-col gap-3.5 rounded-[14px] border border-line bg-white px-[18px] py-4">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">DÉLAI PRISE EN CHARGE</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">DÉLAI PRISE EN CHARGE</span>
+                <InfoTip title="Délai de prise en charge" :text="`Temps moyen entre le dépôt d’un signalement par un habitant et le moment où la commune le prend en charge. La médiane est le délai du signalement du milieu : un cas oublié pendant des mois ne la fausse pas. À droite : l’objectif de la commune.`" align="left" />
+              </div>
               <AppIcon name="Clock" :size="16" :stroke-width="1.75" class="text-neutral-400" />
             </div>
             <div class="flex items-end justify-between gap-2.5">
@@ -378,7 +385,10 @@ function exportCsv() {
 
           <div class="flex flex-col gap-3.5 rounded-[14px] border border-line bg-white px-[18px] py-4">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">DÉLAI RÉSOLUTION</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">DÉLAI RÉSOLUTION</span>
+                <InfoTip title="Délai de résolution" :text="`Temps moyen entre le dépôt d’un signalement par un habitant et sa résolution. La médiane est le délai du signalement du milieu. À droite : l’objectif de la commune. Les signalements saisis par la commune ne sont pas comptés : ils n’ont pas de délai réel.`" align="right" />
+              </div>
               <AppIcon name="Wrench" :size="16" :stroke-width="1.75" class="text-status-progress-dot" />
             </div>
             <div class="flex items-end justify-between gap-2.5">
@@ -409,7 +419,10 @@ function exportCsv() {
 
           <div class="flex flex-col gap-3.5 rounded-[14px] border border-line bg-white px-[18px] py-4">
             <div class="flex items-center justify-between">
-              <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">RESPECT DES SLA</span>
+              <div class="flex items-center gap-1.5">
+                <span class="text-[11px] font-semibold leading-none tracking-[0.08em] text-muted">RESPECT DES SLA</span>
+                <InfoTip title="Respect des SLA" :text="`Part des signalements traités dans le délai que la commune s’est fixé pour leur catégorie (Paramètres → catégories). « Catégories en écart » : celles dont le délai moyen dépasse le délai visé.`" align="right" />
+              </div>
               <AppIcon name="Target" :size="16" :stroke-width="1.75" class="text-brand-700" />
             </div>
             <div class="flex items-end justify-between gap-2.5">
@@ -447,7 +460,9 @@ function exportCsv() {
           <div class="flex h-[268px] flex-col gap-4 rounded-[14px] border border-line bg-white p-[18px]">
             <div class="flex items-start justify-between gap-3">
               <div class="flex flex-col gap-[3px]">
-                <div class="text-[15px] font-semibold leading-[1.2] text-brand-900">Évolution mensuelle</div>
+                <div class="flex items-center gap-1.5 text-[15px] font-semibold leading-[1.2] text-brand-900">Évolution mensuelle
+                  <InfoTip title="Évolution mensuelle" text="Combien de signalements ont été créés et combien ont été résolus, mois par mois. Quand les barres vertes restent sous les bleues, la file s’allonge." />
+                </div>
                 <div class="text-xs font-medium leading-none text-muted">Signalements créés et résolus</div>
               </div>
               <div class="flex flex-none items-center gap-3.5">
@@ -511,7 +526,9 @@ function exportCsv() {
           <div class="flex h-[268px] flex-col gap-4 rounded-[14px] border border-line bg-white p-[18px]">
             <div class="flex items-start justify-between gap-3">
               <div class="flex flex-col gap-[3px]">
-                <div class="text-[15px] font-semibold leading-[1.2] text-brand-900">Délai moyen face au SLA</div>
+                <div class="flex items-center gap-1.5 text-[15px] font-semibold leading-[1.2] text-brand-900">Délai moyen face au SLA
+                  <InfoTip title="Délai moyen face au SLA" text="Pour chaque catégorie, le délai moyen de résolution (la barre) comparé au délai visé (le trait vertical). Barre qui dépasse le trait : la catégorie est en retard sur son objectif. « — » : rien n’a encore été mesuré." />
+                </div>
                 <div class="text-xs font-medium leading-none text-muted">Par catégorie, en heures</div>
               </div>
               <div class="flex flex-none items-center gap-1.5 whitespace-nowrap text-xs font-semibold leading-none text-ink">

@@ -81,7 +81,7 @@ function pick(item: ActivityItem) {
 
     <div
       v-if="open"
-      class="absolute right-0 top-[46px] z-50 flex max-h-[460px] w-[380px] max-w-[92vw] flex-col overflow-hidden rounded-[14px] border border-line bg-white shadow-ds-lg"
+      class="absolute right-0 top-[46px] z-50 flex max-h-[460px] w-[380px] max-w-[92vw] flex-col overflow-hidden whitespace-normal rounded-[14px] border border-line bg-white shadow-ds-lg"
       role="menu"
       data-testid="activity-panel"
     >

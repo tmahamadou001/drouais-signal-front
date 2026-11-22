@@ -9,6 +9,7 @@
  * la table des catégories). « Sans service » est une ligne comme les autres : c'est
  * le travail que personne n'a encore confié.
  */
+import InfoTip from '@/components/InfoTip.vue'
 import { computed, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { formatDelay } from '@/lib/delays'
@@ -42,7 +43,9 @@ function status(measured: number, rate: number | null): { label: string; classes
 <template>
   <section class="flex flex-none flex-col gap-3.5 rounded-[14px] border border-line bg-white p-5" data-testid="service-breakdown">
     <header class="flex flex-col gap-1">
-      <h2 class="text-[15px] font-bold text-brand-900">Détail par service et catégorie</h2>
+      <h2 class="flex items-center gap-1.5 text-[15px] font-bold text-brand-900">Détail par service et catégorie
+        <InfoTip title="Détail par service" text="Les mêmes mesures, service par service, puis catégorie par catégorie en dépliant. « En retard » : signalements ouverts au-delà du délai de leur catégorie. Le badge compare le respect des délais à l’objectif." />
+      </h2>
       <p class="text-xs leading-[1.4] text-muted">
         Dépliez un service pour voir ses catégories. Les délais ne portent que sur les signalements d’habitants.
       </p>
