@@ -42,6 +42,10 @@ import { useApi } from '@/composables/useApi'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 import { useReportComments } from '@/composables/useReportComments'
+import { useInternalMessages } from '@/composables/useInternalMessages'
+import { useActivity } from '@/composables/useActivity'
+import { useTeamDirectory } from '@/composables/useTeamDirectory'
+import type { TeamView } from '@/types/team'
 import { usePhotoUpload } from '@/composables/usePhotoUpload'
 import AppIcon from '@/components/AppIcon.vue'
 import PhotoLightbox from '@/components/PhotoLightbox.vue'
@@ -54,6 +58,11 @@ import ReportConversation from '@/components/admin/report-detail/ReportConversat
 import ReportComposer from '@/components/admin/report-detail/ReportComposer.vue'
 import NoCitizenNote from '@/components/admin/report-detail/NoCitizenNote.vue'
 import ReportActions from '@/components/admin/report-detail/ReportActions.vue'
+import { isClosed } from '@/lib/reportStatus'
+import ReportAssignment from '@/components/admin/report-detail/ReportAssignment.vue'
+import AssignDialog from '@/components/admin/report-detail/AssignDialog.vue'
+import InternalThread from '@/components/admin/report-detail/InternalThread.vue'
+import InternalComposer from '@/components/admin/report-detail/InternalComposer.vue'
 
 const props = withDefaults(defineProps<{
   open: boolean
@@ -72,12 +81,15 @@ const props = withDefaults(defineProps<{
    * réponse ferait d'un raccourci un détour.
    */
   initialView?: DetailView
+  /** Quel fil ouvrir dans « Échanges » : celui de l'habitant, ou celui de l'équipe. */
+  initialThread?: 'citizen' | 'internal'
 }>(), {
   loading: false,
   hasPrevious: false,
   hasNext: false,
   unread: 0,
   initialView: 'overview',
+  initialThread: 'citizen',
 })
 
 const emit = defineEmits<{
@@ -88,6 +100,8 @@ const emit = defineEmits<{
   transmitted: []
   /** Le serveur a rendu une version plus fraîche que celle de la liste. */
   refreshed: [report: Report]
+  /** Le signalement vient d'être confié (ou remis « à assigner ») : la liste et les compteurs ont bougé. */
+  assigned: []
 }>()
 
 const { apiFetch } = useApi()
@@ -101,7 +115,7 @@ const { getCategoryLabel, getCategorySla, getServiceEmails, isOverdue } = useTen
  * le rôle qui décide. Le serveur refuse de toute façon ; ceci évite de le lui
  * apprendre par un 403.
  */
-const { canAct } = storeToRefs(useAuthStore())
+const { canAct, isAdmin } = storeToRefs(useAuthStore())
 
 /**
  * Le signalement, tel que le serveur le connaît maintenant.
@@ -152,6 +166,12 @@ const overdueDays = computed(() => {
 const history = ref<StatusHistoryEntry[]>([])
 
 /**
+ * À qui il est confié, et le fil des gestes d'organisation. Rendu par le serveur
+ * à l'équipe seule : le public ne sait pas qui, dans une mairie, a un signalement.
+ */
+const team = ref<TeamView | null>(null)
+
+/**
  * Vrai seulement pendant le premier chargement d'un signalement.
  *
  * Un rafraîchissement du même (`reset: false`) ne le lève pas : faire
@@ -192,6 +212,7 @@ async function loadDetail(id: string, { reset = true } = {}) {
   if (reset) {
     detail.value = null
     history.value = []
+    team.value = null
     contact.value = null
     historyLoading.value = true
   }
@@ -201,6 +222,7 @@ async function loadDetail(id: string, { reset = true } = {}) {
       report: Report
       history: StatusHistoryEntry[]
       contact: { channel: 'account' | 'email' | 'none'; reachable: boolean }
+      team?: TeamView
     }>(`/api/reports/${id}`)
 
     // Une réponse arrivée après un changement de signalement ne doit pas
@@ -210,6 +232,7 @@ async function loadDetail(id: string, { reset = true } = {}) {
     detail.value = data.report ?? null
     history.value = data.history ?? []
     contact.value = data.contact ?? null
+    team.value = data.team ?? null
 
     // La ligne du tableau porte la même copie périmée : la corriger ici évite
     // que le panneau et la liste se contredisent une fois refermé.
@@ -243,6 +266,31 @@ const conversation = computed(() =>
 
 const { uploading, uploadResolutionPhoto } = usePhotoUpload()
 
+// ─── Échanges internes ───────────────────────────────────────────────────────
+
+const internal = useInternalMessages(reportId)
+const activity = useActivity()
+const directory = useTeamDirectory()
+
+/** Le fil affiché dans « Échanges ». L'équipe seule voit l'onglet « Interne ». */
+const thread = ref<'citizen' | 'internal'>(props.initialThread)
+const internalThread = ref<InstanceType<typeof InternalThread> | null>(null)
+const internalComposer = ref<InstanceType<typeof InternalComposer> | null>(null)
+
+async function onSendInternal(content: string, mentions: string[]) {
+  const ok = await internal.send(content, mentions)
+  if (!ok) return
+  internalComposer.value?.reset()
+  void internalThread.value?.scrollToEnd('smooth')
+}
+
+const assignOpen = ref(false)
+
+async function onAssigned() {
+  if (props.report?.id) await loadDetail(props.report.id, { reset: false })
+  emit('assigned')
+}
+
 const composer = ref<InstanceType<typeof ReportComposer> | null>(null)
 const conversationView = ref<InstanceType<typeof ReportConversation> | null>(null)
 const lightboxUrl = ref<string | null>(null)
@@ -259,7 +307,13 @@ watch(
   async (id) => {
     if (!id) return
     composer.value?.reset()
-    await Promise.all([loadDetail(id), loadComments()])
+    internalComposer.value?.reset()
+    internal.reset()
+    thread.value = props.initialThread
+    // Ouvrir un signalement par un autre chemin que la cloche en lit les lignes d'activité.
+    void activity.markReportRead(id)
+    void directory.load()
+    await Promise.all([loadDetail(id), loadComments(), canAct.value ? internal.load() : Promise.resolve()])
     await nextTick()
     conversationView.value?.scrollToEnd()
   },
@@ -295,6 +349,7 @@ function refreshOnReturn() {
   if (!props.open || !props.report?.id) return
   void loadDetail(props.report.id, { reset: false })
   void loadComments()
+  if (canAct.value) void internal.load()
 }
 
 onMounted(() => {
@@ -313,8 +368,8 @@ async function onPickPhoto(file: File) {
   if (url) composer.value?.setPhoto(url)
 }
 
-async function onSend(message: string, photoUrl: string | undefined, isResolution: boolean) {
-  const ok = await postAgentMessage(message, photoUrl, isResolution)
+async function onSend(message: string, photoUrl: string | undefined, isResolution: boolean, isQuestion: boolean) {
+  const ok = await postAgentMessage(message, photoUrl, isResolution, isQuestion)
   if (!ok) return
 
   composer.value?.reset()
@@ -368,12 +423,14 @@ watch(() => props.report?.id, () => { view.value = props.initialView })
 // `initialView` change quand la cloche désigne un signalement déjà ouvert : le
 // panneau ne se remonte pas, donc c'est le seul signal qui l'atteint.
 watch(() => props.initialView, (next) => { view.value = next })
+watch(() => props.initialThread, (next) => { thread.value = next })
 
 /** La conversation se recale en bas dès qu'on revient dessus. */
-watch(view, async (next) => {
-  if (next !== 'messages') return
+watch([view, thread], async ([nextView, nextThread]) => {
+  if (nextView !== 'messages') return
   await nextTick()
-  conversationView.value?.scrollToEnd()
+  if (nextThread === 'internal') void internalThread.value?.scrollToEnd()
+  else conversationView.value?.scrollToEnd()
 })
 </script>
 
@@ -425,6 +482,14 @@ watch(view, async (next) => {
               </button>
             </header>
 
+            <!-- À qui est confié le signalement : sur toutes les vues, comme le statut. -->
+            <ReportAssignment
+              :team="team"
+              :can-act="canAct"
+              :closed="isClosed(report.status)"
+              @assign="assignOpen = true"
+            />
+
             <!-- Une seule zone de défilement, et elle n'a qu'une liste à la
                  fois : c'est tout le propos du cloisonnement. -->
             <div class="flex min-h-0 flex-1 flex-col overflow-y-auto px-[22px] py-5">
@@ -442,13 +507,39 @@ watch(view, async (next) => {
                 @zoom="lightboxUrl = $event"
               />
 
-              <ReportConversation
-                v-else-if="view === 'messages'"
-                ref="conversationView"
-                :messages="conversation"
-                :loading="commentsLoading"
-                @zoom="lightboxUrl = $event"
-              />
+              <!-- Deux fils, deux publics : l'habitant, et l'équipe. -->
+              <div v-else-if="view === 'messages'" class="flex min-h-0 flex-1 flex-col gap-3">
+                <div v-if="canAct" class="flex flex-none gap-1.5 rounded-[10px] bg-canvas p-1" role="tablist" aria-label="Fil de discussion">
+                  <button
+                    v-for="option in ([['citizen', 'Habitant'], ['internal', 'Interne']] as const)" :key="option[0]"
+                    role="tab" :aria-selected="thread === option[0]"
+                    class="flex h-8 flex-1 items-center justify-center gap-1.5 rounded-lg text-[13px] font-semibold transition-colors"
+                    :class="thread === option[0] ? 'bg-white text-brand-900 shadow-sm' : 'text-muted hover:text-ink'"
+                    :data-testid="`thread-${option[0]}`"
+                    @click="thread = option[0]"
+                  >
+                    <AppIcon :name="option[0] === 'internal' ? 'Lock' : 'MessageSquare'" :size="13" :stroke-width="1.9" />
+                    {{ option[1] }}
+                    <span v-if="option[0] === 'internal' && internal.messages.value.length > 0" class="text-[11px] tabular-nums text-muted">
+                      {{ internal.messages.value.length }}
+                    </span>
+                  </button>
+                </div>
+
+                <InternalThread
+                  v-if="thread === 'internal' && canAct"
+                  ref="internalThread"
+                  :messages="internal.messages.value"
+                  :loading="internal.loading.value"
+                />
+                <ReportConversation
+                  v-else
+                  ref="conversationView"
+                  :messages="conversation"
+                  :loading="commentsLoading"
+                  @zoom="lightboxUrl = $event"
+                />
+              </div>
 
               <!-- Ce qu'un service extérieur a répondu atterrit ici : c'était
                    le seul endroit du parcours où un message écrit n'était lu
@@ -456,7 +547,7 @@ watch(view, async (next) => {
               <template v-else>
                 <JournalSkeleton v-if="historyLoading" />
 
-                <ReportJournal v-else :history="history" />
+                <ReportJournal v-else :history="history" :events="team?.events ?? []" />
                 <!-- Sur l'historique, pas sur `journalCount` : celui-ci ne
                      compte que les entrées motivées, et le texte « aucun
                      changement » s'affichait sous une liste qui en montrait
@@ -477,7 +568,12 @@ watch(view, async (next) => {
             >
               <!-- La saisie appartient à la conversation : sous un journal,
                    elle n'aurait pas de sujet. -->
-              <NoCitizenNote v-if="view === 'messages' && noCitizen" />
+              <template v-if="view === 'messages' && thread === 'internal'">
+                <InternalComposer ref="internalComposer" :sending="internal.sending.value" @send="onSendInternal" />
+                <p v-if="internal.error.value" class="text-xs text-status-danger" role="alert">{{ internal.error.value }}</p>
+              </template>
+
+              <NoCitizenNote v-else-if="view === 'messages' && noCitizen" />
 
               <ReportComposer
                 v-else-if="view === 'messages' && canAct"
@@ -498,6 +594,7 @@ watch(view, async (next) => {
                 :configured-recipients="configuredRecipients"
                 @update-status="updateStatus"
                 @transmit="transmitOpen = true"
+                @changed="report && loadDetail(report.id, { reset: false })"
               />
             </footer>
           </div>
@@ -509,6 +606,16 @@ watch(view, async (next) => {
             @select="view = $event"
           />
         </aside>
+
+        <AssignDialog
+          :open="assignOpen"
+          :report-id="report.id"
+          :category-label="getCategoryLabel(report.category)"
+          :team="team"
+          :is-admin="isAdmin"
+          @close="assignOpen = false"
+          @assigned="onAssigned"
+        />
 
         <TransmitDialog
           :open="transmitOpen"

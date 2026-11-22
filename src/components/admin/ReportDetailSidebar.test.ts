@@ -21,6 +21,10 @@ vi.mock('@/composables/useApi', () => ({
   useApi: () => ({ apiFetch, invalidateCache: vi.fn(), invalidateCachePattern: vi.fn() }),
 }))
 
+vi.mock('@/composables/useReplyTemplates', async () => {
+  const { ref } = await import('vue')
+  return { useReplyTemplates: () => ({ templates: ref([]), loading: ref(false), load: vi.fn(), save: vi.fn(), remove: vi.fn() }) }
+})
 vi.mock('@/composables/useReportComments', () => ({
   useReportComments: () => ({
     comments: state.comments,

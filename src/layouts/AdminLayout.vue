@@ -7,7 +7,7 @@
  * pas le poser lui-même — les contrôles propres à un écran devraient alors y
  * être téléportés, ce que Vue ne supporte pas sans casser au premier patch.
  */
-import { computed, onMounted } from 'vue'
+import { computed, onBeforeUnmount, onMounted, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import AdminSidebar from '@/components/admin/AdminSidebar.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -15,10 +15,13 @@ import ToastHost from '@/components/ui/ToastHost.vue'
 import { useAuthStore } from '@/stores/auth'
 import { useTenantStore } from '@/stores/tenant'
 import { useAdminOverview } from '@/composables/useAdminOverview'
+import { useActivity } from '@/composables/useActivity'
+import { useCounters } from '@/composables/useCounters'
 
 const authStore = useAuthStore()
 const tenantStore = useTenantStore()
 const { reportCount, avgAckHours } = useAdminOverview()
+const { counters: teamCounters } = useCounters()
 
 /**
  * La taxonomie complète, inactives comprises — le back-office affiche des
@@ -27,6 +30,31 @@ const { reportCount, avgAckHours } = useAdminOverview()
  * table des signalements, à la fiche, aux filtres et aux paramètres.
  */
 onMounted(() => void tenantStore.loadAllCategories())
+
+/**
+ * Le centre d'activité et les pastilles du menu, pour toute la session du
+ * back-office : ouverts **une fois** ici, lus partout.
+ *
+ * L'identité vient de la session (`auth.user`), qui peut ne pas être prête au
+ * montage — d'où le `watch` immédiat plutôt qu'un appel dans `onMounted`.
+ */
+const activity = useActivity()
+const counters = useCounters()
+
+watch(
+  () => authStore.user?.id,
+  (userId) => {
+    if (!userId) return
+    void activity.start(userId)
+    void counters.load()
+  },
+  { immediate: true },
+)
+
+// Une ligne d'activité nouvelle est souvent un signalement qu'on vient de me confier.
+watch(() => activity.unread.value, () => void counters.load())
+
+onBeforeUnmount(() => void activity.stop())
 
 /** La navigation du bas, sur mobile seulement — l'export ne couvre que le bureau. */
 const navItems = computed(() => [
@@ -45,6 +73,7 @@ const navItems = computed(() => [
     <AdminSidebar
       class="hidden md:flex"
       :report-count="reportCount"
+      :unassigned-count="teamCounters.unassigned"
       :avg-ack-hours="avgAckHours"
     />
 

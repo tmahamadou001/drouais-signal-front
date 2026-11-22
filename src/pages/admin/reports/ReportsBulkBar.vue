@@ -2,9 +2,9 @@
 /**
  * Ce qu'on peut faire d'une sélection.
  *
- * Trois gestes, dans l'ordre où on les emploie : prendre en charge en interne,
- * confier à un service, supprimer. Le dernier est le seul en rouge plein — il
- * est irréversible et porte sur plusieurs lignes à la fois.
+ * Dans l'ordre où on les emploie : prendre en charge en interne, confier à un
+ * service, trier (fusionner, annuler, classer indésirable), supprimer. Le dernier
+ * est le seul en rouge plein — il est irréversible et porte sur plusieurs lignes.
  */
 import AppIcon from '@/components/AppIcon.vue'
 
@@ -14,7 +14,7 @@ defineProps<{
   canDelete: boolean
 }>()
 
-defineEmits<{ takeCharge: []; transmit: []; remove: [] }>()
+defineEmits<{ takeCharge: []; transmit: []; remove: []; lifecycle: ['annule' | 'indesirable' | 'merge'] }>()
 </script>
 
 <template>
@@ -37,6 +37,29 @@ defineEmits<{ takeCharge: []; transmit: []; remove: [] }>()
   >
     <AppIcon name="Send" :size="14" :stroke-width="2" />
     Transmettre
+  </button>
+
+  <!-- Le tri de fin de journée : ce qui ne sera pas traité, et les doublons. -->
+  <button
+    class="flex h-8 flex-none items-center gap-[7px] rounded-lg border border-line bg-white px-[11px] text-xs font-semibold leading-none text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+    :disabled="loading" data-testid="bulk-merge" @click="$emit('lifecycle', 'merge')"
+  >
+    <AppIcon name="GitMerge" :size="14" :stroke-width="2" />
+    Fusionner
+  </button>
+  <button
+    class="flex h-8 flex-none items-center gap-[7px] rounded-lg border border-line bg-white px-[11px] text-xs font-semibold leading-none text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+    :disabled="loading" data-testid="bulk-annule" @click="$emit('lifecycle', 'annule')"
+  >
+    <AppIcon name="CircleX" :size="14" :stroke-width="2" />
+    Annuler
+  </button>
+  <button
+    class="flex h-8 flex-none items-center gap-[7px] rounded-lg border border-line bg-white px-[11px] text-xs font-semibold leading-none text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+    :disabled="loading" data-testid="bulk-indesirable" @click="$emit('lifecycle', 'indesirable')"
+  >
+    <AppIcon name="ShieldAlert" :size="14" :stroke-width="2" />
+    Indésirable
   </button>
 
   <button

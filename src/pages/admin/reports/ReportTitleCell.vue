@@ -31,6 +31,20 @@ defineProps<{
           En retard
         </span>
         <span
+          v-if="report.reply_received_at"
+          class="flex-none rounded-md bg-status-done-bg px-1.5 py-[3px] text-[11px] font-semibold leading-none text-status-done-fg"
+          data-testid="reply-received"
+        >
+          Réponse reçue
+        </span>
+        <span
+          v-else-if="report.clarification_requested_at"
+          class="flex-none rounded-md bg-status-progress-bg px-1.5 py-[3px] text-[11px] font-semibold leading-none text-status-progress-fg"
+          data-testid="awaiting-clarification"
+        >
+          Précision demandée
+        </span>
+        <span
           v-if="unread"
           class="flex flex-none items-center gap-1 rounded-md bg-brand-700 px-1.5 py-[3px] text-[11px] font-semibold leading-none text-white"
           title="Nouveaux messages"

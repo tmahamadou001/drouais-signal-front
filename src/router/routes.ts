@@ -125,6 +125,24 @@ export const routes: RouteRecordRaw[] = [
         meta: { minRole: 'admin', title: 'Équipe', subtitle: 'Membres et rôles de la collectivité' },
       },
       {
+        path: 'services',
+        name: 'AdminServices',
+        component: () => import('@/pages/admin/ServicesAdminView.vue'),
+        meta: { minRole: 'admin', title: 'Services', subtitle: 'Les équipes de la collectivité et leurs membres' },
+      },
+      {
+        path: 'modeles',
+        name: 'AdminTemplates',
+        component: () => import('@/pages/admin/TemplatesAdminView.vue'),
+        meta: { minRole: 'admin', title: 'Modèles de réponse', subtitle: 'Les réponses types de vos agents' },
+      },
+      {
+        path: 'aiguillage',
+        name: 'AdminRouting',
+        component: () => import('@/pages/admin/RoutingAdminView.vue'),
+        meta: { minRole: 'admin', title: 'Aiguillage', subtitle: 'Qui reçoit un signalement neuf, selon sa catégorie' },
+      },
+      {
         path: 'parametres',
         name: 'AdminSettings',
         component: () => import('@/pages/admin/SettingsAdminView.vue'),

@@ -11,13 +11,17 @@
  *  - **revenir en arrière** est discret, à la ligne, derrière un menu. C'est un
  *    rattrapage d'erreur : nécessaire, jamais mis en avant.
  *
- * Et « Marquer résolu » passe par une confirmation, parce que c'est le seul
- * geste qu'on ne peut pas défaire.
+ * Et « Marquer résolu » passe par une confirmation : le statut devient définitif,
+ * et ne se quitte plus que par « Rouvrir », motif à l'appui.
  */
 import { ref, computed } from 'vue'
 import type { Report, ReportStatus } from '@/types'
 import AppIcon from '@/components/AppIcon.vue'
 import AppModal from '@/components/AppModal.vue'
+import LifecycleDialog, { type LifecycleMode } from './LifecycleDialog.vue'
+import MergeDialog from './MergeDialog.vue'
+import CategoryDialog from './CategoryDialog.vue'
+import { useLifecycle } from '@/composables/useLifecycle'
 import { STATUS_PILLS, isFinal, rollbackTargets } from '@/lib/reportStatus'
 
 const props = defineProps<{
@@ -30,7 +34,60 @@ const props = defineProps<{
 const emit = defineEmits<{
   updateStatus: [status: ReportStatus, comment?: string]
   transmit: []
+  /** Une réouverture ou une planification a été enregistrée : recharger la fiche. */
+  changed: []
 }>()
+
+const lifecycle = useLifecycle()
+const moreOpen = ref(false)
+const dialogMode = ref<LifecycleMode | null>(null)
+const mergeOpen = ref(false)
+const categoryOpen = ref(false)
+
+function openOther(which: 'merge' | 'category') {
+  moreOpen.value = false
+  if (which === 'merge') mergeOpen.value = true
+  else categoryOpen.value = true
+}
+
+async function onMerge(targetId: string) {
+  if (await lifecycle.merge(props.report.id, targetId)) {
+    mergeOpen.value = false
+    emit('changed')
+  }
+}
+
+async function onCategory(category: string) {
+  if (await lifecycle.changeCategory(props.report.id, category)) {
+    categoryOpen.value = false
+    emit('changed')
+  }
+}
+
+function openDialog(mode: LifecycleMode) {
+  moreOpen.value = false
+  dialogMode.value = mode
+}
+
+async function onLifecycleSubmit(payload: { text: string; date: string | null; target: 'en_attente' | 'pris_en_charge' }) {
+  const mode = dialogMode.value
+  if (!mode) return
+
+  if (mode === 'annule' || mode === 'indesirable') {
+    dialogMode.value = null
+    emit('updateStatus', mode, payload.text)
+    return
+  }
+
+  const ok = mode === 'reopen'
+    ? await lifecycle.reopen(props.report.id, payload.text, payload.target)
+    : await lifecycle.plan(props.report.id, payload.date, payload.text || null)
+
+  if (ok) {
+    dialogMode.value = null
+    emit('changed')
+  }
+}
 
 const rollbackOpen = ref(false)
 const resolveOpen = ref(false)
@@ -73,10 +130,16 @@ function confirmResolve() {
     class="flex items-center gap-2.5 rounded-xl border border-line bg-white px-3.5 py-3"
   >
     <AppIcon name="CircleCheck" :size="17" :stroke-width="2" class="flex-none text-status-success" />
-    <p class="text-xs leading-[1.4] text-muted">
-      <span class="font-semibold text-ink">Signalement résolu.</span>
-      Son statut n’est plus modifiable — l’habitant en a été informé.
+    <p class="flex-1 text-xs leading-[1.4] text-muted">
+      <span class="font-semibold text-ink">Signalement {{ STATUS_PILLS[report.status].label.toLowerCase() }}.</span>
+      Son statut n’est plus modifiable ; on peut le rouvrir, motif à l’appui.
     </p>
+    <button
+      class="h-8 flex-none rounded-lg border border-line px-3 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50 disabled:opacity-50"
+      :disabled="loading" data-testid="reopen" @click="openDialog('reopen')"
+    >
+      Rouvrir
+    </button>
   </div>
 
   <template v-else>
@@ -111,6 +174,42 @@ function confirmResolve() {
       </button>
     </div>
 
+    <!-- Ce qui sort du parcours : prévoir une date, annuler, classer indésirable. -->
+    <div class="relative flex justify-center">
+      <button
+        class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
+        data-testid="more-actions" @click="moreOpen = !moreOpen"
+      >
+        <AppIcon name="Ellipsis" :size="14" :stroke-width="2" />
+        Plus d’actions
+      </button>
+      <div
+        v-if="moreOpen"
+        class="absolute bottom-full z-10 mb-1.5 flex w-[248px] flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-ds-lg"
+      >
+        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-plan" @click="openDialog('plan')">
+          <AppIcon name="CalendarClock" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          {{ report.planned_for ? 'Modifier la date d’intervention' : 'Prévoir l’intervention' }}
+        </button>
+        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-category" @click="openOther('category')">
+          <AppIcon name="Tag" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          Corriger la catégorie
+        </button>
+        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-merge" @click="openOther('merge')">
+          <AppIcon name="GitMerge" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          Fusionner avec un autre…
+        </button>
+        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-annule" @click="openDialog('annule')">
+          <AppIcon name="CircleX" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          Annuler le signalement
+        </button>
+        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-indesirable" @click="openDialog('indesirable')">
+          <AppIcon name="ShieldAlert" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+          Classer comme indésirable
+        </button>
+      </div>
+    </div>
+
     <!-- Le rattrapage d'erreur : discret, mais là. -->
     <div v-if="targets.length > 0" class="relative flex justify-center">
       <button
@@ -140,6 +239,14 @@ function confirmResolve() {
       </div>
     </div>
   </template>
+
+  <LifecycleDialog
+    :open="dialogMode !== null" :mode="dialogMode ?? 'plan'" :saving="lifecycle.saving.value || loading"
+    :current-date="report.planned_for" @close="dialogMode = null" @submit="onLifecycleSubmit"
+  />
+
+  <MergeDialog :open="mergeOpen" :report-id="report.id" :saving="lifecycle.saving.value" @close="mergeOpen = false" @merge="onMerge" />
+  <CategoryDialog :open="categoryOpen" :current="report.category" :saving="lifecycle.saving.value" @close="categoryOpen = false" @submit="onCategory" />
 
   <!-- La seule action irréversible de l'écran mérite d'être annoncée avant,
        pas découverte après. -->

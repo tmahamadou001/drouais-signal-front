@@ -84,6 +84,9 @@ export function useApi() {
       throw new ApiError(code, message, response.status)
     }
 
+    // 204 : le serveur n'a rien à dire (retrait, « lu »…), et `json()` lèverait sur un corps vide.
+    if (response.status === 204) return undefined as T
+
     const data = await response.json()
 
     if (cache && method === 'GET') {

@@ -21,13 +21,15 @@ export interface AdminStats {
   en_attente: number
   pris_en_charge: number
   resolu: number
+  annule: number
+  indesirable: number
   new_this_week: number
   resolved_this_month: number
   overdue: number
 }
 
 const EMPTY_STATS: AdminStats = {
-  total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0,
+  total: 0, en_attente: 0, pris_en_charge: 0, resolu: 0, annule: 0, indesirable: 0,
   new_this_week: 0, resolved_this_month: 0, overdue: 0,
 }
 
@@ -66,6 +68,8 @@ export function useReportsList() {
    */
   const filterDays = ref(0)
   const onlyOverdue = ref(false)
+  /** `received` : l'habitant a répondu · `waiting` : on attend sa précision · vide : tout. */
+  const filterReply = ref('')
   /**
    * D'où viennent les signalements listés : `''` (tous), `citizen`, `agent`.
    *
@@ -74,6 +78,18 @@ export function useReportsList() {
    */
   const filterSource = ref<'' | 'citizen' | 'agent'>('')
   const sortBy = ref<'recent' | 'oldest' | 'votes'>('recent')
+
+  /**
+   * Le périmètre demandé : `''` laisse le serveur choisir.
+   *
+   * Le serveur sait si l'appelant a quelque chose en propre — des signalements,
+   * un service — et lui montre toute la commune dans le cas contraire : une
+   * liste vide à l'ouverture se lirait comme une panne. Le périmètre
+   * **réellement** appliqué revient dans la réponse (`appliedScope`) ; c'est
+   * lui que l'écran affiche, jamais ce qu'il a demandé.
+   */
+  const scope = ref('')
+  const appliedScope = ref('all')
 
   /**
    * Ce qu'on demande, sans l'endroit où l'on en est.
@@ -94,6 +110,8 @@ export function useReportsList() {
     if (filterDays.value > 0) params.set('since', String(filterDays.value))
     if (onlyOverdue.value) params.set('overdue', 'true')
     if (filterSource.value) params.set('source', filterSource.value)
+    if (filterReply.value) params.set('reply', filterReply.value)
+    if (scope.value) params.set('scope', scope.value)
 
     return params.toString()
   })
@@ -106,7 +124,7 @@ export function useReportsList() {
   const hasFilters = computed(() =>
     Boolean(
       search.value.trim() || filterStatus.value || filterCategory.value ||
-      filterDays.value > 0 || onlyOverdue.value || filterSource.value
+      filterDays.value > 0 || onlyOverdue.value || filterSource.value || filterReply.value
     )
   )
 
@@ -117,14 +135,17 @@ export function useReportsList() {
     filterDays.value = 0
     onlyOverdue.value = false
     filterSource.value = ''
+    filterReply.value = ''
   }
 
   async function loadReports() {
     const response = await apiFetch<{
       data: Report[]
       pagination: { page: number; limit: number; total: number; totalPages: number }
-    }>(`/api/reports?${listQuery.value}`, { cache: { maxAge: 5_000 } })
+      scope: string
+    }>(`/api/admin/reports?${listQuery.value}`, { cache: { maxAge: 5_000 } })
 
+    appliedScope.value = response.scope
     reports.value = response.data
     totalPages.value = response.pagination.totalPages
     totalReports.value = response.pagination.total
@@ -162,6 +183,7 @@ export function useReportsList() {
   /** Vide le cache de tout ce qu'une action sur un signalement fait bouger. */
   function invalidateAll() {
     invalidateCachePattern(/^\/api\/reports/)
+    invalidateCachePattern(/^\/api\/admin\/(reports|counters|workload)/)
     invalidateCachePattern(/^\/api\/admin\/stats/)
     invalidateCachePattern(/^\/api\/admin\/heatmap/)
     invalidateCachePattern(/^\/api\/map\/markers/)
@@ -209,7 +231,8 @@ export function useReportsList() {
   return {
     reports, stats, loading,
     currentPage, totalPages, totalReports,
-    search, filterStatus, filterCategory, filterDays, onlyOverdue, filterSource, sortBy,
+    search, filterStatus, filterCategory, filterDays, onlyOverdue, filterSource, filterReply, sortBy,
+    scope, appliedScope,
     listQuery, filterKey, hasFilters, resetFilters,
     fetchData, loadStats, refreshAll, invalidateAll, goToPage,
     onFilterChange,

@@ -1,5 +1,6 @@
 import { computed } from 'vue'
 import { useTenantStore } from '@/stores/tenant'
+import { isClosed } from '@/lib/reportStatus'
 
 /** Le défaut de `tenant_categories.sla_hours` — une semaine. */
 const DEFAULT_SLA_HOURS = 168
@@ -49,7 +50,8 @@ export function useTenantCategories() {
 
   /** Même règle que `GET /api/admin/stats`, pour que les deux comptes concordent. */
   const isOverdue = (report: { category: string; status: string; created_at: string }): boolean => {
-    if (report.status === 'resolu') return false
+    // Résolu, annulé ou indésirable : jamais en retard, quel que soit l'âge.
+    if (isClosed(report.status)) return false
     return Date.parse(report.created_at) + getCategorySla(report.category) * 3600_000 < Date.now()
   }
 

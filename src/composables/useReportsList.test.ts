@@ -75,3 +75,46 @@ describe('filterKey', () => {
     expect(list.hasFilters.value).toBe(false)
   })
 })
+
+describe('scope', () => {
+  it('is left out of the query until chosen, so the server picks the default', () => {
+    const list = useReportsList()
+    expect(list.filterKey.value).not.toContain('scope=')
+
+    list.scope.value = 'unassigned'
+    expect(list.filterKey.value).toContain('scope=unassigned')
+  })
+
+  it('reloads when it changes, like every other filter', async () => {
+    const list = useReportsList()
+    const before = list.filterKey.value
+
+    list.scope.value = 'all'
+    await nextTick()
+
+    expect(list.filterKey.value).not.toBe(before)
+  })
+
+  it('is not an active filter: it is where you are, not something to reset', () => {
+    const list = useReportsList()
+    list.scope.value = 'all'
+
+    expect(list.hasFilters.value).toBe(false)
+    list.resetFilters()
+    expect(list.scope.value).toBe('all')
+  })
+
+  it('reads the back-office list, not the public one, and keeps the scope the server applied', async () => {
+    apiFetch.mockResolvedValue({
+      data: [],
+      pagination: { page: 1, limit: 15, total: 0, totalPages: 1 },
+      scope: 'mine',
+    })
+    const list = useReportsList()
+
+    await list.fetchData()
+
+    expect(apiFetch.mock.calls[0][0]).toMatch(/^\/api\/admin\/reports\?/)
+    expect(list.appliedScope.value).toBe('mine')
+  })
+})

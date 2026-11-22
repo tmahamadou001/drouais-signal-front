@@ -18,11 +18,18 @@
  * qu'ils portent sur la période entière.
  */
 import { ref, computed, onMounted } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useApi } from '@/composables/useApi'
 import { useTenantStore } from '@/stores/tenant'
 import DataTable, { type DataColumn } from '@/components/DataTable.vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import ScopeNote from '@/pages/admin/performance/ScopeNote.vue'
+import TreatmentIndicators from '@/pages/admin/performance/TreatmentIndicators.vue'
+import ServiceBreakdown from '@/pages/admin/performance/ServiceBreakdown.vue'
+import { splitDelay, formatDelay } from '@/lib/delays'
+import { useTreatmentStats } from '@/composables/useTreatmentStats'
+import WorkloadCard from '@/pages/admin/performance/WorkloadCard.vue'
+import { useAuthStore } from '@/stores/auth'
 import CategoryGlyph from '@/components/admin/CategoryGlyph.vue'
 import FilterSelect from '@/components/admin/FilterSelect.vue'
 import AppIcon from '@/components/AppIcon.vue'
@@ -60,12 +67,14 @@ interface PerformanceData {
 }
 
 const { apiFetch } = useApi()
+const { isAdmin } = storeToRefs(useAuthStore())
 const tenantStore = useTenantStore()
 
 const data = ref<PerformanceData | null>(null)
 const loading = ref(true)
 const error = ref<string | null>(null)
 const period = ref<string | number>(30)
+const treatment = useTreatmentStats(period)
 
 const PERIODS = [
   { value: 30,  label: '30 derniers jours' },
@@ -77,6 +86,9 @@ const PERIODS = [
 async function load() {
   loading.value = true
   error.value = null
+  // En parallèle, et sans lier leurs échecs : les indicateurs de traitement ne doivent pas
+  // vider la page de performance, ni l'inverse.
+  void treatment.load()
   try {
     data.value = await apiFetch<PerformanceData>(`/api/admin/performance?days=${period.value}`)
   } catch (err: unknown) {
@@ -89,33 +101,6 @@ async function load() {
 onMounted(load)
 
 // ─── Mise en forme ───────────────────────────────────────────────────────────
-
-/**
- * Un délai en heures, coupé en valeur et unité.
- *
- * La maquette pose le nombre en 34 px et l'unité en 15 px : ce sont deux
- * éléments, pas une chaîne. Au-delà de 24 h l'unité de lecture devient le jour
- * — « 156 h » ne se compare à rien, « 6 j 12 h » se compare à un lundi.
- */
-function splitDelay(hours: number | null): { value: string; unit: string } {
-  if (hours === null) return { value: '—', unit: '' }
-  if (hours < 24) return { value: String(Math.round(hours)), unit: 'h' }
-
-  const days = Math.floor(hours / 24)
-  const rest = Math.round(hours % 24)
-
-  // « 7 j 00 h » se lit deux fois plus lentement que « 7 j » pour dire la même
-  // chose. Les délais visés tombent presque tous sur un nombre entier de jours.
-  if (rest === 0) return { value: `${days} j`, unit: '' }
-
-  return { value: `${days} j ${String(rest).padStart(2, '0')}`, unit: 'h' }
-}
-
-/** Le même délai sur une ligne, pour la table et l'export. */
-function formatDelay(hours: number | null): string {
-  const { value, unit } = splitDelay(hours)
-  return unit ? `${value} ${unit}` : value
-}
 
 function formatTarget(days: number): string {
   return `objectif ${days} j`
@@ -300,6 +285,10 @@ function exportCsv() {
 
       <ScopeNote />
 
+      <!-- La charge par agent : un administrateur répartit le travail ; les autres
+           ne voient pas ce bloc (le serveur le leur refuserait de toute façon). -->
+      <WorkloadCard v-if="isAdmin" />
+
       <!-- Chargement : la forme de la page, pas un tourniquet au centre -->
       <template v-if="loading">
         <div class="grid flex-none grid-cols-2 gap-3.5 lg:grid-cols-4">
@@ -375,6 +364,9 @@ function exportCsv() {
                 {{ formatTarget(ACK_TARGET_DAYS) }}
               </span>
             </div>
+            <p v-if="treatment.data.value?.indicators?.median_ack_hours != null" class="-mt-1.5 text-[11px] font-medium leading-none text-muted" data-testid="median-ack">
+              médiane {{ formatDelay(treatment.data.value.indicators.median_ack_hours) }}
+            </p>
             <div class="h-1 overflow-hidden rounded-sm bg-status-pending-bg">
               <div
                 class="h-1 rounded-sm"
@@ -403,6 +395,9 @@ function exportCsv() {
                 {{ formatTarget(RESOLVE_TARGET_DAYS) }}
               </span>
             </div>
+            <p v-if="treatment.data.value?.indicators?.median_resolve_hours != null" class="-mt-1.5 text-[11px] font-medium leading-none text-muted" data-testid="median-resolve">
+              médiane {{ formatDelay(treatment.data.value.indicators.median_resolve_hours) }}
+            </p>
             <div class="h-1 overflow-hidden rounded-sm bg-status-pending-bg">
               <div
                 class="h-1 rounded-sm"
@@ -438,6 +433,12 @@ function exportCsv() {
             </div>
           </div>
         </div>
+
+        <!-- ─── Le traitement : files, médianes, réouvertures ───────────────── -->
+        <TreatmentIndicators v-if="treatment.data.value?.indicators" :indicators="treatment.data.value.indicators" />
+        <p v-else-if="treatment.failed.value" class="flex-none rounded-[14px] border border-line bg-white px-[18px] py-4 text-sm text-muted" data-testid="treatment-failed">
+          Les indicateurs de traitement n’ont pas pu être chargés. Les chiffres de performance ci-dessous restent valables.
+        </p>
 
         <!-- ─── Les deux panneaux ─────────────────────────────────────────── -->
         <div class="grid flex-none grid-cols-1 gap-3.5 lg:grid-cols-2">
@@ -570,6 +571,13 @@ function exportCsv() {
             </div>
           </div>
         </div>
+
+        <!-- ─── Détail par service, et par catégorie en le dépliant ───────── -->
+        <ServiceBreakdown
+          v-if="treatment.data.value?.indicators"
+          :services="treatment.data.value.by_service"
+          :categories="treatment.data.value.by_service_category"
+        />
 
         <!-- ─── Détail par catégorie ──────────────────────────────────────── -->
         <div class="flex min-h-0 flex-none flex-col overflow-hidden rounded-[14px] border border-line bg-white">

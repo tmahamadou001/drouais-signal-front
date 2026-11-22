@@ -74,3 +74,12 @@ describe('apiFetch body', () => {
     expect(sentBody()).toBeUndefined()
   })
 })
+
+describe('apiFetch empty answers', () => {
+  it('does not try to parse a 204 — retraits and « lu » answer with no body', async () => {
+    fetchMock.mockResolvedValue({ ok: true, status: 204, json: () => Promise.reject(new SyntaxError('Unexpected end of JSON input')) })
+    const { apiFetch } = useApi()
+
+    await expect(apiFetch('/api/reply-templates/t1', { method: 'DELETE' })).resolves.toBeUndefined()
+  })
+})

@@ -4,7 +4,7 @@ export type ReportRealtimePayload = RealtimePostgresChangesPayload<{
   id: string
   title: string
   category: string
-  status: 'en_attente' | 'transmis' | 'pris_en_charge' | 'resolu'
+  status: 'en_attente' | 'transmis' | 'pris_en_charge' | 'resolu' | 'annule' | 'indesirable'
   lat: number
   lng: number
   address_approx: string | null

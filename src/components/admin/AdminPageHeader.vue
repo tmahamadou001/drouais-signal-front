@@ -20,6 +20,7 @@
  */
 import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import ActivityBell from '@/components/admin/ActivityBell.vue'
 
 const route = useRoute()
 
@@ -38,8 +39,11 @@ const subtitle = computed(() => route.meta.subtitle as string | undefined)
 
     <slot name="search" />
 
-    <div v-if="$slots.actions" class="ml-auto flex flex-none items-center gap-2.5 whitespace-nowrap">
+    <!-- La cloche est de **chaque** écran : ce qui me concerne ne dépend pas de
+         la page où je me trouve. -->
+    <div class="ml-auto flex flex-none items-center gap-2.5 whitespace-nowrap">
       <slot name="actions" />
+      <ActivityBell />
     </div>
   </header>
 </template>

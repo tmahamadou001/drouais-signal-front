@@ -9,7 +9,7 @@
 import { computed } from 'vue'
 import type { Report, StatusHistoryEntry, ReportStatus } from '@/types'
 import AppIcon from '@/components/AppIcon.vue'
-import { STATUS_PILLS } from '@/lib/reportStatus'
+import { STATUS_PILLS, CLOSING_STATUSES } from '@/lib/reportStatus'
 
 const props = defineProps<{
   report: Report
@@ -39,6 +39,24 @@ const steps = computed(() => {
     props.history.some((entry) => entry.new_status === 'transmis')
 
   return wasTransmitted ? ALL_STEPS : ALL_STEPS.filter((step) => step.key !== 'transmis')
+})
+
+/**
+ * Annulé ou indésirable : hors parcours, donc hors frise. On dit l'état, la date
+ * et le motif plutôt que de dessiner des étapes dont aucune n'est atteinte.
+ */
+const closedWithoutRepair = computed(() => CLOSING_STATUSES.includes(props.report.status))
+const closing = computed(() => {
+  if (!closedWithoutRepair.value) return null
+  const entry = [...props.history].reverse().find((item) => item.new_status === props.report.status)
+  return entry ? { date: shortDate(entry.changed_at), reason: entry.comment } : { date: null, reason: null }
+})
+
+const plannedLabel = computed(() => {
+  const value = props.report.planned_for
+  if (!value || props.report.status === 'resolu' || closedWithoutRepair.value) return null
+  const date = new Date(`${value}T12:00:00Z`)
+  return Number.isNaN(date.getTime()) ? null : date.toLocaleDateString('fr-FR', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'Europe/Paris' })
 })
 
 const currentStep = computed(() => steps.value.findIndex((step) => step.key === props.report.status))
@@ -88,7 +106,15 @@ function stepCaption(step: ReportStatus, index: number): string {
       SUIVI
     </span>
 
-    <div class="flex items-start">
+    <div v-if="closing" class="flex items-start gap-3" data-testid="closed-without-repair">
+      <AppIcon :name="STATUS_PILLS[report.status].icon" :size="20" :stroke-width="1.75" class="mt-0.5 flex-none text-muted" />
+      <p class="text-[13px] leading-[1.5] text-ink">
+        <span class="font-semibold">{{ STATUS_PILLS[report.status].label }}</span><template v-if="closing.date"> le {{ closing.date }}</template>.
+        <span v-if="closing.reason" class="text-muted"> {{ closing.reason }}</span>
+      </p>
+    </div>
+
+    <div v-else class="flex items-start">
       <template v-for="(step, index) in steps" :key="step.key">
         <div
           v-if="index > 0"
@@ -124,5 +150,10 @@ function stepCaption(step: ReportStatus, index: number): string {
         </div>
       </template>
     </div>
+
+    <p v-if="plannedLabel" class="flex items-center gap-2 rounded-lg bg-brand-50 px-3 py-2 text-[13px] font-semibold text-brand-700" data-testid="planned-line">
+      <AppIcon name="CalendarClock" :size="15" :stroke-width="1.75" />
+      Intervention prévue le {{ plannedLabel }}
+    </p>
   </section>
 </template>

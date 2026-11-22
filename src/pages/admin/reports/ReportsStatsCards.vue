@@ -41,6 +41,9 @@ function share(value: number): string {
           aucun cette semaine
         </span>
       </div>
+      <p v-if="stats.annule + stats.indesirable > 0" class="-mt-1.5 text-[11px] font-medium leading-none text-brand-500" data-testid="closed-without-repair">
+        dont {{ stats.annule + stats.indesirable }} clos sans réparation
+      </p>
     </div>
 
     <div class="flex flex-col gap-3.5 rounded-[14px] border border-line bg-white px-[18px] py-4">

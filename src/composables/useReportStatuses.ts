@@ -14,6 +14,31 @@ export interface StatusConfig {
 }
 
 export const STATUS_CONFIG: Record<string, StatusConfig> = {
+  /** Clôtures sans réparation (migration 049) : hors parcours, d'où leur teinte neutre. */
+  annule:{
+    label: 'Annulé',
+    icon: 'CircleX',
+    tailwindBg: 'bg-neutral-200',
+    tailwindText: 'text-neutral-600',
+    dotColor: '#A3A3A3',
+    iconBg: 'bg-gray-100',
+    iconColor: 'text-gray-500',
+    valueColor: 'text-gray-700',
+    ringColor: 'ring-neutral-300/30',
+    bgColor: 'bg-neutral-300',
+  },
+  indesirable:{
+    label: 'Indésirable',
+    icon: 'ShieldAlert',
+    tailwindBg: 'bg-neutral-200',
+    tailwindText: 'text-neutral-600',
+    dotColor: '#A3A3A3',
+    iconBg: 'bg-gray-100',
+    iconColor: 'text-gray-500',
+    valueColor: 'text-gray-700',
+    ringColor: 'ring-neutral-300/30',
+    bgColor: 'bg-neutral-300',
+  },
   en_attente: {
     label: 'En attente',
     icon: 'Clock',

@@ -14,7 +14,8 @@
  *    lignes qu'elle vise ;
  *  - le retard se lit par catégorie, comme la commune l'a réglé.
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useApi } from '@/composables/useApi'
 import type { Report, ReportStatus } from '@/types'
 import { useTenantCategories } from '@/composables/useTenantCategories'
@@ -26,10 +27,9 @@ import { useReportActions } from '@/composables/useReportActions'
 import { useTenantStore } from '@/stores/tenant'
 import { useAuthStore } from '@/stores/auth'
 import { storeToRefs } from 'pinia'
-import { statusPill } from '@/lib/reportStatus'
+import { statusPill, isClosed } from '@/lib/reportStatus'
 import RealtimeToast from '@/components/admin/RealtimeToast.vue'
 import ReportDetailSidebar from '@/components/admin/ReportDetailSidebar.vue'
-import NotificationBell from '@/components/admin/NotificationBell.vue'
 import TransmitDialog from '@/components/admin/TransmitDialog.vue'
 import AppModal from '@/components/AppModal.vue'
 import DataTable, { type DataColumn } from '@/components/DataTable.vue'
@@ -38,10 +38,18 @@ import AppIcon from '@/components/AppIcon.vue'
 import AdminPageHeader from '@/components/admin/AdminPageHeader.vue'
 import CreateReportDialog from '@/components/admin/report-create/CreateReportDialog.vue'
 import ReportsStatsCards from '@/pages/admin/reports/ReportsStatsCards.vue'
-import ReportsToolbar from '@/pages/admin/reports/ReportsToolbar.vue'
+import ReportsFilterBar from '@/pages/admin/reports/ReportsFilterBar.vue'
 import ReportsBulkBar from '@/pages/admin/reports/ReportsBulkBar.vue'
 import ReportTitleCell from '@/pages/admin/reports/ReportTitleCell.vue'
 import ReportRowActions from '@/pages/admin/reports/ReportRowActions.vue'
+import LifecycleDialog from '@/components/admin/report-detail/LifecycleDialog.vue'
+import MergeDialog from '@/components/admin/report-detail/MergeDialog.vue'
+import { useBulkLifecycle } from '@/composables/useBulkLifecycle'
+import ScopeSelector from '@/pages/admin/reports/ScopeSelector.vue'
+import ReportAssigneeCell from '@/pages/admin/reports/ReportAssigneeCell.vue'
+import { useServices } from '@/composables/useServices'
+import { useTeamDirectory } from '@/composables/useTeamDirectory'
+import { useCounters } from '@/composables/useCounters'
 
 const { apiFetch } = useApi()
 const { categories: tenantCategories, getCategoryLabel, getServiceEmails, isOverdue } = useTenantCategories()
@@ -62,9 +70,19 @@ const { canAct, isAdmin } = storeToRefs(useAuthStore())
 const list = useReportsList()
 const {
   reports, stats, loading, currentPage, totalPages, totalReports,
-  search, filterStatus, filterCategory, filterDays, onlyOverdue, filterSource, sortBy,
+  search, filterStatus, filterCategory, filterDays, onlyOverdue, filterSource, filterReply, sortBy,
+  scope, appliedScope,
   hasFilters, resetFilters, fetchData, loadStats, refreshAll, invalidateAll,
 } = list
+
+const servicesStore = useServices()
+const directory = useTeamDirectory()
+const { counters, load: loadCounters } = useCounters()
+const route = useRoute()
+const router = useRouter()
+
+/** Le nom d'un service ou d'un membre, pour la colonne « Responsable ». */
+const serviceOf = (id: string | null | undefined) => servicesStore.services.value.find((service) => service.id === id) ?? null
 
 const actions = useReportActions({ refresh: refreshAll, invalidate: invalidateAll })
 
@@ -84,11 +102,39 @@ const slideOverOpen = ref(false)
  * détour.
  */
 const detailView = ref<'overview' | 'messages' | 'journal'>('overview')
-const toolbar = ref<InstanceType<typeof ReportsToolbar> | null>(null)
+/** Dans « Échanges » : le fil de l'habitant, ou celui de l'équipe. */
+const detailThread = ref<'citizen' | 'internal'>('citizen')
 
 const deleteModalOpen = ref(false)
 const bulkDeleteModalOpen = ref(false)
 const bulkTransmitOpen = ref(false)
+
+// ─── Trier : fusionner, annuler, classer indésirable — une ligne ou une sélection ─────
+const triage = useBulkLifecycle(async () => { await refreshAll() })
+/** Les signalements visés : la ligne dont on a ouvert le menu, ou la sélection. */
+const triageIds = ref<string[]>([])
+const triageMode = ref<'annule' | 'indesirable' | 'merge' | null>(null)
+
+function startTriage(ids: string[], mode: 'annule' | 'indesirable' | 'merge') {
+  triageIds.value = ids
+  triageMode.value = mode
+}
+
+async function submitClose(payload: { text: string }) {
+  const mode = triageMode.value
+  if (mode !== 'annule' && mode !== 'indesirable') return
+  if (await triage.closeMany(triageIds.value, mode, payload.text)) {
+    triageMode.value = null
+    selectedIds.value = selectedIds.value.filter((id) => !triageIds.value.includes(id))
+  }
+}
+
+async function submitMerge(targetId: string) {
+  if (await triage.mergeMany(triageIds.value, targetId)) {
+    triageMode.value = null
+    selectedIds.value = selectedIds.value.filter((id) => !triageIds.value.includes(id))
+  }
+}
 const reportToDelete = ref<Report | null>(null)
 
 // Une sélection change de contenu : ce qui était coché sur la page précédente
@@ -114,6 +160,9 @@ async function loadPerformance() {
 }
 
 onMounted(() => {
+  void servicesStore.load()
+  void directory.load()
+  void handleOpenQuery()
   void fetchData()
   void loadStats().then(() => setReportCount(stats.value.total))
   void loadUnread()
@@ -193,6 +242,16 @@ function onRefreshed(fresh: Report) {
   if (previous.status !== fresh.status) void loadStats()
 }
 
+/** Le signalement vient d'être confié : la liste, les compteurs et le menu ont bougé. */
+async function onAssigned() {
+  invalidateAll()
+  await Promise.all([refreshAll(), loadCounters()])
+  if (selectedReport.value) {
+    selectedReport.value =
+      reports.value.find((report) => report.id === selectedReport.value?.id) ?? selectedReport.value
+  }
+}
+
 async function onTransmitted() {
   invalidateAll()
   await refreshAll()
@@ -228,9 +287,14 @@ function step(offset: number) {
   if (next) selectedReport.value = next
 }
 
-function openSlideOver(report: Report, view: 'overview' | 'messages' = 'overview') {
+function openSlideOver(
+  report: Report,
+  view: 'overview' | 'messages' = 'overview',
+  thread: 'citizen' | 'internal' = 'citizen'
+) {
   selectedReport.value = report
   detailView.value = view
+  detailThread.value = thread
   // Le panneau charge le fil, donc le serveur va marquer ces réponses lues.
   markRead(report.id)
   slideOverOpen.value = true
@@ -253,17 +317,42 @@ function closeSlideOver() {
  * un signalement vieux de trois pages. On le charge alors à l'unité plutôt que
  * de renvoyer l'agent chercher lui-même.
  */
-async function openById(reportId: string) {
+async function openById(
+  reportId: string,
+  view: 'overview' | 'messages' = 'messages',
+  thread: 'citizen' | 'internal' = 'citizen'
+) {
   const loaded = reports.value.find((report) => report.id === reportId)
-  if (loaded) return openSlideOver(loaded, 'messages')
+  if (loaded) return openSlideOver(loaded, view, thread)
 
   try {
     const data = await apiFetch<{ report: Report }>(`/api/reports/${reportId}`)
-    openSlideOver(data.report, 'messages')
+    openSlideOver(data.report, view, thread)
   } catch (err) {
     console.error('Signalement introuvable :', err)
   }
 }
+
+/**
+ * Ouvre le signalement désigné par l'adresse — `?open=<id>&view=messages&tab=internal`.
+ *
+ * C'est le chemin de la cloche d'activité et du lien de l'e-mail d'assignation.
+ * L'adresse est nettoyée ensuite : sans cela, recharger la page rouvrirait le
+ * panneau, et fermer puis rouvrir la même cloche ne ferait plus rien (la
+ * destination serait déjà la bonne).
+ */
+async function handleOpenQuery() {
+  const id = route.query.open
+  if (typeof id !== 'string' || !id) return
+
+  const view = route.query.view === 'messages' ? 'messages' : 'overview'
+  const thread = route.query.tab === 'internal' ? 'internal' : 'citizen'
+
+  await router.replace({ query: { ...route.query, open: undefined, view: undefined, tab: undefined } })
+  await openById(id, view, thread)
+}
+
+watch(() => route.query.open, (next) => { if (next) void handleOpenQuery() })
 
 // ─── Export ──────────────────────────────────────────────────────────────────
 
@@ -310,9 +399,14 @@ const formatDate = (value: string): string =>
 
 const { connectionStatus, notifications, newReportIds, removeNotification } = useRealtimeDashboard({
   onNewReport: (newReport) => {
-    reports.value.unshift(newReport as Report)
+    // Dans « Mon périmètre », un signalement neuf n'a encore personne : il n'a pas
+    // sa place dans cette liste, et le glisser dans une vue filtrée la rendrait fausse.
+    if (appliedScope.value === 'all' || appliedScope.value === 'unassigned') {
+      reports.value.unshift(newReport as Report)
+    }
     stats.value = { ...stats.value, total: stats.value.total + 1, en_attente: stats.value.en_attente + 1 }
     setReportCount(stats.value.total)
+    void loadCounters()
   },
 
   onStatusChange: (reportId, newStatus, oldStatus) => {
@@ -370,14 +464,16 @@ const COLUMNS = computed<DataColumn[]>(() => [
   // « Pris en charge » est le plus long des libellés de statut : la pastille,
   // son icône et ses marges font 131 px.
   { key: 'status',     label: 'STATUT',    width: '140px' },
+  // Qui a le signalement : la question qu'on se pose avant toute autre dans une équipe.
+  { key: 'assignee',   label: 'RESPONSABLE', width: '168px' },
   { key: 'votes',      label: 'CONSTATS',  width: '78px' },
   { key: 'created_at', label: 'DATE',      width: '104px' },
-  ...(canAct.value ? [{ key: 'actions', label: 'ACTIONS', width: '76px', align: 'right' as const }] : []),
+  ...(canAct.value ? [{ key: 'actions', label: 'ACTIONS', width: '112px', align: 'right' as const }] : []),
 ])
 </script>
 
 <template>
-  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas" @click="toolbar?.closeMenus()">
+  <div class="font-ui flex min-h-0 flex-1 flex-col bg-canvas">
     <RealtimeToast
       :notifications="notifications"
       @dismiss="removeNotification"
@@ -416,9 +512,6 @@ const COLUMNS = computed<DataColumn[]>(() => [
             {{ connectionStatus === 'connected' ? 'Flux en direct' : 'Hors ligne' }}
           </span>
         </div>
-
-        <!-- La cloche dit ce qu'elle a l'air de dire : qui a écrit. -->
-        <NotificationBell @open="openById" />
 
         <button
           class="flex h-[38px] flex-none items-center gap-2 rounded-[10px] border border-line bg-white px-3.5 transition-colors hover:bg-canvas"
@@ -464,23 +557,34 @@ const COLUMNS = computed<DataColumn[]>(() => [
         @page-change="goToPage"
       >
         <template #toolbar>
-          <ReportsToolbar
-            ref="toolbar"
+          <div class="px-4 pt-3">
+            <ScopeSelector
+              :applied="appliedScope"
+              :services="servicesStore.services.value"
+              :unassigned-count="counters.unassigned"
+              @update:scope="scope = $event"
+            />
+          </div>
+          <ReportsFilterBar
             :status="filterStatus"
             :category="filterCategory"
             :days="filterDays"
             :overdue-only="onlyOverdue"
+            :reply="filterReply"
             :source="filterSource"
             :sort="sortBy"
             :categories="tenantCategories"
             :overdue-count="stats.overdue"
-            :category-label="filterCategory ? getCategoryLabel(filterCategory) : 'Catégories'"
+            :replied-count="counters.replied"
+            :waiting-count="counters.waiting"
             @update:status="filterStatus = $event"
             @update:category="filterCategory = $event"
             @update:days="filterDays = $event"
             @update:overdue-only="onlyOverdue = $event"
+            @update:reply="filterReply = $event"
             @update:source="filterSource = $event"
             @update:sort="sortBy = $event"
+            @reset="resetFilters"
           />
         </template>
 
@@ -501,6 +605,7 @@ const COLUMNS = computed<DataColumn[]>(() => [
             :loading="actionLoading"
             @take-charge="bulkTakeCharge"
             @transmit="bulkTransmitOpen = true"
+            @lifecycle="startTriage(selectedIds, $event)"
             @remove="bulkDeleteModalOpen = true"
           />
         </template>
@@ -544,6 +649,16 @@ const COLUMNS = computed<DataColumn[]>(() => [
           </span>
         </template>
 
+        <template #cell-assignee="{ row }">
+          <ReportAssigneeCell
+            :report="row"
+            :assignee-name="directory.nameOf(row.assignee_id)"
+            :service-name="serviceOf(row.service_id)?.name ?? null"
+            :service-color="serviceOf(row.service_id)?.color ?? null"
+            :closed="isClosed(row.status)"
+          />
+        </template>
+
         <template #cell-votes="{ row }">
           <div
             class="flex items-center gap-1.5 text-[13px] font-semibold leading-none tabular-nums"
@@ -570,6 +685,7 @@ const COLUMNS = computed<DataColumn[]>(() => [
             :report="row"
             :loading="actionLoading"
             @advance="updateStatus(row.id, $event)"
+            @lifecycle="startTriage([row.id], $event)"
             @remove="reportToDelete = row; deleteModalOpen = true"
           />
         </template>
@@ -586,6 +702,17 @@ const COLUMNS = computed<DataColumn[]>(() => [
         </template>
       </DataTable>
     </div>
+
+    <LifecycleDialog
+      :open="triageMode === 'annule' || triageMode === 'indesirable'"
+      :mode="triageMode === 'indesirable' ? 'indesirable' : 'annule'"
+      :count="triageIds.length" :saving="triage.saving.value"
+      @close="triageMode = null" @submit="submitClose"
+    />
+    <MergeDialog
+      :open="triageMode === 'merge'" :exclude-ids="triageIds" :saving="triage.saving.value"
+      @close="triageMode = null" @merge="submitMerge"
+    />
 
     <AppModal
       :open="deleteModalOpen"
@@ -630,12 +757,14 @@ const COLUMNS = computed<DataColumn[]>(() => [
       :has-next="hasNext"
       :unread="openUnread"
       :initial-view="detailView"
+      :initial-thread="detailThread"
       @close="closeSlideOver"
       @previous="step(-1)"
       @next="step(1)"
       @update-status="updateStatus"
       @transmitted="onTransmitted"
       @refreshed="onRefreshed"
+      @assigned="onAssigned"
     />
     <CreateReportDialog
       :open="creating"

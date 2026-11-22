@@ -21,6 +21,8 @@ interface ConversationMessage {
   content: string
   photoUrl?: string | null
   createdAt: string
+  isQuestion?: boolean
+  via?: 'app' | 'email'
 }
 
 const props = defineProps<{
@@ -123,6 +125,12 @@ defineExpose({ scrollToEnd })
               </span>
               <span class="whitespace-nowrap text-[11px] font-medium leading-none text-muted">
                 {{ comment.authorType === 'citizen' ? 'Habitant' : 'Service' }}
+              </span>
+              <span v-if="comment.isQuestion" class="whitespace-nowrap rounded-md bg-status-progress-bg px-1.5 py-0.5 text-[10px] font-semibold leading-none text-status-progress-fg" data-testid="question-badge">
+                Précision demandée
+              </span>
+              <span v-if="comment.via === 'email'" class="whitespace-nowrap rounded-md bg-canvas px-1.5 py-0.5 text-[10px] font-semibold leading-none text-muted" data-testid="email-badge">
+                Par e-mail
               </span>
             </div>
             <p class="text-sm leading-[1.5] text-ink">{{ comment.content }}</p>

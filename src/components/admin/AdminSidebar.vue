@@ -27,6 +27,8 @@ const props = defineProps<{
   reportCount?: number | null
   /** Délai moyen avant prise en charge, en heures. `null` tant qu'il charge. */
   avgAckHours?: number | null
+  /** Signalements ouverts que personne n'a — l'alerte du menu. */
+  unassignedCount?: number
 }>()
 
 const auth = useAuthStore()
@@ -39,6 +41,8 @@ interface NavItem {
   icon: string
   route: string
   badge?: number | null
+  /** Une alerte, pas un compteur : quelque chose attend que quelqu'un s'en occupe. */
+  alert?: number
   visible: boolean
 }
 
@@ -50,6 +54,7 @@ const treatmentItems = computed<NavItem[]>(() => [
     icon: 'Inbox',
     route: '/admin/signalements',
     badge: props.reportCount ?? null,
+    alert: props.unassignedCount ?? 0,
     visible: true,
   },
   {
@@ -79,6 +84,9 @@ const treatmentItems = computed<NavItem[]>(() => [
 /** Ce qu'on règle, et qu'on ne rouvre pas tous les jours. */
 const collectivityItems = computed<NavItem[]>(() => [
   { id: 'team',      label: 'Équipe',       icon: 'Users',             route: '/admin/equipe',     visible: auth.isAdmin },
+  { id: 'services',  label: 'Services',     icon: 'Network',           route: '/admin/services',   visible: auth.isAdmin },
+  { id: 'templates', label: 'Modèles',      icon: 'MessageSquareText', route: '/admin/modeles',    visible: auth.isAdmin },
+  { id: 'routing',   label: 'Aiguillage',   icon: 'Route',             route: '/admin/aiguillage', visible: auth.isAdmin },
   { id: 'prospects', label: 'Prospects',    icon: 'Handshake',         route: '/admin/prospects',  visible: auth.isSuperAdmin },
   { id: 'moderation', label: 'Modération',  icon: 'ShieldAlert',       route: '/admin/moderation', visible: auth.isSuperAdmin },
   { id: 'platform',  label: 'Plateforme',   icon: 'Globe',             route: '/admin/plateforme', visible: auth.isSuperAdmin },
@@ -153,6 +161,16 @@ const ackRatio = computed(() =>
           :class="isActive(item.route) ? 'font-semibold text-white' : 'font-medium text-brand-100'"
         >
           {{ item.label }}
+        </span>
+        <!-- Des signalements que personne n'a : orange, parce que ce n'est pas un
+             volume mais quelque chose qui attend. Le nombre est dans l'infobulle. -->
+        <span
+          v-if="item.alert"
+          class="flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-status-progress-dot px-1 text-[11px] font-bold leading-none text-brand-900"
+          :title="`${item.alert} signalement(s) sans responsable ni service`"
+          data-testid="unassigned-alert"
+        >
+          !
         </span>
         <span
           v-if="item.badge"

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { nextStatus, rollbackTargets, isFinal, statusPill } from './reportStatus'
+import { nextStatus, rollbackTargets, isFinal, statusPill, statusLabel, isClosed, CLOSING_STATUSES } from './reportStatus'
 
 describe('nextStatus', () => {
   /**
@@ -49,5 +49,25 @@ describe('statusPill', () => {
   it('falls back to the raw value rather than throwing', () => {
     expect(statusPill('inconnu').label).toBe('inconnu')
     expect(statusPill('inconnu').icon).toBe('Circle')
+  })
+})
+
+
+describe('clôtures sans réparation', () => {
+  it('counts annulé and indésirable as closed, like résolu', () => {
+    expect(['resolu', 'annule', 'indesirable'].every(isClosed)).toBe(true)
+    expect(['en_attente', 'transmis', 'pris_en_charge'].some(isClosed)).toBe(false)
+  })
+
+  it('makes them final — the way out is « Rouvrir »', () => {
+    expect(isFinal('annule')).toBe(true)
+    expect(rollbackTargets('indesirable')).toEqual([])
+    expect(nextStatus('annule')).toBeNull()
+  })
+
+  it('gives each a pill, in neutral tones', () => {
+    for (const status of CLOSING_STATUSES) expect(statusPill(status).label).not.toBe(status)
+    expect(statusLabel('annule')).toBe('Annulé')
+    expect(statusLabel('indesirable')).toBe('Indésirable')
   })
 })

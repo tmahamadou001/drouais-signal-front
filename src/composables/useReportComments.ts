@@ -33,6 +33,8 @@ export const useReportComments = (reportId: MaybeRefOrGetter<string>) => {
       content: raw.content,
       photoUrl: raw.photo_url,
       isResolutionPhoto: raw.is_resolution_photo,
+      isQuestion: raw.is_question ?? false,
+      via: raw.via ?? 'app',
       parentId: raw.parent_id,
       reportStatusAtTime: raw.report_status_at_time,
       readByCitizen: raw.read_by_citizen,
@@ -69,7 +71,8 @@ export const useReportComments = (reportId: MaybeRefOrGetter<string>) => {
   const postAgentMessage = async (
     content: string,
     photoUrl?: string,
-    isResolutionPhoto = false
+    isResolutionPhoto = false,
+    isQuestion = false
   ): Promise<boolean> => {
     sending.value = true
     error.value = null
@@ -78,7 +81,7 @@ export const useReportComments = (reportId: MaybeRefOrGetter<string>) => {
         `/api/reports/${toValue(reportId)}/comments/agent`,
         {
           method: 'POST',
-          body: { content, photoUrl, isResolutionPhoto },
+          body: { content, photoUrl, isResolutionPhoto, isQuestion },
         }
       )
       // Transform and add to local without reloading

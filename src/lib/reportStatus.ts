@@ -15,6 +15,9 @@ import type { ReportStatus } from '@/types'
  */
 export const STATUS_ORDER: ReportStatus[] = ['en_attente', 'transmis', 'pris_en_charge', 'resolu']
 
+/** Les clôtures sans réparation : hors parcours, avec un motif, et réversibles par « Rouvrir ». */
+export const CLOSING_STATUSES: ReportStatus[] = ['annule', 'indesirable']
+
 /** Le statut au-delà duquel plus rien ne bouge. */
 export const TERMINAL_STATUS: ReportStatus = 'resolu'
 
@@ -29,6 +32,8 @@ export const STATUS_PILLS: Record<ReportStatus, StatusPill> = {
   transmis:       { label: 'Transmis',       icon: 'Send',        classes: 'bg-brand-50 text-brand-700' },
   pris_en_charge: { label: 'Pris en charge', icon: 'Wrench',      classes: 'bg-status-progress-bg text-status-progress-fg' },
   resolu:         { label: 'Résolu',         icon: 'CircleCheck', classes: 'bg-status-done-bg text-status-done-fg' },
+  annule:         { label: 'Annulé',         icon: 'CircleX',     classes: 'bg-canvas text-muted' },
+  indesirable:    { label: 'Indésirable',    icon: 'ShieldAlert', classes: 'bg-canvas text-muted' },
 }
 
 export function statusPill(status: string): StatusPill {
@@ -39,9 +44,14 @@ export function statusLabel(status: string): string {
   return statusPill(status).label
 }
 
-/** Un signalement clos ne change plus de statut. */
+/** Clos, de quelque façon que ce soit : résolu, annulé ou indésirable. */
+export function isClosed(status: string): boolean {
+  return status === TERMINAL_STATUS || CLOSING_STATUSES.includes(status as ReportStatus)
+}
+
+/** Un signalement clos ne change plus de statut : on le rouvre, avec un motif. */
 export function isFinal(status: string): boolean {
-  return status === TERMINAL_STATUS
+  return isClosed(status)
 }
 
 /**
