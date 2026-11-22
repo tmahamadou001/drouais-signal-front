@@ -107,8 +107,8 @@ const canTransmit = computed(() => !final.value)
 
 const transmitLabel = computed(() =>
   props.configuredRecipients.length > 0
-    ? `Transmettre à ${props.configuredRecipients.length > 1 ? 'ces services' : 'ce service'}`
-    : 'Transmettre à un service…'
+    ? `Transmettre à ${props.configuredRecipients.length > 1 ? 'ces intervenants' : 'cet intervenant'}`
+    : 'Transmettre à un intervenant extérieur…'
 )
 
 function rollbackTo(status: ReportStatus) {

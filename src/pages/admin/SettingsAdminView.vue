@@ -483,7 +483,7 @@ watch(activeTab, () => { openSlug.value = null })
                   <div class="flex items-center gap-[9px]">
                     <AppIcon name="Mail" :size="16" :stroke-width="1.75" class="flex-none text-brand-700" />
                     <div class="whitespace-nowrap text-[13px] font-semibold leading-none text-brand-900">
-                      Transmission automatique
+                      Transmission à un intervenant extérieur
                     </div>
                     <div
                       v-if="(category.service_emails ?? []).length > 0"
@@ -498,7 +498,7 @@ watch(activeTab, () => { openSlug.value = null })
                   <div class="grid gap-3.5 lg:grid-cols-[260px_minmax(0,1fr)]">
                     <input
                       v-model="category.service_name"
-                      placeholder="Nom du service (ex. Centre technique municipal)"
+                      placeholder="Nom de l’intervenant (ex. Régie d’éclairage)"
                       class="h-11 rounded-[10px] border border-brand-100 bg-white px-3.5 text-sm text-ink outline-none placeholder:text-faint focus:border-brand-700"
                     />
                     <div class="flex min-h-[44px] flex-wrap items-center gap-2 rounded-[10px] border border-brand-100 bg-white px-2.5 py-2">
@@ -570,8 +570,8 @@ watch(activeTab, () => { openSlug.value = null })
                     :class="(category.service_emails ?? []).length > 0 ? 'text-ink' : 'text-faint'"
                   >
                     {{ category.service_name || ((category.service_emails ?? []).length > 0
-                      ? `${(category.service_emails ?? []).length} destinataire(s)`
-                      : 'Aucun destinataire') }}
+                      ? `${(category.service_emails ?? []).length} adresse(s)`
+                      : 'Aucun intervenant') }}
                   </span>
                 </div>
 

@@ -123,7 +123,7 @@ function actor(entry: StatusHistoryEntry): { label: string; icon: string } {
   if (entry.comment?.startsWith('Auteur — ')) return { label: 'Auteur du signalement', icon: 'User' }
   if (entry.comment?.startsWith('Habitants — ')) return { label: 'Habitants', icon: 'Users' }
 
-  return { label: serviceName(entry.comment) ?? 'Service extérieur', icon: 'Truck' }
+  return { label: serviceName(entry.comment) ?? 'Intervenant extérieur', icon: 'Truck' }
 }
 
 /**

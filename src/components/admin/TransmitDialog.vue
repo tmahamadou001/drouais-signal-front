@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * Transmettre un ou plusieurs signalements à un service extérieur.
+ * Transmettre un ou plusieurs signalements à un intervenant extérieur (régie, prestataire…).
  *
  * Deux cas, un seul écran :
  *
@@ -211,7 +211,7 @@ async function send() {
               <AppIcon name="Send" :size="18" :stroke-width="1.75" class="text-brand-700" />
             </div>
             <div class="min-w-0 flex-1">
-              <h2 class="text-[15px] font-bold leading-[1.3] text-brand-900">Transmettre au service</h2>
+              <h2 class="text-[15px] font-bold leading-[1.3] text-brand-900">Transmettre à un intervenant extérieur</h2>
               <p class="mt-0.5 text-xs leading-[1.4] text-muted">
                 {{ isBulk ? `${count} signalements sélectionnés` : `Catégorie ${categoryLabel}` }}
               </p>
@@ -243,7 +243,7 @@ async function send() {
             <!-- Aucun destinataire : on en choisit un. -->
             <template v-else>
               <p v-if="isBulk" class="text-[13px] leading-[1.5] text-muted">
-                La sélection couvre plusieurs catégories, ou aucune n’a de service configuré.
+                La sélection couvre plusieurs catégories, ou aucune n’a d’intervenant extérieur configuré.
                 Les {{ count }} signalements partiront à la même adresse.
               </p>
 

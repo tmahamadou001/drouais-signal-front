@@ -78,7 +78,7 @@ describe('ReportJournal', () => {
     })
 
     expect(wrapper.text()).toContain('Dépôt du signalement')
-    expect(wrapper.text()).not.toContain('Service extérieur')
+    expect(wrapper.text()).not.toContain('Intervenant extérieur')
   })
 
   it('names the service rather than repeating it under a generic label', () => {
@@ -100,7 +100,7 @@ describe('ReportJournal', () => {
     expect(wrapper.text()).toContain('Éclairage')
     expect(wrapper.text()).toContain('ampoule remplacée')
     expect(wrapper.text()).not.toContain('Éclairage : ampoule remplacée')
-    expect(wrapper.text()).not.toContain('Service extérieur')
+    expect(wrapper.text()).not.toContain('Intervenant extérieur')
   })
 
   it('drops a body that only repeats the label', () => {
@@ -251,7 +251,7 @@ describe('ReportJournal — l\'auteur et les habitants', () => {
     const wrapper = byAuthor('Auteur — signalement clos par son auteur')
     expect(wrapper.text()).toContain('Auteur du signalement')
     expect(wrapper.text()).toContain('signalement clos par son auteur')
-    expect(wrapper.text()).not.toContain('Service extérieur')
+    expect(wrapper.text()).not.toContain('Intervenant extérieur')
     expect(wrapper.text()).not.toContain('Auteur — ')
   })
 
@@ -259,6 +259,6 @@ describe('ReportJournal — l\'auteur et les habitants', () => {
     const wrapper = byAuthor('Habitants — constaté réparé sur place')
     expect(wrapper.text()).toContain('Habitants')
     expect(wrapper.text()).toContain('constaté réparé sur place')
-    expect(wrapper.text()).not.toContain('Service extérieur')
+    expect(wrapper.text()).not.toContain('Intervenant extérieur')
   })
 })

@@ -302,14 +302,14 @@ describe('transmitting', () => {
     const wrapper = sidebar()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Transmettre à ce service')
+    expect(wrapper.text()).toContain('Transmettre à cet intervenant')
   })
 
   it('asks where to send when nothing is configured', async () => {
     const wrapper = sidebar()
     await flushPromises()
 
-    expect(wrapper.text()).toContain('Transmettre à un service…')
+    expect(wrapper.text()).toContain('Transmettre à un intervenant extérieur…')
   })
 
   /**

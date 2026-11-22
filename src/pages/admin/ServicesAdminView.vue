@@ -5,7 +5,7 @@
  * Un service regroupe des collègues. Ses membres voient tous ses signalements
  * dans « Mon périmètre », et l'aiguillage peut lui confier une catégorie entière.
  *
- * À ne pas confondre avec le **service destinataire** des Paramètres, qui est une
+ * À ne pas confondre avec l'**intervenant extérieur** des Paramètres, qui est une
  * adresse e-mail extérieure à qui l'on *transmet* : ici on confie au dedans.
  */
 import { computed, onMounted, ref } from 'vue'
@@ -79,7 +79,7 @@ const empty = computed(() => !loading.value && services.value.length === 0)
       <p class="max-w-[68ch] text-[13px] leading-[1.55] text-muted">
         Un service regroupe des collègues qui travaillent ensemble. Ses membres voient tous ses
         signalements dans « Mon périmètre ». Pour transmettre à une entreprise ou à un autre organisme,
-        utilisez plutôt le service destinataire d’une catégorie, dans les Paramètres.
+        utilisez plutôt l’intervenant extérieur d’une catégorie, dans les Paramètres.
       </p>
 
       <div v-if="loading && services.length === 0" class="text-[13px] text-muted">Chargement…</div>

@@ -112,7 +112,7 @@ const offered = computed(() =>
 
   <div class="flex flex-col gap-2">
     <label for="transmit-service" class="text-xs font-semibold leading-none text-muted">
-      NOM DU SERVICE (facultatif)
+      NOM DE L’INTERVENANT (facultatif)
     </label>
     <input
       id="transmit-service"

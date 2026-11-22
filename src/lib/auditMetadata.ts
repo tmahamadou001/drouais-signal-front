@@ -66,7 +66,7 @@ const PRIMARY = new Set([
 
 const STATUS_LABELS: Record<string, string> = {
   en_attente:     'En attente',
-  transmis:       'Transmis au service',
+  transmis:       'Transmis à un intervenant extérieur',
   pris_en_charge: 'Pris en charge',
   resolu:         'Résolu',
 }
