@@ -152,3 +152,47 @@ describe('ReportActions — le bas du panneau reste compact', () => {
     expect(wrapper.find('[data-testid="transmit"]').text()).toContain('ces intervenants')
   })
 })
+
+describe('ReportActions — le menu « Plus d’actions » passe au-dessus de la carte', () => {
+  const real = () => mount(ReportActions, { props: { report: report('pris_en_charge') as never, loading: false, configuredRecipients: [] }, global: { stubs: { AppIcon: true, AppModal: true } }, attachTo: document.body })
+
+  it('is rendered in body, not inside the panel footer where the map’s layers cover it', async () => {
+    const wrapper = real()
+    await wrapper.get('[data-testid="more-actions"]').trigger('click')
+    await flushPromises()
+
+    const menu = document.body.querySelector('[data-testid="more-menu"]') as HTMLElement
+    expect(menu).not.toBeNull()
+    expect(wrapper.element.contains(menu)).toBe(false)
+    // Au-dessus des couches de Leaflet (jusqu'à 1000 dans leur contexte) comme de la fenêtre du panneau.
+    expect(menu.className).toContain('z-[90]')
+    wrapper.unmount()
+  })
+
+  it('opens upward from the button, keeps to the screen, and scrolls when short of room', async () => {
+    const wrapper = real()
+    Object.defineProperty(window, 'innerHeight', { value: 700, configurable: true })
+    Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true })
+    const anchor = wrapper.get('[data-testid="more-actions"]').element.parentElement as HTMLElement
+    anchor.getBoundingClientRect = () => ({ top: 640, bottom: 664, left: 1000, right: 1100, width: 100, height: 24, x: 1000, y: 640, toJSON: () => ({}) })
+
+    await wrapper.get('[data-testid="more-actions"]').trigger('click')
+    await flushPromises()
+
+    const menu = document.body.querySelector('[data-testid="more-menu"]') as HTMLElement
+    expect(menu.style.bottom).toBe('66px') // 700 − 640 + 6 : collé au haut du bouton
+    expect(menu.style.right).toBe('100px')
+    expect(parseInt(menu.style.maxHeight)).toBeLessThanOrEqual(626)
+    expect(menu.className).toContain('overflow-y-auto')
+    wrapper.unmount()
+  })
+
+  it('closes on a click elsewhere', async () => {
+    const wrapper = real()
+    await wrapper.get('[data-testid="more-actions"]').trigger('click')
+    document.body.click()
+    await flushPromises()
+    expect(document.body.querySelector('[data-testid="more-menu"]')).toBeNull()
+    wrapper.unmount()
+  })
+})

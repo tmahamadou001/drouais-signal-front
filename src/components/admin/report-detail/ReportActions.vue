@@ -15,7 +15,7 @@
  * Et « Marquer résolu » passe par une confirmation : le statut devient définitif,
  * et ne se quitte plus que par « Rouvrir », motif à l'appui.
  */
-import { ref, computed } from 'vue'
+import { ref, computed, nextTick } from 'vue'
 import type { Report, ReportStatus } from '@/types'
 import AppIcon from '@/components/AppIcon.vue'
 import AppModal from '@/components/AppModal.vue'
@@ -23,6 +23,7 @@ import LifecycleDialog, { type LifecycleMode } from './LifecycleDialog.vue'
 import MergeDialog from './MergeDialog.vue'
 import CategoryDialog from './CategoryDialog.vue'
 import { useLifecycle } from '@/composables/useLifecycle'
+import { useDismiss } from '@/composables/useDismiss'
 import { STATUS_PILLS, isFinal, rollbackTargets } from '@/lib/reportStatus'
 
 const props = defineProps<{
@@ -41,6 +42,30 @@ const emit = defineEmits<{
 
 const lifecycle = useLifecycle()
 const moreOpen = ref(false)
+
+/**
+ * Le menu est rendu dans `body`, ancré au bouton — comme le « ⋯ » du tableau.
+ *
+ * Posé dans le pied du panneau, il passait **sous** la carte de localisation (les couches de Leaflet
+ * montent jusqu'à z-index 1000) et se faisait rogner par le conteneur défilant. Il s'ouvre vers le
+ * haut, le pied étant en bas de l'écran, et la liste défile si la place manque.
+ */
+const moreAnchor = ref<HTMLElement | null>(null)
+const menuPosition = ref({ bottom: 0, right: 0, maxHeight: 360 })
+useDismiss(moreAnchor, () => { moreOpen.value = false })
+
+async function toggleMore() {
+  moreOpen.value = !moreOpen.value
+  if (!moreOpen.value) return
+  await nextTick()
+  const box = moreAnchor.value?.getBoundingClientRect()
+  if (!box) return
+  menuPosition.value = {
+    bottom: window.innerHeight - box.top + 6,
+    right: Math.max(8, window.innerWidth - box.right),
+    maxHeight: Math.max(160, box.top - 14),
+  }
+}
 const dialogMode = ref<LifecycleMode | null>(null)
 const mergeOpen = ref(false)
 const categoryOpen = ref(false)
@@ -182,18 +207,22 @@ function confirmResolve() {
       </button>
       <span v-else />
 
+      <div ref="moreAnchor" class="flex-none">
       <button
-        class="flex flex-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
-        data-testid="more-actions" aria-haspopup="menu" :aria-expanded="moreOpen" @click="moreOpen = !moreOpen"
+        class="flex items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
+        data-testid="more-actions" aria-haspopup="menu" :aria-expanded="moreOpen" @click="toggleMore"
       >
         <AppIcon name="Ellipsis" :size="14" :stroke-width="2" />
         Plus d’actions
       </button>
 
+      <Teleport to="body">
       <div
         v-if="moreOpen"
         role="menu"
-        class="absolute bottom-full right-0 z-10 mb-1.5 flex w-[260px] flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-ds-lg"
+        class="font-ui fixed z-[90] flex w-[260px] flex-col overflow-y-auto rounded-xl border border-line bg-white py-1 shadow-ds-lg"
+        :style="{ bottom: `${menuPosition.bottom}px`, right: `${menuPosition.right}px`, maxHeight: `${menuPosition.maxHeight}px` }"
+        data-testid="more-menu"
       >
         <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-plan" @click="openDialog('plan')">
           <AppIcon name="CalendarClock" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
@@ -232,6 +261,8 @@ function confirmResolve() {
           </button>
           <p class="px-3 pb-1 text-[11px] leading-[1.4] text-faint">Le retour est enregistré dans le journal d’audit.</p>
         </template>
+      </div>
+      </Teleport>
       </div>
     </div>
   </template>
