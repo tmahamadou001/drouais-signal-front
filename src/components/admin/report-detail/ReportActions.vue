@@ -2,14 +2,15 @@
 /**
  * Les gestes qui font avancer — ou reculer — un signalement.
  *
- * Trois familles, volontairement séparées :
+ * Le bas du panneau est fixe : il prend le moins de place possible.
  *
- *  - **transmettre** est sur sa propre ligne. Ce n'est pas une étape du
- *    traitement mais une délégation ; à côté de « Prendre en charge », elle
- *    laisserait croire qu'il faut choisir entre les deux ;
- *  - **avancer** est l'action principale, pleine largeur ;
- *  - **revenir en arrière** est discret, à la ligne, derrière un menu. C'est un
- *    rattrapage d'erreur : nécessaire, jamais mis en avant.
+ *  - **avancer** est l'action principale, sur une seule rangée de 36 px ;
+ *  - **transmettre** reste à part, en lien discret sous elle. Ce n'est pas une
+ *    étape du traitement mais une délégation ; à côté de « Prendre en charge »,
+ *    elle laisserait croire qu'il faut choisir entre les deux ;
+ *  - **le reste** — prévoir, corriger, fusionner, annuler, et **revenir en arrière**
+ *    (un rattrapage d'erreur : nécessaire, jamais mis en avant) — est dans un seul
+ *    menu « Plus d'actions ».
  *
  * Et « Marquer résolu » passe par une confirmation : le statut devient définitif,
  * et ne se quitte plus que par « Rouvrir », motif à l'appui.
@@ -89,7 +90,6 @@ async function onLifecycleSubmit(payload: { text: string; date: string | null; t
   }
 }
 
-const rollbackOpen = ref(false)
 const resolveOpen = ref(false)
 
 const targets = computed(() => rollbackTargets(props.report.status))
@@ -112,7 +112,7 @@ const transmitLabel = computed(() =>
 )
 
 function rollbackTo(status: ReportStatus) {
-  rollbackOpen.value = false
+  moreOpen.value = false
   emit('updateStatus', status, `Retour à « ${STATUS_PILLS[status].label} »`)
 }
 
@@ -143,99 +143,95 @@ function confirmResolve() {
   </div>
 
   <template v-else>
-    <button
-      v-if="canTransmit"
-      class="flex h-10 items-center justify-center gap-2 rounded-xl border border-line bg-white text-[13px] font-semibold text-brand-700 transition-colors hover:bg-brand-50"
-      @click="emit('transmit')"
-    >
-      <AppIcon name="Send" :size="15" :stroke-width="2" />
-      {{ transmitLabel }}
-    </button>
-
-    <div class="flex items-center gap-2.5 whitespace-nowrap">
+    <!-- Une seule rangée pour ce qu'on fait vingt fois par jour : avancer. -->
+    <div class="flex items-center gap-2 whitespace-nowrap">
       <button
         v-if="report.status === 'en_attente' || report.status === 'transmis'"
-        class="flex h-[46px] flex-1 items-center justify-center gap-2 rounded-xl bg-brand-700 text-sm font-semibold text-white transition-colors hover:bg-brand-800 disabled:opacity-50"
+        class="flex h-9 flex-1 items-center justify-center gap-1.5 rounded-[10px] bg-brand-700 text-[13px] font-semibold text-white transition-colors hover:bg-brand-800 disabled:opacity-50"
         :disabled="loading"
+        data-testid="take"
         @click="emit('updateStatus', 'pris_en_charge')"
       >
-        <AppIcon name="Wrench" :size="17" :stroke-width="2" />
+        <AppIcon name="Wrench" :size="15" :stroke-width="2" />
         Prendre en charge
       </button>
 
       <button
-        class="flex h-[46px] items-center justify-center gap-2 rounded-xl border border-line bg-white px-4 text-sm font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
+        class="flex h-9 items-center justify-center gap-1.5 rounded-[10px] border border-line bg-white px-3.5 text-[13px] font-semibold text-ink transition-colors hover:bg-canvas disabled:opacity-50"
         :class="report.status === 'pris_en_charge' ? 'flex-1' : 'flex-none'"
         :disabled="loading"
+        data-testid="resolve"
         @click="resolveOpen = true"
       >
-        <AppIcon name="CircleCheck" :size="17" :stroke-width="2" class="text-status-success" />
+        <AppIcon name="CircleCheck" :size="15" :stroke-width="2" class="text-status-success" />
         Marquer résolu
       </button>
     </div>
 
-    <!-- Ce qui sort du parcours : prévoir une date, annuler, classer indésirable. -->
-    <div class="relative flex justify-center">
+    <!-- Le reste tient sur une ligne discrète : transmettre (une délégation, pas
+         une étape — d'où sa place à part) et tout ce qui sort du parcours. -->
+    <div class="relative flex items-center justify-between gap-2">
       <button
-        class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
-        data-testid="more-actions" @click="moreOpen = !moreOpen"
+        v-if="canTransmit"
+        class="flex min-w-0 items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-semibold text-brand-700 transition-colors hover:bg-brand-50"
+        data-testid="transmit"
+        @click="emit('transmit')"
+      >
+        <AppIcon name="Send" :size="13" :stroke-width="2" class="flex-none" />
+        <span class="truncate">{{ transmitLabel }}</span>
+      </button>
+      <span v-else />
+
+      <button
+        class="flex flex-none items-center gap-1.5 rounded-lg px-1.5 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
+        data-testid="more-actions" aria-haspopup="menu" :aria-expanded="moreOpen" @click="moreOpen = !moreOpen"
       >
         <AppIcon name="Ellipsis" :size="14" :stroke-width="2" />
         Plus d’actions
       </button>
+
       <div
         v-if="moreOpen"
-        class="absolute bottom-full z-10 mb-1.5 flex w-[248px] flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-ds-lg"
+        role="menu"
+        class="absolute bottom-full right-0 z-10 mb-1.5 flex w-[260px] flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-ds-lg"
       >
-        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-plan" @click="openDialog('plan')">
+        <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-plan" @click="openDialog('plan')">
           <AppIcon name="CalendarClock" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
           {{ report.planned_for ? 'Modifier la date d’intervention' : 'Prévoir l’intervention' }}
         </button>
-        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-category" @click="openOther('category')">
+        <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-category" @click="openOther('category')">
           <AppIcon name="Tag" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
           Corriger la catégorie
         </button>
-        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-merge" @click="openOther('merge')">
+        <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-merge" @click="openOther('merge')">
           <AppIcon name="GitMerge" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
           Fusionner avec un autre…
         </button>
-        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-annule" @click="openDialog('annule')">
+        <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-annule" @click="openDialog('annule')">
           <AppIcon name="CircleX" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
           Annuler le signalement
         </button>
-        <button class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-indesirable" @click="openDialog('indesirable')">
+        <button role="menuitem" class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink hover:bg-canvas" data-testid="open-indesirable" @click="openDialog('indesirable')">
           <AppIcon name="ShieldAlert" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
           Classer comme indésirable
         </button>
-      </div>
-    </div>
 
-    <!-- Le rattrapage d'erreur : discret, mais là. -->
-    <div v-if="targets.length > 0" class="relative flex justify-center">
-      <button
-        class="flex items-center gap-1.5 rounded-lg px-2 py-1 text-xs font-medium text-muted transition-colors hover:bg-white hover:text-ink"
-        @click="rollbackOpen = !rollbackOpen"
-      >
-        <AppIcon name="Undo2" :size="13" :stroke-width="2" />
-        Revenir à une étape précédente
-      </button>
-
-      <div
-        v-if="rollbackOpen"
-        class="absolute bottom-full z-10 mb-1.5 flex w-[248px] flex-col overflow-hidden rounded-xl border border-line bg-white py-1 shadow-ds-lg"
-      >
-        <button
-          v-for="status in targets"
-          :key="status"
-          class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink transition-colors hover:bg-canvas"
-          @click="rollbackTo(status)"
-        >
-          <AppIcon :name="STATUS_PILLS[status].icon" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
-          {{ STATUS_PILLS[status].label }}
-        </button>
-        <p class="border-t border-line px-3 pb-1 pt-2 text-[11px] leading-[1.4] text-faint">
-          Le retour est enregistré dans le journal d’audit.
-        </p>
+        <!-- Le rattrapage d'erreur : dans le même menu, à part — nécessaire, jamais mis en avant. -->
+        <template v-if="targets.length > 0">
+          <p class="mt-1 border-t border-line px-3 pb-1 pt-2 text-[11px] font-semibold tracking-[0.06em] text-faint" data-testid="rollback-title">REVENIR À UNE ÉTAPE PRÉCÉDENTE</p>
+          <button
+            v-for="status in targets"
+            :key="status"
+            role="menuitem"
+            class="flex items-center gap-2.5 px-3 py-2 text-left text-[13px] font-medium text-ink transition-colors hover:bg-canvas"
+            :data-testid="`rollback-${status}`"
+            @click="rollbackTo(status)"
+          >
+            <AppIcon :name="STATUS_PILLS[status].icon" :size="15" :stroke-width="1.75" class="flex-none text-muted" />
+            {{ STATUS_PILLS[status].label }}
+          </button>
+          <p class="px-3 pb-1 text-[11px] leading-[1.4] text-faint">Le retour est enregistré dans le journal d’audit.</p>
+        </template>
       </div>
     </div>
   </template>

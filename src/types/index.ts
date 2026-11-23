@@ -52,6 +52,8 @@ export interface Report {
   assignee_id?: string | null
   service_id?: string | null
   assigned_at?: string | null
+  /** Transmis hors de la mairie ? Rendu par la liste du back-office : `null` si nulle part. */
+  external?: import('./team').ExternalSummary | null
   created_at: string
   updated_at: string
 }

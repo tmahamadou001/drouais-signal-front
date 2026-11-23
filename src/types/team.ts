@@ -57,6 +57,30 @@ export interface TeamEvent {
   detail?: string | null
 }
 
+/** Où en est une transmission à un intervenant extérieur. */
+export type HandoffState = 'sent' | 'acknowledged' | 'done' | 'expired'
+
+/** Une transmission, telle que le détail la rend. Le lien lui-même n'est jamais rendu. */
+export interface ExternalHandoff {
+  id: string
+  serviceName: string | null
+  recipient: string
+  sentAt: string
+  expiresAt: string
+  acknowledgedAt: string | null
+  completedAt: string | null
+  state: HandoffState
+}
+
+/** Ce que la liste en dit : la plus récente, et combien il y en a eu. */
+export interface ExternalSummary {
+  serviceName: string | null
+  recipient: string
+  sentAt: string
+  state: HandoffState
+  count: number
+}
+
 /** Ce que l'équipe voit d'un signalement en plus du public. */
 export interface TeamView {
   assignee: { id: string; name: string | null } | null
@@ -65,6 +89,8 @@ export interface TeamView {
   events: TeamEvent[]
   /** Ce que les habitants ont dit : toujours là, plus là, suivent, merci. */
   votes?: { toujours_la: number; plus_la: number; suivre: number; merci: number }
+  /** Chez qui il a été transmis hors de la mairie, la plus récente d'abord. */
+  handoffs?: ExternalHandoff[]
 }
 
 export interface Counters {

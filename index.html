@@ -82,26 +82,6 @@
   </head>
   <body class="bg-neutral-50 text-dark antialiased">
     <div id="app"></div>
-
-    <!--
-      L'écran d'attente du démarrage, en HTML statique.
-
-      `main.ts` attend la configuration de la commune **avant** de monter
-      l'application : pendant ce temps — chargement du bundle, puis
-      `GET /api/tenant/config` — `#app` est vide, et la page n'était qu'un
-      rectangle clair. Un Vue ne peut rien y montrer, puisqu'il n'est pas encore
-      là : d'où cette marque posée directement dans le document, qui s'affiche
-      dès le premier octet reçu.
-
-      C'est la même animation que sur l'écran de lancement de l'application
-      mobile : l'anneau se trace, le point ambre vient s'y poser. La marque
-      seule, sans le nom. La géométrie est recopiée de `src/lib/markGeometry.ts`
-      — comme pour les e-mails, le document n'a pas accès aux modules — et ne
-      doit jamais être redessinée à la main : refermer l'anneau en ferait un
-      « O » banal.
-
-      `main.ts` le retire une fois l'application montée.
-    -->
     <div id="boot" aria-hidden="true">
       <svg viewBox="12.5 12.5 75 75" width="64" height="64">
         <path

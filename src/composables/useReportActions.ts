@@ -22,7 +22,7 @@ export function useReportActions(options: {
   /** Vider le cache de tout ce qu'une action fait bouger. */
   invalidate: () => void
 }) {
-  const { apiFetch, invalidateCache } = useApi()
+  const { apiFetch, invalidateCache, invalidateCachePattern } = useApi()
   const toast = useToast()
 
   const actionLoading = ref(false)
@@ -60,6 +60,35 @@ export function useReportActions(options: {
   }
 
   /**
+   * Se confier un signalement que personne n'a. Silencieux quand il l'est déjà, ou qu'on ne sait pas
+   * qui on est : prendre en charge ne doit jamais **retirer** le signalement à quelqu'un.
+   *
+   * Sans `serviceId` : le service qu'il a déjà reste le sien. Lève l'erreur du serveur.
+   */
+  async function claim(report: Pick<Report, 'id' | 'assignee_id'>, meId: string | null): Promise<void> {
+    if (!meId || report.assignee_id) return
+    await apiFetch(`/api/reports/${report.id}/assign`, { method: 'POST', body: { assigneeId: meId } })
+    invalidateCachePattern(/^\/api\/admin\/(reports|counters|workload)/)
+  }
+
+  /**
+   * « Prendre en charge » : on le prend **et** on se le confie.
+   *
+   * Avant, le geste ne changeait que le statut : le signalement restait « À assigner » alors qu'il
+   * était pris en charge, ce qui ne disait à personne qui s'en occupait. Même geste que « Je m'en occupe »
+   * sur mobile, dans le même ordre — si le statut échoue, l'agent l'a au moins en main.
+   */
+  async function take(report: Pick<Report, 'id' | 'assignee_id'>, meId: string | null): Promise<boolean> {
+    try {
+      await claim(report, meId)
+    } catch (err) {
+      toast.error('Assignation impossible', reason(err, 'Réessayez dans un instant.'))
+      return false
+    }
+    return updateStatus(report.id, 'pris_en_charge')
+  }
+
+  /**
    * Prendre en charge une sélection.
    *
    * En série plutôt qu'en parallèle : l'endpoint de statut est atomique par
@@ -67,7 +96,7 @@ export function useReportActions(options: {
    * limiter. Les signalements qui ne sont pas à cette étape sont ignorés, pas
    * renvoyés en erreur.
    */
-  async function bulkTakeCharge(reports: Report[], selectedIds: string[]): Promise<void> {
+  async function bulkTakeCharge(reports: Report[], selectedIds: string[], meId: string | null = null): Promise<void> {
     const targets = reports.filter(
       (report) => selectedIds.includes(report.id) &&
         (report.status === 'en_attente' || report.status === 'transmis')
@@ -82,6 +111,7 @@ export function useReportActions(options: {
     let done = 0
     try {
       for (const report of targets) {
+        await claim(report, meId)
         await apiFetch(`/api/reports/${report.id}/status`, {
           method: 'PATCH',
           body: { status: 'pris_en_charge' },
@@ -135,5 +165,5 @@ export function useReportActions(options: {
     }
   }
 
-  return { actionLoading, deleteLoading, updateStatus, bulkTakeCharge, deleteReport, deleteReports }
+  return { actionLoading, deleteLoading, updateStatus, take, bulkTakeCharge, deleteReport, deleteReports }
 }

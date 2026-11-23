@@ -47,6 +47,7 @@ import MergeDialog from '@/components/admin/report-detail/MergeDialog.vue'
 import { useBulkLifecycle } from '@/composables/useBulkLifecycle'
 import ScopeSelector from '@/pages/admin/reports/ScopeSelector.vue'
 import ReportAssigneeCell from '@/pages/admin/reports/ReportAssigneeCell.vue'
+import QuickAssign from '@/pages/admin/reports/QuickAssign.vue'
 import { useServices } from '@/composables/useServices'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
 import { useCounters } from '@/composables/useCounters'
@@ -65,7 +66,9 @@ const tenantStore = useTenantStore()
  * peu près la seule chose qu'on attend d'un élu à qui l'on ouvre la
  * plateforme.
  */
-const { canAct, isAdmin } = storeToRefs(useAuthStore())
+const authStore = useAuthStore()
+const { canAct, isAdmin } = storeToRefs(authStore)
+const meId = computed(() => authStore.user?.id ?? null)
 
 const list = useReportsList()
 const {
@@ -177,14 +180,18 @@ function goToPage(page: number) {
 // ─── Gestes ──────────────────────────────────────────────────────────────────
 
 async function updateStatus(reportId: string, status: ReportStatus, comment?: string) {
-  const ok = await actions.updateStatus(reportId, status, comment)
+  // « Prendre en charge » — depuis la ligne comme depuis le panneau — se confie aussi le signalement.
+  // Un retour en arrière (qui porte un motif) ne confie rien.
+  const report = reports.value.find((item) => item.id === reportId) ?? (selectedReport.value?.id === reportId ? selectedReport.value : null)
+  const taking = status === 'pris_en_charge' && !comment && (report?.status === 'en_attente' || report?.status === 'transmis')
+  const ok = taking && report ? await actions.take(report, meId.value) : await actions.updateStatus(reportId, status, comment)
   if (ok && selectedReport.value?.id === reportId) {
     selectedReport.value = reports.value.find((report) => report.id === reportId) ?? null
   }
 }
 
 async function bulkTakeCharge() {
-  await actions.bulkTakeCharge(reports.value, selectedIds.value)
+  await actions.bulkTakeCharge(reports.value, selectedIds.value, meId.value)
   selectedIds.value = []
 }
 
@@ -650,13 +657,15 @@ const COLUMNS = computed<DataColumn[]>(() => [
         </template>
 
         <template #cell-assignee="{ row }">
-          <ReportAssigneeCell
-            :report="row"
-            :assignee-name="directory.nameOf(row.assignee_id)"
-            :service-name="serviceOf(row.service_id)?.name ?? null"
-            :service-color="serviceOf(row.service_id)?.color ?? null"
-            :closed="isClosed(row.status)"
-          />
+          <QuickAssign :report="row" :enabled="canAct && !isClosed(row.status)" @assigned="onAssigned">
+            <ReportAssigneeCell
+              :report="row"
+              :assignee-name="directory.nameOf(row.assignee_id)"
+              :service-name="serviceOf(row.service_id)?.name ?? null"
+              :service-color="serviceOf(row.service_id)?.color ?? null"
+              :closed="isClosed(row.status)"
+            />
+          </QuickAssign>
         </template>
 
         <template #cell-votes="{ row }">

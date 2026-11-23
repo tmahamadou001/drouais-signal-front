@@ -121,3 +121,34 @@ describe('ReportActions — cycle de vie', () => {
     expect(wrapper.emitted('changed')).toBeUndefined()
   })
 })
+
+describe('ReportActions — le bas du panneau reste compact', () => {
+  it('puts advancing and resolving on one row, and « Transmettre » as a discreet link under it', () => {
+    const wrapper = mountActions('en_attente')
+    expect(wrapper.find('[data-testid="take"]').classes()).toContain('h-9')
+    expect(wrapper.find('[data-testid="resolve"]').classes()).toContain('h-9')
+    expect(wrapper.find('[data-testid="take"]').element.parentElement).toBe(wrapper.find('[data-testid="resolve"]').element.parentElement)
+    expect(wrapper.find('[data-testid="transmit"]').exists()).toBe(true)
+  })
+
+  it('keeps the way back inside « Plus d’actions », not as a row of its own', async () => {
+    const wrapper = mountActions('pris_en_charge')
+    expect(wrapper.find('[data-testid="rollback-title"]').exists()).toBe(false)
+
+    await wrapper.find('[data-testid="more-actions"]').trigger('click')
+    expect(wrapper.find('[data-testid="rollback-title"]').exists()).toBe(true)
+
+    await wrapper.find('[data-testid="rollback-en_attente"]').trigger('click')
+    expect(wrapper.emitted('updateStatus')?.[0]?.[0]).toBe('en_attente')
+    expect(wrapper.find('[data-testid="rollback-title"]').exists()).toBe(false)
+  })
+
+  it('does not offer to transmit once the report is closed', () => {
+    expect(mountActions('resolu').find('[data-testid="transmit"]').exists()).toBe(false)
+  })
+
+  it('announces the transmission by what is configured', () => {
+    const wrapper = mount(ReportActions, { props: { report: report('en_attente') as never, loading: false, configuredRecipients: ['a@x.fr', 'b@x.fr'] }, global: { stubs } })
+    expect(wrapper.find('[data-testid="transmit"]').text()).toContain('ces intervenants')
+  })
+})

@@ -181,7 +181,13 @@ const ackRatio = computed(() =>
         </span>
       </RouterLink>
 
-      <div class="px-3 pb-2.5 pt-5 text-[11px] font-semibold leading-none tracking-[0.1em] text-brand-500">
+      <!-- Un agent n'a rien à régler : un titre de section sans entrée dessous
+           est une porte qui ne mène nulle part. -->
+      <div
+        v-if="collectivityItems.length > 0"
+        class="px-3 pb-2.5 pt-5 text-[11px] font-semibold leading-none tracking-[0.1em] text-brand-500"
+        data-testid="collectivity-title"
+      >
         COLLECTIVITÉ
       </div>
       <RouterLink

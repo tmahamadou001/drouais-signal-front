@@ -205,13 +205,15 @@ describe('actions', () => {
    * Clicking the wrong row used to have no remedy: the only way out was to
    * delete the report, losing its history and leaving the citizen unanswered.
    */
-  it('offers a rollback on a report in progress', async () => {
+  it('offers a rollback on a report in progress, inside « Plus d’actions »', async () => {
     const wrapper = sidebar({ report: report({ status: 'pris_en_charge' }) })
 
-    expect(wrapper.text()).toContain('Revenir à une étape précédente')
+    // Rangé dans le menu : il ne prend plus une ligne du bas du panneau.
+    expect(wrapper.find('[data-testid="rollback-title"]').exists()).toBe(false)
 
-    await wrapper.findAll('button').find((button) => button.text().includes('Revenir à'))!.trigger('click')
-    await wrapper.findAll('button').find((button) => button.text() === 'En attente')!.trigger('click')
+    await wrapper.find('[data-testid="more-actions"]').trigger('click')
+    expect(wrapper.find('[data-testid="rollback-title"]').exists()).toBe(true)
+    await wrapper.find('[data-testid="rollback-en_attente"]').trigger('click')
 
     expect(wrapper.emitted('updateStatus')?.[0]).toEqual([
       report().id, 'en_attente', 'Retour à « En attente »',

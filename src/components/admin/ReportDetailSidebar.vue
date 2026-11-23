@@ -46,6 +46,7 @@ import { useInternalMessages } from '@/composables/useInternalMessages'
 import { useActivity } from '@/composables/useActivity'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
 import type { TeamView } from '@/types/team'
+import ReportHandoffs from './report-detail/ReportHandoffs.vue'
 import { usePhotoUpload } from '@/composables/usePhotoUpload'
 import AppIcon from '@/components/AppIcon.vue'
 import PhotoLightbox from '@/components/PhotoLightbox.vue'
@@ -489,6 +490,9 @@ watch([view, thread], async ([nextView, nextThread]) => {
               :closed="isClosed(report.status)"
               @assign="assignOpen = true"
             />
+
+            <!-- Chez qui il est parti hors de la mairie, s'il l'est. -->
+            <ReportHandoffs :team="team" />
 
             <!-- Une seule zone de défilement, et elle n'a qu'une liste à la
                  fois : c'est tout le propos du cloisonnement. -->
