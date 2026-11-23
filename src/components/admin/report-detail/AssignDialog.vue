@@ -17,6 +17,7 @@ import { useAssignment } from '@/composables/useAssignment'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
 import { useServices } from '@/composables/useServices'
 import { useAuthStore } from '@/stores/auth'
+import { memberLabel, memberSearchText } from '@/lib/members'
 import type { TeamView } from '@/types/team'
 
 const props = defineProps<{
@@ -54,7 +55,7 @@ const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, 
 /** Moi d'abord, puis les autres par ordre alphabétique (l'annuaire est déjà trié). */
 const people = computed(() => {
   const needle = normalize(search.value.trim())
-  const list = directory.assignable.value.filter((member) => !needle || normalize(member.name ?? '').includes(needle))
+  const list = directory.assignable.value.filter((member) => !needle || memberSearchText(member).includes(needle))
   const me = auth.user?.id
   return [...list.filter((member) => member.userId === me), ...list.filter((member) => member.userId !== me)]
 })
@@ -121,7 +122,7 @@ async function unassign() {
                     @click="chosen = chosen === member.userId ? null : member.userId"
                   >
                     <span class="min-w-0 flex-1 truncate text-[13px] font-semibold text-ink">
-                      {{ member.name ?? 'Membre sans nom' }}
+                      {{ memberLabel(member, 'Membre sans nom') }}
                       <span v-if="member.userId === auth.user?.id" class="font-medium text-muted"> (moi)</span>
                     </span>
                     <span class="text-[11px] text-muted">{{ member.role === 'admin' ? 'Administrateur' : 'Agent' }}</span>

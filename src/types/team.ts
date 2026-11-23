@@ -6,6 +6,8 @@ export interface DirectoryMember {
   lastName: string | null
   /** « Prénom Nom », ou `null` quand aucun des deux n'est renseigné. */
   name: string | null
+  /** Rendue seulement quand le nom manque : de quoi distinguer deux membres jamais nommés. */
+  email?: string | null
   role: 'admin' | 'agent' | 'observer'
   jobTitle: string | null
 }
@@ -105,6 +107,7 @@ export interface Counters {
 export interface WorkloadAgent {
   userId: string
   name: string | null
+  email?: string | null
   role: 'admin' | 'agent'
   services: string[]
   openCount: number

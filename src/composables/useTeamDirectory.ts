@@ -1,6 +1,7 @@
 import { computed, ref } from 'vue'
 import { useApi } from '@/composables/useApi'
 import type { DirectoryMember } from '@/types/team'
+import { memberLabel } from '@/lib/members'
 
 /**
  * L'annuaire de l'équipe : qui peut se voir confier un signalement ou être cité.
@@ -37,8 +38,11 @@ export function useTeamDirectory() {
   /** Ceux à qui l'on peut confier : un observateur consulte, il ne traite pas. */
   const assignable = computed(() => members.value.filter((member) => member.role !== 'observer'))
 
-  const nameOf = (userId: string | null | undefined): string | null =>
-    members.value.find((member) => member.userId === userId)?.name ?? null
+  /** Le nom du membre, ou son adresse s'il n'en a pas ; `null` seulement s'il n'est plus dans l'équipe. */
+  const nameOf = (userId: string | null | undefined): string | null => {
+    const member = members.value.find((item) => item.userId === userId)
+    return member && (member.name || member.email) ? memberLabel(member) : null
+  }
 
   return { members, assignable, loaded, load, nameOf }
 }

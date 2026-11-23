@@ -10,6 +10,7 @@
 import { computed, nextTick, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
+import { memberLabel } from '@/lib/members'
 import { applyMention, detectMentionQuery, filterMentionable, mentionedIn, type Mentionable } from '@/lib/mentions'
 
 const MAX = 500
@@ -30,9 +31,11 @@ const query = computed(() => detectMentionQuery(text.value, caret.value))
 
 const options = computed(() => {
   if (!query.value) return []
+  // Un membre jamais nommé se cite par son adresse : « @mairie@dreux-ville.fr » — sans cela il n'était
+  // pas citable du tout, alors qu'il a un compte et reçoit ses alertes.
   const candidates = directory.assignable.value
-    .filter((member): member is typeof member & { name: string } => Boolean(member.name))
-    .map((member) => ({ id: member.userId, name: member.name }))
+    .filter((member) => Boolean(member.name || member.email))
+    .map((member) => ({ id: member.userId, name: memberLabel(member) }))
   return filterMentionable(candidates, query.value.query)
 })
 

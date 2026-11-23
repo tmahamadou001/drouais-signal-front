@@ -17,6 +17,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import { useRouting } from '@/composables/useRouting'
 import { useServices } from '@/composables/useServices'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
+import { memberLabel } from '@/lib/members'
 import { useTenantCategories } from '@/composables/useTenantCategories'
 
 const routing = useRouting()
@@ -79,7 +80,7 @@ async function change(category: string, field: 'assigneeId' | 'serviceId', value
                   @change="change(category.slug, 'assigneeId', ($event.target as HTMLSelectElement).value)"
                 >
                   <option value="">— Personne —</option>
-                  <option v-for="member in directory.assignable.value" :key="member.userId" :value="member.userId">{{ member.name ?? 'Membre sans nom' }}</option>
+                  <option v-for="member in directory.assignable.value" :key="member.userId" :value="member.userId">{{ memberLabel(member, 'Membre sans nom') }}</option>
                 </select>
               </td>
               <td class="px-4 py-3">

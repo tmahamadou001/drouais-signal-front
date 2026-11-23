@@ -4,6 +4,7 @@ import { ref } from 'vue'
 
 const assign = vi.hoisted(() => vi.fn())
 const members = vi.hoisted(() => [
+  { userId: 'u-anon', name: null, email: 'sans-nom@exemple.fr', role: 'agent' },
   { userId: 'u-julie', name: 'Julie Martin', role: 'agent' },
   { userId: 'u-me', name: 'Nadia Lefèvre', role: 'agent' },
   { userId: 'u-marc', name: 'Marc Leroy', role: 'admin' },
@@ -19,6 +20,72 @@ const make = (report: Record<string, unknown> = {}, enabled = true) =>
   mount(QuickAssign, { props: { report: { id: 'r1', status: 'en_attente', assignee_id: null, service_id: 's1', ...report } as never, enabled }, slots: { default: '<span data-testid="cell">À assigner</span>' }, global: { stubs: { AppIcon: true } }, attachTo: document.body })
 
 beforeEach(() => { vi.clearAllMocks(); assign.mockResolvedValue({ changed: true }); document.body.innerHTML = '' })
+
+const place = (wrapper: ReturnType<typeof make>, top: number, bottom: number, viewport = 800) => {
+  Object.defineProperty(window, 'innerHeight', { value: viewport, configurable: true })
+  Object.defineProperty(window, 'innerWidth', { value: 1200, configurable: true })
+  ;(wrapper.get('[data-testid="quick-assign"]').element as HTMLElement).getBoundingClientRect = () => ({ top, bottom, left: 600, right: 760, width: 160, height: bottom - top, x: 600, y: top, toJSON: () => ({}) })
+}
+const menuStyle = () => (document.body.querySelector('[data-testid="quick-assign-menu"]') as HTMLElement).style
+
+describe('QuickAssign — membres sans nom', () => {
+  it('shows the e-mail address of a member with no name, so two of them can be told apart', async () => {
+    const wrapper = make()
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    const label = document.body.querySelector('[data-testid="quick-assign-u-anon"]')?.textContent ?? ''
+    expect(label).toContain('sans-nom@exemple.fr')
+    expect(label).not.toContain('Sans nom')
+    wrapper.unmount()
+  })
+
+  it('finds a member by address in the search', async () => {
+    const wrapper = make()
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    const search = document.body.querySelector('[data-testid="quick-assign-search"]') as HTMLInputElement
+    search.value = 'exemple.fr'
+    search.dispatchEvent(new Event('input'))
+    await wrapper.vm.$nextTick()
+    const found = [...document.body.querySelectorAll('[data-testid^="quick-assign-u-"]')].map((node) => node.getAttribute('data-testid'))
+    expect(found).toEqual(['quick-assign-u-anon'])
+    wrapper.unmount()
+  })
+})
+
+describe('QuickAssign — placement', () => {
+  it('opens right under its cell when there is room', async () => {
+    const wrapper = make()
+    place(wrapper, 100, 140)
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    expect(menuStyle().top).toBe('146px')
+    expect(menuStyle().bottom).toBe('')
+    wrapper.unmount()
+  })
+
+  it('opens above, glued to its cell, when the row is at the bottom — not floating at the top of the screen', async () => {
+    const wrapper = make()
+    place(wrapper, 700, 740)
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    // Accroché au bord haut du bouton (800 − 700 + 6), quelle que soit la hauteur réelle du menu.
+    expect(menuStyle().bottom).toBe('106px')
+    expect(menuStyle().top).toBe('')
+    wrapper.unmount()
+  })
+
+  it('shrinks to the room it has instead of overflowing the screen', async () => {
+    const wrapper = make()
+    place(wrapper, 100, 140, 330)
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    expect(parseInt(menuStyle().maxHeight)).toBeLessThanOrEqual(330)
+    wrapper.unmount()
+  })
+
+  it('always offers the search, even for a small team', async () => {
+    const wrapper = make()
+    await wrapper.get('[data-testid="quick-assign"]').trigger('click')
+    expect(document.body.querySelector('[data-testid="quick-assign-search"]')).not.toBeNull()
+    wrapper.unmount()
+  })
+})
 
 describe('QuickAssign — un seul menu à la fois', () => {
   it('closes the first menu when another cell opens its own', async () => {
@@ -73,7 +140,7 @@ describe('QuickAssign', () => {
     const items = [...document.body.querySelectorAll('[data-testid^="quick-assign-u-"]')].map((node) => node.textContent?.trim())
     expect(items[0]).toContain('Nadia Lefèvre')
     expect(items[0]).toContain('Moi')
-    expect(items).toHaveLength(3)
+    expect(items).toHaveLength(4)
     wrapper.unmount()
   })
 

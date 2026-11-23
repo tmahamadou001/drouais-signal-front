@@ -87,3 +87,19 @@ describe('segmentsOf', () => {
     expect(segmentsOf('texte', [])).toEqual([{ text: 'texte', mention: false }])
   })
 })
+
+describe('mentions with an e-mail address as the name', () => {
+  const anon = [{ id: 'anon', name: 'sans-nom@exemple.fr' }]
+
+  it('inserts, finds and highlights it like a name — although it contains an @', () => {
+    const { text } = applyMention('Salut @sans', 11, { start: 6, query: 'sans' }, anon[0].name)
+    expect(text).toBe('Salut @sans-nom@exemple.fr ')
+    expect(mentionedIn(text, anon)).toEqual(['anon'])
+    expect(segmentsOf(text, ['sans-nom@exemple.fr']).filter((part) => part.mention).map((part) => part.text)).toEqual(['@sans-nom@exemple.fr'])
+  })
+
+  it('is found by the start of the address', () => {
+    expect(filterMentionable(anon, 'sans')).toEqual(anon)
+    expect(filterMentionable(anon, 'zzz')).toEqual([])
+  })
+})

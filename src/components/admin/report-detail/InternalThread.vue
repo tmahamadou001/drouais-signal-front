@@ -10,13 +10,15 @@
 import { computed, nextTick, ref } from 'vue'
 import AppIcon from '@/components/AppIcon.vue'
 import { segmentsOf } from '@/lib/mentions'
+import { memberLabel } from '@/lib/members'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
 import type { InternalMessage } from '@/types/team'
 
 const props = defineProps<{ messages: InternalMessage[]; loading: boolean }>()
 
 const { members } = useTeamDirectory()
-const names = computed(() => members.value.map((member) => member.name).filter((name): name is string => Boolean(name)))
+// Les mentions à surligner : le nom, ou l'adresse pour un membre jamais nommé (c'est ce qui a été inséré).
+const names = computed(() => members.value.filter((member) => member.name || member.email).map((member) => memberLabel(member)))
 
 const root = ref<HTMLElement | null>(null)
 

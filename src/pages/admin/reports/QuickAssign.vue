@@ -27,6 +27,7 @@ import AppIcon from '@/components/AppIcon.vue'
 import { useAssignment } from '@/composables/useAssignment'
 import { useTeamDirectory } from '@/composables/useTeamDirectory'
 import { useAuthStore } from '@/stores/auth'
+import { memberLabel, memberSearchText } from '@/lib/members'
 import type { Report } from '@/types'
 
 const props = defineProps<{ report: Report; enabled: boolean }>()
@@ -36,6 +37,11 @@ const auth = useAuthStore()
 const directory = useTeamDirectory()
 const { assign, saving } = useAssignment()
 
+const MENU_WIDTH = 264
+const MENU_MAX_HEIGHT = 340
+/** Sous cette hauteur libre, on préfère ouvrir de l'autre côté. */
+const MIN_ROOM = 200
+
 const open = computed({
   get: () => openId.value === props.report.id,
   set: (value: boolean) => { openId.value = value ? props.report.id : null },
@@ -43,19 +49,16 @@ const open = computed({
 const search = ref('')
 const trigger = ref<HTMLElement | null>(null)
 const menu = ref<HTMLElement | null>(null)
-const position = ref({ top: 0, left: 0 })
+/** Accroché au bord du bouton : `top` quand il s'ouvre dessous, `bottom` quand il s'ouvre dessus. */
+const position = ref<{ top?: number; bottom?: number; left: number; maxHeight: number }>({ left: 0, maxHeight: MENU_MAX_HEIGHT })
 
-const MENU_WIDTH = 264
-const MENU_MAX_HEIGHT = 340
-/** Au-delà, une liste se cherche plus vite qu'elle ne se parcourt. */
-const SEARCH_FROM = 7
 
 const normalize = (value: string) => value.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /** Moi d'abord, puis les autres par ordre alphabétique (l'annuaire est déjà trié). */
 const people = computed(() => {
   const needle = normalize(search.value.trim())
-  const list = directory.assignable.value.filter((member) => !needle || normalize(member.name ?? '').includes(needle))
+  const list = directory.assignable.value.filter((member) => !needle || memberSearchText(member).includes(needle))
   const me = auth.user?.id
   return [...list.filter((member) => member.userId === me), ...list.filter((member) => member.userId !== me)]
 })
@@ -68,11 +71,16 @@ async function toggle() {
   await nextTick()
   const box = trigger.value?.getBoundingClientRect()
   if (!box) return
-  // Sous la cellule ; au-dessus quand il n'y a pas la place (dernières lignes de la table).
-  const below = window.innerHeight - box.bottom
-  const top = below >= MENU_MAX_HEIGHT + 12 ? box.bottom + 6 : Math.max(8, box.top - MENU_MAX_HEIGHT - 6)
+  const below = window.innerHeight - box.bottom - 14
+  const above = box.top - 14
+  // Dessous quand il y a la place (ou plus de place que dessus), dessus sinon — dans les deux cas collé
+  // au bouton, et la liste défile si l'espace manque : un menu qui flotte loin de sa cellule ne dit pas
+  // à quelle ligne il se rapporte.
+  const placeBelow = below >= MIN_ROOM || below >= above
   const left = Math.min(Math.max(8, box.left), window.innerWidth - MENU_WIDTH - 8)
-  position.value = { top, left }
+  position.value = placeBelow
+    ? { top: box.bottom + 6, left, maxHeight: Math.min(MENU_MAX_HEIGHT, below) }
+    : { bottom: window.innerHeight - box.top + 6, left, maxHeight: Math.min(MENU_MAX_HEIGHT, above) }
 }
 
 async function choose(assigneeId: string | null) {
@@ -127,12 +135,11 @@ onBeforeUnmount(() => {
         ref="menu"
         role="menu"
         class="font-ui fixed z-[70] flex flex-col overflow-hidden rounded-xl border border-line bg-white shadow-ds-lg"
-        :style="{ top: `${position.top}px`, left: `${position.left}px`, width: `${MENU_WIDTH}px`, maxHeight: `${MENU_MAX_HEIGHT}px` }"
+        :style="{ ...(position.top !== undefined ? { top: `${position.top}px` } : { bottom: `${position.bottom}px` }), left: `${position.left}px`, width: `${MENU_WIDTH}px`, maxHeight: `${position.maxHeight}px` }"
         data-testid="quick-assign-menu"
         @click.stop
       >
         <input
-          v-if="directory.assignable.value.length >= SEARCH_FROM"
           v-model="search"
           type="search"
           autocomplete="off"
@@ -151,7 +158,7 @@ onBeforeUnmount(() => {
               :data-testid="`quick-assign-${member.userId}`"
               @click="choose(member.userId)"
             >
-              <span class="min-w-0 flex-1 truncate">{{ member.name ?? 'Sans nom' }}</span>
+              <span class="min-w-0 flex-1 truncate">{{ memberLabel(member) }}</span>
               <span v-if="member.userId === auth.user?.id" class="flex-none text-[11px] font-semibold text-brand-700">Moi</span>
               <AppIcon v-else-if="member.userId === report.assignee_id" name="Check" :size="14" :stroke-width="2.25" class="flex-none text-brand-700" />
             </button>

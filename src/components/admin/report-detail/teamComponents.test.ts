@@ -362,3 +362,39 @@ describe('ReportAssignment — votes des habitants', () => {
     expect(wrapper.find('[data-testid="votes-line"]').text()).toBe('Habitants : 4 toujours là · 1 plus là · 3 suivent · 2 mercis')
   })
 })
+
+describe('membres sans nom — mentions', () => {
+  const anon = { userId: 'anon', name: null, email: 'sans-nom@exemple.fr', role: 'agent' }
+
+  it('can be cited by e-mail address: a member who was never named still has an account and alerts', async () => {
+    directory.members.value = [...people, anon]
+    const wrapper = mount(InternalComposer, { props: { sending: false }, global: { stubs }, attachTo: document.body })
+    const field = wrapper.find('textarea')
+    const element = field.element as HTMLTextAreaElement
+    element.value = 'Salut @sans'
+    element.setSelectionRange(11, 11)
+    await field.trigger('input')
+
+    expect(wrapper.findAll('[role="option"]').map((option) => option.text())).toEqual(['sans-nom@exemple.fr'])
+    await wrapper.find('[data-testid="mention-anon"]').trigger('mousedown')
+    await nextTick()
+    expect(element.value).toBe('Salut @sans-nom@exemple.fr ')
+  })
+
+  it('highlights such a mention in the thread, like any other', () => {
+    directory.members.value = [...people, anon]
+    const wrapper = mount(InternalThread, {
+      props: { messages: [{ id: '1', author_id: 'marc', author_name: 'Marc Leroy', content: 'Peux-tu voir @sans-nom@exemple.fr ?', mentions: [], created_at: '2026-11-22T10:00:00Z' }], loading: false },
+      global: { stubs },
+    })
+    expect(wrapper.find('span.font-semibold').text()).toBe('@sans-nom@exemple.fr')
+  })
+
+  it('shows the address of an author the server could only name by it', () => {
+    const wrapper = mount(InternalThread, {
+      props: { messages: [{ id: '1', author_id: 'anon', author_name: 'sans-nom@exemple.fr', content: 'ok', mentions: [], created_at: '2026-11-22T10:00:00Z' }], loading: false },
+      global: { stubs },
+    })
+    expect(wrapper.find('[data-testid="internal-message"]').text()).toContain('sans-nom@exemple.fr')
+  })
+})

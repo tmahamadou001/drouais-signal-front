@@ -14,6 +14,7 @@ import InfoTip from '@/components/InfoTip.vue'
 import { computed, onMounted } from 'vue'
 import { useWorkload } from '@/composables/useWorkload'
 import AppIcon from '@/components/AppIcon.vue'
+import { memberLabel } from '@/lib/members'
 
 const { agents, unassigned, loading, failed, load } = useWorkload()
 
@@ -54,7 +55,7 @@ const width = (count: number) => `${Math.round((count / maximum.value) * 100)}%`
 
       <li v-for="agent in agents" :key="agent.userId" class="flex items-center gap-3" :data-testid="`workload-${agent.userId}`">
         <span class="w-[190px] min-w-0 flex-none">
-          <span class="block truncate text-[13px] font-medium text-ink">{{ agent.name ?? 'Membre sans nom' }}</span>
+          <span class="block truncate text-[13px] font-medium text-ink">{{ memberLabel(agent, 'Membre sans nom') }}</span>
           <span v-if="agent.services.length" class="block truncate text-[11px] text-muted">{{ agent.services.join(', ') }}</span>
         </span>
         <span class="h-2 min-w-0 flex-1 overflow-hidden rounded bg-canvas">
