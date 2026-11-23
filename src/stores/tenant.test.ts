@@ -89,3 +89,51 @@ describe('mapCenter', () => {
     expect(store.mapCenter.zoom).toBe(13)
   })
 })
+
+describe('load — pourquoi une commune ne se charge pas', () => {
+  const answer = (status: number) => vi.fn().mockResolvedValue({ ok: status >= 200 && status < 300, status, json: async () => ({ config: {} }) })
+
+  it('says « not found » only when the server does not know the commune', async () => {
+    vi.stubGlobal('fetch', answer(404))
+    const store = useTenantStore()
+    await store.load()
+    expect(store.errorKind).toBe('not_found')
+  })
+
+  it('does not take a 429 for an unknown commune, and does not retry it — every retry costs the whole address', async () => {
+    const fetchMock = answer(429)
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useTenantStore()
+
+    await store.load()
+
+    expect(store.errorKind).toBe('rate_limited')
+    expect(store.error).toContain('Réessayez')
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+  })
+
+  it('calls an outage an outage, after its retries', async () => {
+    vi.useFakeTimers()
+    const fetchMock = vi.fn().mockRejectedValue(new Error('offline'))
+    vi.stubGlobal('fetch', fetchMock)
+    const store = useTenantStore()
+
+    const loading = store.load()
+    await vi.runAllTimersAsync()
+    await loading
+
+    expect(store.errorKind).toBe('unavailable')
+    expect(fetchMock).toHaveBeenCalledTimes(3)
+    vi.useRealTimers()
+  })
+
+  it('clears the reason when a later load succeeds', async () => {
+    const store = useTenantStore()
+    vi.stubGlobal('fetch', answer(429))
+    await store.load()
+    vi.stubGlobal('fetch', answer(200))
+    await store.load()
+    expect(store.errorKind).toBeNull()
+    expect(store.error).toBeNull()
+  })
+})

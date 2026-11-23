@@ -23,6 +23,14 @@ export const useTenantStore = defineStore('tenant', () => {
   const data = ref<TenantPublicData | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
+  /**
+   * Pourquoi la commune n'a pas pu être chargée.
+   *
+   * `not_found` : le serveur ne la connaît pas — la seule raison de dire « cette ville n'est pas configurée ».
+   * `rate_limited` : il a demandé de patienter (429). `unavailable` : il ne répond pas. Les confondre faisait
+   * dire à un back-office bloqué un quart d'heure que sa commune n'existait pas.
+   */
+  const errorKind = ref<'not_found' | 'rate_limited' | 'unavailable' | null>(null)
 
   /**
    * La taxonomie complète, inactives comprises. `null` tant que personne ne l'a
@@ -75,6 +83,7 @@ export const useTenantStore = defineStore('tenant', () => {
   const load = async (): Promise<void> => {
     loading.value = true
     error.value = null
+    errorKind.value = null
 
     const tenantSlug = detectSlug()
 
@@ -104,6 +113,15 @@ export const useTenantStore = defineStore('tenant', () => {
         if (response.status === 404) {
           // Tenant inexistant — inutile de réessayer
           error.value = 'Tenant introuvable'
+          errorKind.value = 'not_found'
+          break
+        }
+
+        if (response.status === 429) {
+          // Le serveur vient de demander de patienter : réessayer ici, c'est lui désobéir — et chaque essai
+          // compte contre le budget de toute l'adresse. On s'arrête, et l'écran le dit.
+          error.value = 'Trop de requêtes. Réessayez dans une minute.'
+          errorKind.value = 'rate_limited'
           break
         }
 
@@ -121,6 +139,7 @@ export const useTenantStore = defineStore('tenant', () => {
           await new Promise((resolve) => setTimeout(resolve, RETRY_DELAY_MS * attempt))
         } else {
           error.value = 'Impossible de charger la configuration. Vérifiez votre connexion.'
+          errorKind.value = 'unavailable'
         }
       }
     }
@@ -191,7 +210,7 @@ export const useTenantStore = defineStore('tenant', () => {
   }
 
   return {
-    data, loading, error,
+    data, loading, error, errorKind,
     slug, name, config, tenantId,
     categories, activeCategories,
     mapCenter, features,

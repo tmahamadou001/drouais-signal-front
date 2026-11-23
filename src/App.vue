@@ -16,6 +16,7 @@ import { Analytics } from '@vercel/analytics/vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useTenantStore } from '@/stores/tenant'
 import TenantNotFoundView from '@/pages/TenantNotFoundView.vue'
+import TenantUnavailableView from '@/pages/TenantUnavailableView.vue'
 
 const tenantStore = useTenantStore()
 const route = useRoute()
@@ -58,7 +59,8 @@ watch(
       <!-- Une commune introuvable n'a rien à dire d'une page qui n'en
            dépend pas : mentions légales, signalement public, lien de suivi,
            lien de service. Voir `meta.tenantless` dans `router/routes.ts`. -->
-      <TenantNotFoundView v-if="tenantStore.error && !route.meta.tenantless" />
+      <TenantNotFoundView v-if="tenantStore.errorKind === 'not_found' && !route.meta.tenantless" />
+      <TenantUnavailableView v-else-if="tenantStore.error && !route.meta.tenantless" />
       <RouterView v-else v-slot="{ Component }">
         <transition name="page" mode="out-in">
           <component :is="Component" />
