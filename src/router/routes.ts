@@ -1,4 +1,5 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { teamLinkRedirect } from './teamLink'
 
 /**
  * La table des routes, séparée de la création du routeur.
@@ -78,6 +79,8 @@ export const routes: RouteRecordRaw[] = [
     path: '/signalement/:id',
     name: 'report-detail',
     meta: { tenantless: true },
+    // `?equipe=<commune>` : le lien d'un e-mail d'équipe, renvoyé vers le back-office (voir `teamLink.ts`).
+    beforeEnter: teamLinkRedirect,
     component: () => import('@/pages/ReportDetailView.vue'),
   },
   {
